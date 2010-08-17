@@ -1,0 +1,60 @@
+#!/usr/bin/python2.5
+
+import yobotproto
+import eventhandlers
+import yobotops
+import yobotclass
+import collections
+import listener
+import sys
+import os
+import time
+import threading
+
+server_read_fd = os.open("/home/mordy/src/purple/in",os.O_WRONLY|os.O_NDELAY)
+server_write_fd = os.open("/home/mordy/src/purple/out", os.O_RDONLY|os.O_NDELAY)
+
+#a sad attempt at trying to get all the glue together to make a viable client in
+#Python
+
+#Hack to ensure that the accounts table is always indexed by integers:
+class IntDefaultDict(collections.defaultdict):
+    def __setitem__(self,key,value):
+        return super(IntDefaultDict,self).__setitem__(int(key),value)
+    def __getitem__(self, key):
+        return super(IntDefaultDict,self).__getitem__(int(key))
+    def __delitem__(self,key):
+        return super(IntDefaultDict,self).__delitem__(int(key))
+
+def log(msg):
+    print msg
+
+
+
+def eventhandler(evt):
+    assert isinstance(evt,yobotclass.YobotEvent)
+    eventhandlers.eventhandlers[evt.event](evt,accounts)
+    print "EVENT!"
+    log(evt)
+
+def msghandler(msg):
+    assert(isinstance(msg,yobotclass.YobotMessage))
+    log(msg)
+    
+accounts = IntDefaultDict(lambda: None)
+assert accounts is not None
+listener.setacctlist(accounts)
+
+yobotops.setfds(server_read_fd,server_write_fd)
+yobotops.setmsghandler(msghandler)
+yobotops.setevthandler(eventhandler)
+yobotops.setlogger(log)
+
+#yobotops_thread = threading.Thread(name="yobotops", target=yobotops.mainloop)
+listener_thread = threading.Thread(name="listener", target=listener.mainloop)
+
+print "initiating listener"
+listener_thread.start()
+print "initiating yobotops"
+#yobotops_thread.start()
+yobotops.mainloop()
