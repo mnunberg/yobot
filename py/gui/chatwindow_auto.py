@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'chatwindow.ui'
 #
-# Created: Tue Aug 10 02:41:07 2010
+# Created: Wed Aug 18 00:40:14 2010
 #      by: PyQt4 UI code generator 4.7.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -48,9 +48,6 @@ class Ui_w_chatwindow(object):
         self.userlist.setSizePolicy(sizePolicy)
         self.userlist.setStyleSheet("font: 8pt;")
         self.userlist.setObjectName("userlist")
-        QtGui.QListWidgetItem(self.userlist)
-        QtGui.QListWidgetItem(self.userlist)
-        QtGui.QListWidgetItem(self.userlist)
         self.convtext = QtGui.QTextBrowser(self.splitter)
         self.convtext.setEnabled(True)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
@@ -61,6 +58,11 @@ class Ui_w_chatwindow(object):
         self.convtext.setAcceptDrops(False)
         self.convtext.setFrameShape(QtGui.QFrame.StyledPanel)
         self.convtext.setFrameShadow(QtGui.QFrame.Sunken)
+        self.convtext.setHtml("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
+"<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
+"p, li { white-space: pre-wrap; }\n"
+"</style></head><body style=\" font-family:\'Lucida Grande\'; font-size:10pt; font-weight:400; font-style:normal;\">\n"
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-weight:600;\">hello world</span></p></body></html>")
         self.convtext.setOpenLinks(False)
         self.convtext.setObjectName("convtext")
         self.gridLayout.addWidget(self.splitter, 0, 0, 1, 1)
@@ -195,8 +197,12 @@ class Ui_w_chatwindow(object):
         self.actionShow_Backlog.setObjectName("actionShow_Backlog")
         self.actionClose = QtGui.QAction(w_chatwindow)
         self.actionClose.setObjectName("actionClose")
+        self.actionLeave = QtGui.QAction(w_chatwindow)
+        self.actionLeave.setObjectName("actionLeave")
         self.menuView.addAction(self.actionShow_Formatting_Toolbox)
+        self.menuView.addAction(self.actionShow_User_List)
         self.menuActions.addAction(self.actionShow_Backlog)
+        self.menuActions.addAction(self.actionLeave)
         self.menuFile.addAction(self.actionClose)
         self.menubar.addAction(self.menuFile.menuAction())
         self.menubar.addAction(self.menuActions.menuAction())
@@ -213,17 +219,6 @@ class Ui_w_chatwindow(object):
 
     def retranslateUi(self, w_chatwindow):
         w_chatwindow.setWindowTitle(QtGui.QApplication.translate("w_chatwindow", "MainWindow", None, QtGui.QApplication.UnicodeUTF8))
-        __sortingEnabled = self.userlist.isSortingEnabled()
-        self.userlist.setSortingEnabled(False)
-        self.userlist.item(0).setText(QtGui.QApplication.translate("w_chatwindow", "foo", None, QtGui.QApplication.UnicodeUTF8))
-        self.userlist.item(1).setText(QtGui.QApplication.translate("w_chatwindow", "bar", None, QtGui.QApplication.UnicodeUTF8))
-        self.userlist.item(2).setText(QtGui.QApplication.translate("w_chatwindow", "baz", None, QtGui.QApplication.UnicodeUTF8))
-        self.userlist.setSortingEnabled(__sortingEnabled)
-        self.convtext.setHtml(QtGui.QApplication.translate("w_chatwindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
-"<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
-"p, li { white-space: pre-wrap; }\n"
-"</style></head><body style=\" font-family:\'Lucida Grande\'; font-size:10pt; font-weight:400; font-style:normal;\">\n"
-"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-weight:600;\">hello world</span></p></body></html>", None, QtGui.QApplication.UnicodeUTF8))
         self.italic.setShortcut(QtGui.QApplication.translate("w_chatwindow", "Ctrl+I", None, QtGui.QApplication.UnicodeUTF8))
         self.bold.setShortcut(QtGui.QApplication.translate("w_chatwindow", "Ctrl+B", None, QtGui.QApplication.UnicodeUTF8))
         self.fontsize.setItemText(0, QtGui.QApplication.translate("w_chatwindow", "10", None, QtGui.QApplication.UnicodeUTF8))
@@ -243,4 +238,6 @@ class Ui_w_chatwindow(object):
         self.actionShow_Backlog.setText(QtGui.QApplication.translate("w_chatwindow", "Show Backlog", None, QtGui.QApplication.UnicodeUTF8))
         self.actionClose.setText(QtGui.QApplication.translate("w_chatwindow", "Close", None, QtGui.QApplication.UnicodeUTF8))
         self.actionClose.setShortcut(QtGui.QApplication.translate("w_chatwindow", "Alt+W", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionLeave.setText(QtGui.QApplication.translate("w_chatwindow", "Leave", None, QtGui.QApplication.UnicodeUTF8))
 
+import resources_rc

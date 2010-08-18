@@ -72,6 +72,18 @@ void yobot_core_ui_init()
 }
 
 static void join_chat(char *room_name, PurpleConnection *gc) {
+	/*check if chat already exists...*/
+	if(purple_find_conversation_with_account(PURPLE_CONV_TYPE_CHAT, room_name, gc->account)) {
+		/*exists, return success...*/
+		struct yobot_eventinfo info;
+		memset(&info,0,sizeof(info));
+		info.event = YOBOT_EVENT_ROOM_JOINED;
+		info.acctid = yobot_get_acct_id(gc->account);
+		info.data = room_name;
+		info.len = strlen(room_name) + 1;
+		yobot_protoclient_event_encode(info, &server_write_fd, YOBOT_PROTOCLIENT_TO_FD);
+		return;
+	}
 	if(!gc) {
 		printf("%s: gc is null! bailing!\n", __func__);
 	}
@@ -266,7 +278,16 @@ static void cmd_handler(yobot_protoclient_segment *seg) {
 		join_chat(room_name, gc);
 		break;
 	}
-
+	case YOBOT_CMD_ROOM_LEAVE: {
+		char *room_name = yci->data;
+		PurpleConversation *conv = purple_find_conversation_with_account(PURPLE_CONV_TYPE_CHAT, room_name, account);
+		if(!conv) {
+			printf("got request to join room which is not joined\n");
+			return;
+		}
+		purple_conversation_destroy(conv);
+		break;
+	}
 	case YOBOT_CMD_MSG_SEND: {
 		puts("YOBOT_CMD_MSG_SEND");
 		if(gc == NULL || account == NULL) {
@@ -291,6 +312,7 @@ static void cmd_handler(yobot_protoclient_segment *seg) {
 		if (!conv) {
 			if (comm->flags & YOBOT_MSG_TYPE_CHAT) {
 				puts("Conversation does not exist..");
+				//TODO: notify the client
 				break;
 				/*bail -- no such conversation, we'll bother the client to re-join
 				 * if we're sure*/
@@ -371,9 +393,10 @@ static void cmd_handler(yobot_protoclient_segment *seg) {
 		users = purple_conv_chat_get_users(conv->u.chat);
 		info.commflags = YOBOT_RESPONSE;
 		for (; users; users = users->next) {
-			char *room_user = g_strconcat(room, YOBOT_TEXT_DELIM,
-					(char*)users->data, NULL);
-			info.len = strlen(room_user);
+			PurpleConvChatBuddy *chatbuddy = users->data;
+			char *room_user = g_strconcat(room, YOBOT_TEXT_DELIM, chatbuddy->name, NULL);
+			printf("%s:user is  %s\n", __func__, chatbuddy->name);
+			info.len = strlen(room_user) + 1;
 			info.data = room_user;
 			yobot_protoclient_event_encode(info, &server_write_fd,
 					YOBOT_PROTOCLIENT_TO_FD);

@@ -112,11 +112,10 @@ static void write_im(PurpleConversation *conv, const char *who,
 
 #define leave_join(action, conv, user_name) \
 	char *room_user = g_strconcat(conv->name, YOBOT_TEXT_DELIM, user_name, NULL); \
-	struct yobot_eventinfo info; \
+	struct yobot_eventinfo info; memset(&info, 0, sizeof(info)); \
 	info.data = room_user; \
-	info.len = strlen(room_user); \
-	info.purple_type = YOBOT_PURPLE_ACCOUNT; \
-	info.severity = YOBOT_INFO; \
+	info.event = action; \
+	info.len = strlen(room_user) + 1; \
 	info.acctid = yobot_get_acct_id(conv->account); \
 	yobot_protoclient_event_encode(info, &server_write_fd, YOBOT_PROTOCLIENT_TO_FD); \
 	g_free(room_user);

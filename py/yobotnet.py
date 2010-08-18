@@ -377,7 +377,8 @@ class YobotClientService(YobotServiceBase):
             
     def roomJoined(self, obj, proto):
         acct = self.accounts.getAccount(obj.evt.objid)
-        self.uihooks.roomJoined(acct, room)
+        self.uihooks.roomJoined(acct, obj.evt.txt)
+        self.fetchRoomUsers(self.accounts.getAccount(obj.evt.objid),obj.evt.txt)
         
     def buddyEvent(self, obj, proto):
         #find account...
@@ -388,6 +389,8 @@ class YobotClientService(YobotServiceBase):
         print acct
         
         name, data = obj.evt.txt.split(str(yobotproto.YOBOT_TEXT_DELIM), 1)
+        name = name.replace('\0', '')
+        
         if name == "*":
             name = None
         if obj.evt.event == yobotproto.YOBOT_EVENT_BUDDY_GOT_ICON:            
@@ -396,8 +399,26 @@ class YobotClientService(YobotServiceBase):
             acct.gotBuddyStatus(name, obj.evt.event, data)
             
     def chatUserEvent(self, obj, proto):
-        "user joined or left.. do something"
-        pass
+        evt = obj.evt
+        joined = True
+        if evt.event == yobotproto.YOBOT_EVENT_ROOM_USER_LEFT:
+            joined = False
+            
+        room, user = evt.txt.split(yobotproto.YOBOT_TEXT_DELIM, 1)
+        print "Room is", room
+        print "User is", user
+        acct = self.accounts.getAccount(evt.objid)
+        if not acct:
+            print "couldn't find account"
+            return
+        
+        if joined:
+            self.uihooks.chatUserJoined(acct, room, user)
+        else:
+            self.uihooks.chatUserLeft(acct, room, user)
+            
+        print obj.evt
+
     
     evthandlers = {
         yobotproto.YOBOT_EVENT_CLIENT_REGISTERED : "clientRegistered",
@@ -411,6 +432,9 @@ class YobotClientService(YobotServiceBase):
         yobotproto.YOBOT_EVENT_LOGIN_TIMEOUT: "accountConnectionRemoved",
         yobotproto.YOBOT_EVENT_ACCT_REMOVED: "accountConnectionRemoved",
         yobotproto.YOBOT_EVENT_USER_ADDREQ: "handle_request",
+        yobotproto.YOBOT_EVENT_ROOM_JOINED: "roomJoined",
+        yobotproto.YOBOT_EVENT_ROOM_USER_JOIN: "chatUserEvent",
+        yobotproto.YOBOT_EVENT_ROOM_USER_LEFT: "chatUserEvent"
         }
     for status in ("AWAY", "BRB", "BUSY", "OFFLINE", "ONLINE", "IDLE", "INVISIBLE",
                    "GOT_ICON"):
@@ -735,8 +759,10 @@ class YobotServerService(YobotServiceBase):
         yobotproto.YOBOT_EVENT_CONNECTED : "purple_handle_acct_connection",
         yobotproto.YOBOT_EVENT_LOGIN_ERR : "purple_handle_acct_connection",
         yobotproto.YOBOT_EVENT_BUDDY_GOT_ICON : "relay_event",
+        yobotproto.YOBOT_EVENT_ROOM_USER_JOIN: "relay_event",
         yobotproto.YOBOT_EVENT_CONNECTING: "relay_event",
         yobotproto.YOBOT_EVENT_USER_ADDREQ: "relay_event",
+        yobotproto.YOBOT_EVENT_ROOM_JOINED: "relay_event",
         }
     for status in ("AWAY", "BRB", "BUSY", "OFFLINE", "ONLINE", "IDLE", "INVISIBLE"):
         purple_eventhandlers[getattr(yobotproto, "YOBOT_EVENT_BUDDY_" + status)] = "relay_event"
@@ -828,6 +854,7 @@ class YobotServerService(YobotServiceBase):
         #if not self.verifyObj(obj, client):
         #    raise UnauthorizedTransmission()
         #finally.. relay..
+        print obj.evt
         client.sendPrefixed(obj.raw)
         
     def relay_event(self, obj, proto):

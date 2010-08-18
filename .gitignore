@@ -1,3 +1,5 @@
 *.o
 *.pyc
 *.so
+yobot
+proto_test

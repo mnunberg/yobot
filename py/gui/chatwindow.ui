@@ -67,21 +67,6 @@
            <property name="styleSheet">
             <string notr="true">font: 8pt;</string>
            </property>
-           <item>
-            <property name="text">
-             <string>foo</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>bar</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>baz</string>
-            </property>
-           </item>
           </widget>
           <widget class="QTextBrowser" name="convtext">
            <property name="enabled">

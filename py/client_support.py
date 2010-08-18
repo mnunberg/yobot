@@ -103,7 +103,7 @@ class YBuddy(object):
         self.blist = blist
         self.account = blist.account #why not?
     def __str__(self):
-        return self.alias if self.alias else self.name
+        return self.name
     def __hash__(self):
         return hash(self.name)
     def __eq__(self, other):
@@ -177,10 +177,8 @@ class YCAccount(YobotAccount):
     def joinchat(self, room_name):
         self.svc.joinRoom(self, str(room_name))
         
-    def leavechat(self, chat):
-        if not chat in self.room or chat.joined:
-            return
-        self.sendcomm(mkcommand(yobotproto.YOBOT_CMD_ROOM_LEAVE,self._id,data=chat.name))
+    def leaveRoom(self, name):
+        self.svc.leaveRoom(self, name)
             
     def connect(self):
         #assume we have an ID...

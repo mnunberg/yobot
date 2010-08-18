@@ -13,6 +13,8 @@ import chatwindow_auto
 import time
 import string
 import random
+import buddy_entry
+
 from css_sax import simplify_css
 
 from PyQt4 import QtCore, QtGui
@@ -21,17 +23,21 @@ from PyQt4 import QtCore, QtGui
 from PyQt4.QtGui import (QComboBox, QMainWindow, QStandardItemModel, QStandardItem,
                          QIcon, QPixmap, QImage, QPainter, QDialog, QMessageBox,
                          QApplication, QFont, QTextEdit, QColorDialog, QPalette,
-                         QListWidget, QListWidgetItem)
+                         QListWidget, QListWidgetItem, QStyledItemDelegate,
+                         QStyleOptionViewItem, QRegion, QWidget, QBrush, QStyle,
+                         )
 
 from PyQt4.QtCore import (QPoint, QSize, QModelIndex, Qt, QObject, SIGNAL, QVariant,
-                          QAbstractItemModel)
+                          QAbstractItemModel, QRect, QRectF, QPointF)
 
 signal_connect = QObject.connect
 
 CHAT, IM = (1,2)
 INDEX_ACCT, INDEX_BUDDY = (1,2)
 PROTO_INT, PROTO_NAME = (1,2)
+
 ROLE_ACCT_OBJ = Qt.UserRole + 2
+ROLE_SMALL_BUDDY_TEXT = Qt.UserRole + 3
 
 status_icon_cache = {}
 IMPROTOS_BY_NAME={}
@@ -117,6 +123,103 @@ def mkProtocolComboBox(cbox):
         icon = getProtoStatusIcon(proto_name)
         cbox.addItem(icon, proto_name, proto_constant)
 
+
+
+class BuddyItemDelegate(QStyledItemDelegate):
+    largeEntryIcon = (32, 32)
+    
+    def __init__(self, parent):
+        QStyledItemDelegate.__init__(self)
+        self.qw = QWidget()
+        self.be = buddy_entry.Ui_be()
+        self.be.setupUi(self.qw)
+    
+    def sizeHint(self, option, index):
+        if not index.isValid():
+            return QSize(-1, -1)
+        self._populateWidget(index)
+        return self.qw.size()
+    
+    
+    #do away with a widget.. try something else...
+    
+    def _populateWidget(self, index):
+        """This should go.. not using this anymore"""
+        qw = self.qw
+        be = self.be
+        be.status.clear()
+        be.name.clear()
+        be.protostatus.clear()
+        be.buddyicon.clear()
+
+        item = index.internalPointer()
+                
+        if item.icon:
+            bicon = QPixmap()
+            bicon.loadFromData(item.icon)
+            bicon = bicon.scaled(QSize(*self.largeEntryIcon),Qt.KeepAspectRatio)
+            
+        protostatus_icon = index.data(Qt.DecorationRole)
+        if protostatus_icon and protostatus_icon.canConvert(QVariant.Icon):
+            icon = QIcon(protostatus_icon)
+            be.protostatus.setPixmap(icon.pixmap(*self.largeEntryIcon))
+        
+        font_style = index.data(Qt.FontRole)
+        if font_style and font_style.canConvert(QVariant.Font):
+            font = QFont(font_style)
+            be.name.setFont(font)
+        be.name.setText(index.data().toString())
+        
+        status_message = index.data(ROLE_SMALL_BUDDY_TEXT)
+        if status_message.canConvert(QVariant.String):
+            status_message = status_message.toString()
+            font_style = QFont()
+            font_style.setPointSize(8)
+            be.status.setFont(font_style)
+            be.status.setText(status_message)
+            
+    def paint(self, painter, option, index):
+        if not index.isValid():
+            return
+        painter.save()
+        
+        QApplication.style().drawPrimitive(QStyle.PE_PanelItemViewItem, option, painter)
+        self._populateWidget(index)
+        #protostatus..
+
+        protostatus = index.data(Qt.DecorationRole)
+        if protostatus and protostatus.canConvert(QVariant.Icon):
+            protostatus = QIcon(protostatus).pixmap(*self.largeEntryIcon)
+            #get target rect..
+            tr = QRect(option.rect.topLeft(), QSize(*self.largeEntryIcon))
+            sr = QRect(0,0,*self.largeEntryIcon)
+            
+            painter.drawPixmap(tr,protostatus,sr)
+        #first get the font..
+        font_style = index.data(Qt.FontRole)
+        if font_style and font_style.canConvert(QVariant.Font):
+            font_style = QFont(font_style)
+        else:
+            font_style = QFont()
+        painter.save()
+        painter.setFont(font_style)
+        text_begin = QPoint(option.rect.left() + self.largeEntryIcon[0] + 2, option.rect.top()+12)
+        painter.drawText(text_begin, index.data().toString())
+        painter.restore()
+        
+        #finally.. the buddy icon...
+        item = index.internalPointer()
+        if item.icon:
+            bicon = QPixmap()
+            bicon.loadFromData(item.icon)
+            bicon = bicon.scaled(QSize(*self.largeEntryIcon),Qt.KeepAspectRatio)
+            tr = QRect(option.rect.right()-self.largeEntryIcon[0], option.rect.top(), *self.largeEntryIcon)
+            sr = QRect(0,0,*self.largeEntryIcon)
+            painter.drawPixmap(tr, bicon, sr)
+
+        painter.restore()
+            
+        
 class AccountModel(QAbstractItemModel):
     def __init__(self, backend):
         """The backend should be iterable and indexable. The backend itself
@@ -202,6 +305,9 @@ class AccountModel(QAbstractItemModel):
                 font.setWeight(QFont.Bold)
             return font
         
+        elif role == ROLE_SMALL_BUDDY_TEXT:
+            return QVariant(item.status_message)
+        
         elif role == Qt.DecorationRole:
             #get font stuff.. map the status to the right icon.. etc.
             improto = item.improto if type == INDEX_ACCT else item.account.improto
@@ -235,8 +341,6 @@ class AccountModel(QAbstractItemModel):
             parent_index = self.index(parent_index, 0)
             child_index = self.index(child_index, 0, parent_index)
             self.emit(SIGNAL("dataChanged(QModelIndex, QModelIndex)"), child_index, child_index)
-            
-
 
 
 class AccountInputDialog(QDialog):
@@ -323,6 +427,8 @@ class ChatWindow(QMainWindow):
             self.widgets.menuView.addAction(self.widgets.actionShow_User_List)
             signal_connect(self.widgets.userlist, SIGNAL("itemDoubleClicked(QListWidgetItem)"),
                            self.userClick)
+            signal_connect(self.widgets.actionLeave, SIGNAL("activated()"), self.leaveRoom)
+            
         elif type == IM:
             self.widgets.userlist.hide()
         
@@ -378,6 +484,9 @@ class ChatWindow(QMainWindow):
     def userClick(self, item):
         user = str(item.text())
         self.respawn(self.acct_obj, user)
+    
+    def leaveRoom(self):
+        self.account.leaveRoom(self.target)
         
     def respawn(self, acct_obj, user, type=IM, popup=True):
         "to be attached to YobotGui's _openChat()"
@@ -440,9 +549,11 @@ class YobotGui(object):
         
     def _openChat(self, acct, target, type, popup = False):
         #find an old window...
+        target = str(target)
         window = self.chats.get((acct, target))
         if window:
             return
+        
         self.chats[(acct, target)] = ChatWindow(self.client, type=type, parent=self.mw,
                                                 acct_obj=acct, target=target)
         self.chats[(acct, target)].activateWindow()
@@ -452,7 +563,9 @@ class YobotGui(object):
         self.chats[(acct, target)].closeEvent = _closeEvent
         self.chats[(acct, target)].show()
         self.chats[(acct, target)].activateWindow()
-    
+        print "created chat with type %d, target %s" % (type, target)
+        print self.chats
+
     def _sendjoin(self, type):
         dlg = SendJoinDialog(self.datamodel,parent=self.mw,type=type)
         dlg.action = self._openChat if type == IM else self._joinreq
@@ -476,6 +589,8 @@ class YobotGui(object):
         mkProtocolComboBox(w.w_improto)
         w.blist.show()
         w.blist.setModel(self.datamodel)
+        d = BuddyItemDelegate(w.blist)
+        w.blist.setItemDelegate(d)
         
         #connect signals...
         signal_connect(w.blist, SIGNAL("doubleClicked(QModelIndex)"),
@@ -515,12 +630,17 @@ class YobotGui(object):
         
     def gotMessage(self, acct_obj, msg_obj):
         print msg_obj
+        #FIXME: hack..
+        name = msg_obj.name
+        if acct_obj.improto == yobotproto.YOBOT_JABBER:
+            name = name.split("/", 1)[0]
+            
         type = CHAT if msg_obj.isChat else IM
-        self._openChat(acct_obj, msg_obj.name, type)
-        self.chats[acct_obj, msg_obj.name].gotMsg(msg_obj)
+        self._openChat(acct_obj, name, type)
+        self.chats[acct_obj, name].gotMsg(msg_obj)
         
     def chatUserJoined(self, acct_obj, room, user):
-        c = self.chats.get([acct_obj,room])
+        c = self.chats.get((acct_obj,room))
         if not c: return
         c.userJoined(user)
 
@@ -544,10 +664,7 @@ class YobotGui(object):
                     request_obj.respond(False)
             signal_connect(mb, SIGNAL("buttonClicked(QAbstractButton*)"), _cb)
             mb.show()
-            
-            
-            
-        
+
 if __name__ == "__main__":
     gui = YobotGui(None)
     gui._testgui()
