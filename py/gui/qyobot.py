@@ -25,7 +25,7 @@ from PyQt4.QtGui import (QComboBox, QMainWindow, QStandardItemModel, QStandardIt
                          QApplication, QFont, QTextEdit, QColorDialog, QPalette,
                          QListWidget, QListWidgetItem, QStyledItemDelegate,
                          QStyleOptionViewItem, QRegion, QWidget, QBrush, QStyle,
-                         )
+                         QPen)
 
 from PyQt4.QtCore import (QPoint, QSize, QModelIndex, Qt, QObject, SIGNAL, QVariant,
                           QAbstractItemModel, QRect, QRectF, QPointF)
@@ -178,12 +178,12 @@ class BuddyItemDelegate(QStyledItemDelegate):
             be.status.setFont(font_style)
             be.status.setText(status_message)
             
-    def paint(self, painter, option, index):
-        if not index.isValid():
-            return
+    
+    def _paintDirect(self, painter, option, index):
         painter.save()
-        
-        QApplication.style().drawPrimitive(QStyle.PE_PanelItemViewItem, option, painter)
+        if option.state & QStyle.State_Selected:
+            painter.fillRect(option.rect, option.palette.brush(QPalette.Highlight))
+            
         self._populateWidget(index)
         #protostatus..
 
@@ -203,9 +203,25 @@ class BuddyItemDelegate(QStyledItemDelegate):
             font_style = QFont()
         painter.save()
         painter.setFont(font_style)
-        text_begin = QPoint(option.rect.left() + self.largeEntryIcon[0] + 2, option.rect.top()+12)
+        text_begin = QPoint(option.rect.left() + self.largeEntryIcon[0] + 2, option.rect.top()+14)
         painter.drawText(text_begin, index.data().toString())
         painter.restore()
+        
+        status_message = index.data(ROLE_SMALL_BUDDY_TEXT)
+        if status_message.canConvert(QVariant.String):
+            status_message = status_message.toString()
+            font_style = QFont()
+            font_style.setPointSize(8)
+            painter.save()
+            painter.setFont(font_style)
+            
+            #now the color...
+            color = option.palette.color(QPalette.Disabled, QPalette.WindowText)
+            painter.setPen(QPen(color))
+            text_begin = QPoint(option.rect.left() + self.largeEntryIcon[0] + 5, option.rect.bottom()-2)
+            painter.drawText(text_begin, status_message)
+            painter.restore()
+            
         
         #finally.. the buddy icon...
         item = index.internalPointer()
@@ -216,8 +232,33 @@ class BuddyItemDelegate(QStyledItemDelegate):
             tr = QRect(option.rect.right()-self.largeEntryIcon[0], option.rect.top(), *self.largeEntryIcon)
             sr = QRect(0,0,*self.largeEntryIcon)
             painter.drawPixmap(tr, bicon, sr)
+        
+        QApplication.style().drawPrimitive(QStyle.PE_PanelItemViewRow, option, painter)
 
         painter.restore()
+        
+    def _paintWidget(self, painter, option, index):
+        self._populateWidget(index)
+        #put the right palette
+        self.qw.setPalette(option.palette)
+        self.qw.setAutoFillBackground(False)
+        if option.state & QStyle.State_Selected:
+            print "selected"
+            self.qw.setBackgroundRole(QPalette.Highlight)
+        else:
+            self.qw.setBackgroundRole(QPalette.Base)
+        p = QPixmap(self.qw.size())
+        self.qw.render(p)
+        painter.drawPixmap(option.rect, p)
+
+    def paint(self, painter, option, index):
+        if not index.isValid():
+            return
+        
+        self._paintDirect(painter, option, index)
+        
+        
+        
             
         
 class AccountModel(QAbstractItemModel):
@@ -296,7 +337,7 @@ class AccountModel(QAbstractItemModel):
         item = index.internalPointer()
         if role == Qt.DisplayRole:
             return_text = item.name
-            if item.status_message: return_text += " [ %s ]" % (item.status_message,)
+            #if item.status_message: return_text += " [ %s ]" % (item.status_message,)
             return QVariant(return_text)
             
         elif role == Qt.FontRole:
@@ -463,8 +504,8 @@ class ChatWindow(QMainWindow):
     def gotMsg(self, msg_obj):
         #get time..
         msg_str = ""
-        msg_str += "(%s) " % (msg_obj.timeFmt,)
-        msg_str += "<font color='mediumblue'><b><u>%s</u></b></font>: " % (msg_obj.who,)
+        msg_str += "(%s) " % (msg_obj.timeFmt,) if self.widgets.actionTimestamps.isChecked() else ""
+        msg_str += "<font color='mediumblue'><b>%s</b></font>: " % (msg_obj.who,)
         msg_str += msg_obj.txt
         self.widgets.convtext.append(msg_str)
         #TODO: make special formatting for the message... give the name a different color and perhaps a

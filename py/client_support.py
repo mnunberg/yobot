@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from yobotclass import YobotAccount, YobotMessage, YobotCommand
 import yobotproto
+from yobotops import buddystatustostr
 from time import time
 
 
@@ -26,7 +27,6 @@ class BuddyAuthorize(YCRequest):
         self.acct = acct
         self.svc = svc
     def respond(self, auth=False):
-        print "RESPOND!!!"
         if auth:
             self.svc.addreqAuthorize(self.acct, self.name)
             self.svc.addUser(self.acct, self.name)
@@ -173,6 +173,9 @@ class YCAccount(YobotAccount):
     
     def addUser(self, name):
         self.svc.addUser(self, name)
+        
+    def getBacklog(self, name, count):
+        self.svc.getBacklog(self, name, count)
     
     def joinchat(self, room_name):
         self.svc.joinRoom(self, str(room_name))
@@ -198,7 +201,6 @@ class YCAccount(YobotAccount):
         self.sendmsg(room.name, txt, chat=True)
     
     def sendmsg(self, to, txt, chat=False):
-        print "account sendmsg: got to, txt: ", to, txt
         msg = YobotMessage()
         if chat:
             msg.yprotoflags = yobotproto.YOBOT_MSG_TYPE_CHAT
@@ -248,7 +250,8 @@ class YCAccount(YobotAccount):
         buddy = self._getBuddy(name)
         #process events..
         buddy.status = status
-        buddy.status_message = text
+        buddy.status_message = text if text else buddystatustostr(status)
+        print buddy.status_message
         self.notifier.dataChanged(self.index, buddy.index)
     
     def gotBuddyIcon(self, name, icon_data):
