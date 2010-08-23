@@ -1,8 +1,20 @@
-#include "purple.h"
+#include <purple.h>
 #include <glib.h>
 #include "yobotproto.h"
 #ifndef HAVE_CHATROOM_H_
 #define HAVE_CHAROOM_H_
+
+#ifdef WIN32
+#define _WIN32_WINNT 0x0501
+	#include <winsock2.h>
+	#include <ws2tcpip.h>
+	#define EWOULDBLOCK WSAEWOULDBLOCK
+#else
+	#include <sys/socket.h>
+	#include <netinet/in.h>
+	#include <netdb.h>
+	typedef struct sockaddr_storage xsockaddr_storage;
+#endif
 
 
 /*a macro*/

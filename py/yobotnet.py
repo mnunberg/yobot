@@ -456,9 +456,7 @@ class YobotClientService(YobotServiceBase):
                                       txt = buddy)
     def addreqDeny(self, acct, buddy):
         self.yobot_server.sendCommand(yobotproto.YOBOT_CMD_USER_AUTHORIZE_ADD_DENY, acct.id,
-                                      txt = buddy)
-        
-        self.yobot_server.sendCommand(yobotproto.YOBOT)
+                                      txt = buddy)        
     def delAcct(self, acct):
         self.yobot_server.sendCommand(yobotproto.YOBOT_CMD_ACCT_REMOVE, acct.id)
     def sendMsg(self, msg):
@@ -482,6 +480,11 @@ class YobotClientService(YobotServiceBase):
                                       txt=room)
     def fetchBuddyIcons(self, acct):
         self.yobot_server.sendCommand(yobotproto.YOBOT_CMD_FETCH_BUDDY_ICONS, acct.id)
+        
+    def getBacklog(self, acct, user, count):
+        txt = user + yobotproto.YOBOT_TEXT_DELIM + str(count)
+        self.yobot_server.sendCommand(yobotproto.YOBOT_CMD_REQUEST_BACKLOG, acct.id,
+                                      txt=txt)
         
 ###############################    PROTO FACTORY     ###########################
     def getYobotClientFactory(self):

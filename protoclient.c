@@ -3,13 +3,31 @@
 #include <string.h>
 #include "contrib/tpl.h"
 #include <assert.h>
-#include <arpa/inet.h>
 #include "yobotutil.h"
 #include "protoclient.h"
 #include <errno.h>
-#include <fcntl.h>
+
+#ifdef WIN32
+#define _WIN32_WINNT 0x0501
+	#include <winsock2.h>
+	#include <ws2tcpip.h>
+	#define EWOULDBLOCK WSAEWOULDBLOCK
+	#include <windows.h>
+	#include <winbase.h>
+	#include <memory.h>
+	#define usleep Sleep
+#else
+	#include <arpa/inet.h>
+	#include <sys/socket.h>
+	#include <netinet/in.h>
+	#include <netdb.h>
+	#include <fcntl.h>
+	extern tpl_hook_t tpl_hook;
+	typedef struct sockaddr_storage xsockaddr_storage;
+#endif
+
 #define USE_TPL
-extern tpl_hook_t tpl_hook;
+
 
 
 /*these functions free data structures*/
@@ -28,7 +46,8 @@ int yobot_protoclient_getsegsize(void *buf) {
 
 ssize_t _read_data(int fd, void *buf, size_t count) {
 	puts(__func__);
-	if(read(fd,buf,count)<count) {
+	if(recv(fd, buf, count, 0)<count) {
+//	if(read(fd,buf,count)<count) {
 		return 0;
 	}
 	return 1;
@@ -45,26 +64,27 @@ struct segment_r yobot_proto_segfrombuf(void *buf) {
 	 * but we should ensure that buf is not NULL and that it's at
 	 * least len+2 bytes before the end of the memory segment..
 	 */
-
+#ifndef WIN32
 	extern char edata, end;
-
 	void *_end = sbrk(0);
 	if(buf+2 > _end || buf == NULL || (void*)&end > buf) {
 		printf("%s: invalid buffer! starts at %p but can only read from %p until %p\n",
 				__func__,buf,&edata,_end); goto err;
 		}
+#endif
 
 	uint16_t len = ntohs(*(uint16_t*)buf);
 	if(len >= YOBOT_MAX_COMMSIZE) {
 		printf("%s: sanity check failed! len is %d\n", __func__, len);
 		goto err;
 	}
-
+#ifndef WIN32
 	if(buf+len+sizeof(uint16_t) > _end) {
 		printf("%s: len is %d but only have %lu for buffer\n",__func__,len,
 				_end-(buf+sizeof(uint16_t)+len));
 		goto err;
 	}
+#endif
 
 	ret.data = malloc(len);
 	memcpy(ret.data,buf+2,len);
@@ -83,9 +103,10 @@ struct segment_r yobot_proto_read_segment(void *input) {
 #define full_read(size) \
 	nread = 0; \
 	while (nread < size) { \
-		err = read(fd,bufp,size-nread); \
+		/*err = read(fd,bufp,size-nread);*/ \
+		err = recv(fd,bufp,size-nread,0); \
 		if (err <= 0) { \
-			if ((errno == EAGAIN || errno == EWOULDBLOCK) && err != 0) { \
+			if ((errno == EWOULDBLOCK) && err != 0) { \
 				puts("continuing to read...");\
 				usleep(100); \
 				continue; \
@@ -103,7 +124,9 @@ struct segment_r yobot_proto_read_segment(void *input) {
 	ret.len = 0;
 
 	int fd = *(int*)input;
-	fcntl(fd,F_SETFL,fcntl(fd,F_GETFL)|O_NONBLOCK);
+	int status;
+	YOBOT_SET_SOCK_BLOCK(fd, 1, status);
+	//fcntl(fd,F_SETFL,fcntl(fd,F_GETFL)|O_NONBLOCK);
 
 	uint16_t len=0, nread=0, err=0;
 	char *buf = malloc(YOBOT_MAX_COMMSIZE);
@@ -339,8 +362,9 @@ static void pack_valstruct_in_buf(char *tplstring, size_t typsz,
 void *yobot_proto_segment_encode(yobot_proto_model_internal *model, void *output,
 		yobot_protoclient_output out_type)
 {
+#ifndef WIN32
 	tpl_hook.oops = printf;
-
+#endif
 	uint16_t bufsz = 0;
 
 	char buf[YOBOT_MAX_COMMSIZE];
@@ -438,9 +462,10 @@ void *yobot_proto_segment_encode(yobot_proto_model_internal *model, void *output
 	if (out_type == YOBOT_PROTOCLIENT_TO_FD) {
 		/*block....*/
 		int fd = *(int*) output;
-		fcntl(fd,F_SETFL,fcntl(fd,F_GETFL) & ~O_NONBLOCK);
+		int status;
+		YOBOT_SET_SOCK_BLOCK(fd, 0, status)
 		write(fd,buf,bufsz+2);
-		fcntl(fd,F_SETFL,fcntl(fd,F_GETFL)|O_NONBLOCK);
+		YOBOT_SET_SOCK_BLOCK(fd, 1, status);
 		/*done...*/
 	} else if (out_type == YOBOT_PROTOCLIENT_TO_BUF) {
 		void *retbuf = malloc(bufsz+2);

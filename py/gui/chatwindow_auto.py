@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'chatwindow.ui'
 #
-# Created: Wed Aug 18 00:40:14 2010
+# Created: Wed Aug 18 23:10:36 2010
 #      by: PyQt4 UI code generator 4.7.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -62,7 +62,7 @@ class Ui_w_chatwindow(object):
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
 "p, li { white-space: pre-wrap; }\n"
 "</style></head><body style=\" font-family:\'Lucida Grande\'; font-size:10pt; font-weight:400; font-style:normal;\">\n"
-"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-weight:600;\">hello world</span></p></body></html>")
+"<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"></p></body></html>")
         self.convtext.setOpenLinks(False)
         self.convtext.setObjectName("convtext")
         self.gridLayout.addWidget(self.splitter, 0, 0, 1, 1)
@@ -199,8 +199,12 @@ class Ui_w_chatwindow(object):
         self.actionClose.setObjectName("actionClose")
         self.actionLeave = QtGui.QAction(w_chatwindow)
         self.actionLeave.setObjectName("actionLeave")
+        self.actionTimestamps = QtGui.QAction(w_chatwindow)
+        self.actionTimestamps.setCheckable(True)
+        self.actionTimestamps.setObjectName("actionTimestamps")
         self.menuView.addAction(self.actionShow_Formatting_Toolbox)
         self.menuView.addAction(self.actionShow_User_List)
+        self.menuView.addAction(self.actionTimestamps)
         self.menuActions.addAction(self.actionShow_Backlog)
         self.menuActions.addAction(self.actionLeave)
         self.menuFile.addAction(self.actionClose)
@@ -237,7 +241,8 @@ class Ui_w_chatwindow(object):
         self.actionShow_User_List.setText(QtGui.QApplication.translate("w_chatwindow", "User List", None, QtGui.QApplication.UnicodeUTF8))
         self.actionShow_Backlog.setText(QtGui.QApplication.translate("w_chatwindow", "Show Backlog", None, QtGui.QApplication.UnicodeUTF8))
         self.actionClose.setText(QtGui.QApplication.translate("w_chatwindow", "Close", None, QtGui.QApplication.UnicodeUTF8))
-        self.actionClose.setShortcut(QtGui.QApplication.translate("w_chatwindow", "Alt+W", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionClose.setShortcut(QtGui.QApplication.translate("w_chatwindow", "Ctrl+W", None, QtGui.QApplication.UnicodeUTF8))
         self.actionLeave.setText(QtGui.QApplication.translate("w_chatwindow", "Leave", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionTimestamps.setText(QtGui.QApplication.translate("w_chatwindow", "Timestamps", None, QtGui.QApplication.UnicodeUTF8))
 
 import resources_rc

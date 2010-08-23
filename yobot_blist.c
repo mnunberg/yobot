@@ -76,8 +76,10 @@ void yobot_blist_send_icon(PurpleBuddy *buddy, uint32_t acctid, ...) {
 		return;
 	gconstpointer icon_data;
 	size_t icon_len;
-	size_t name_len = strlen(buddy->name);
 	size_t buflen = 0;
+	char *name = g_strconcat(buddy->name, YOBOT_TEXT_DELIM, NULL);
+	size_t name_len = strlen(name);
+
 	/*get icon size first...*/
 	icon_data = purple_buddy_icon_get_data(buddy->icon, &icon_len);
 	if ((!icon_data) ||
@@ -85,22 +87,17 @@ void yobot_blist_send_icon(PurpleBuddy *buddy, uint32_t acctid, ...) {
 			(icon_len > YOBOT_MAX_COMMSIZE - _NAME_MAX-1)) {
 		fprintf(stderr, "%s:wtf.. icon is %p, length is %d, namelen is %d\n",
 				__func__, icon_data, (int)icon_len, (int)name_len);
+		free(name);
 		return;
 	}
 
-	char *buf = g_malloc0(name_len + 1 + icon_len);
+	char *buf = g_malloc0(name_len + icon_len);
 	char *bufptr = buf;
-	memcpy(bufptr, buddy->name, name_len);
+
+	memcpy(bufptr, name, name_len);
 	buflen += name_len;
 	bufptr += name_len;
 
-	bufptr++;
-	buflen++;
-
-	*bufptr = YOBOT_TEXT_DELIM[0];
-
-	bufptr++;
-	buflen++;
 	memcpy(bufptr, icon_data, icon_len);
 	buflen += icon_len;
 
@@ -124,6 +121,7 @@ void yobot_blist_send_icon(PurpleBuddy *buddy, uint32_t acctid, ...) {
 	yobot_protoclient_event_encode(info, &server_write_fd, YOBOT_PROTOCLIENT_TO_FD);
 
 	free(buf);
+	free(name);
 #undef _NAME_MAX
 }
 

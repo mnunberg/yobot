@@ -156,7 +156,6 @@ class YobotMessage(YobotBase):
         info = yobotproto.yobot_msginfo()
         info.acctid = self.acctid
         info.to = str(self.name)
-        print "ENCODE, txt", self.txt
         info.txt = str(self.txt)
         info.who = str(self.who)
         info.msgtime = long(self.time) if self.time else long(time.time())

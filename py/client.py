@@ -43,7 +43,7 @@ class UIClient(object):
     
     def test_acct(self, ):
         print "test_acct"
-        new_account = YCAccount(self.svc, "foo3@localhost/", "1", yobotproto.YOBOT_JABBER)
+        new_account = YCAccount(self.svc, "meh@10.0.0.99/", "1", yobotproto.YOBOT_JABBER)
         new_account.connect()
     def gotmsg(self, acct, msg):
         self.uihooks.gotMessage(acct, msg)

@@ -3,13 +3,26 @@
  * (Some fragments taken from libpurple nullclient.c example found at http://pidgin.im/)
  */
 
-#include "purple.h"
+#include <purple.h>
 #include <glib.h>
 #include <signal.h>
 #include <stdio.h>
 #include "yobot_ui.h"
+#include "yobot_log.h"
+#include "win32/yobot_win32.h"
+#include <errno.h>
 
-#define CUSTOM_USER_DIRECTORY  "/tmp/yobot"
+#ifdef _WIN32
+#include "win32/win32dep.h"
+#include <windows.h>
+#define PATHSEP "\\"
+#define CUSTOM_USER_DIRECTORY  "C:" PATHSEP "temp" PATHSEP "yobot"
+#define WPURPLE_ROOT "C:\\Program Files\\Pidgin"
+#else
+#define PATHSEP "/"
+#define CUSTOM_USER_DIRECTORY PATHSEP "tmp" PATHSEP "yobot"
+#endif
+
 #define CUSTOM_PLUGIN_PATH     ""
 #define PLUGIN_SAVE_PREF       "/purple/user/plugins/saved"
 #define UI_ID                  "user"
@@ -78,7 +91,11 @@ static guint glib_input_add(gint fd, PurpleInputCondition condition, PurpleInput
 	if (condition & YOBOT_LISTEN_COND)
 		cond |= (G_IO_IN|G_IO_ERR);
 
+#if defined _WIN32
+	channel = wpurple_g_io_channel_win32_new_socket(fd);
+#else
 	channel = g_io_channel_unix_new(fd);
+#endif
 	closure->result = g_io_add_watch_full(channel, G_PRIORITY_DEFAULT, cond,
 			purple_glib_io_invoke, closure, purple_glib_io_destroy);
 
@@ -138,11 +155,14 @@ static void init_libpurple(debug)
 	purple_debug_set_enabled(debug);
 
 	purple_core_set_ui_ops(&core_uiops);
-
 	purple_eventloop_set_ui_ops(&glib_eventloops);
 
-	purple_plugins_add_search_path(CUSTOM_PLUGIN_PATH);
-
+#ifdef WIN32
+	purple_plugins_add_search_path(WPURPLE_ROOT);
+	purple_plugins_add_search_path(WPURPLE_ROOT PATHSEP "Plugins");
+	purple_plugins_add_search_path(WPURPLE_ROOT PATHSEP "sasl2");
+	purple_certificate_add_ca_search_path(WPURPLE_ROOT PATHSEP "ca-certs");
+#endif
 	if (!purple_core_init(UI_ID)) {
 		fprintf(stderr,
 				"libpurple initialization failed. Dumping core.\n"
@@ -151,13 +171,16 @@ static void init_libpurple(debug)
 	}
 	purple_set_blist(purple_blist_new());
 	purple_blist_load();
-//	purple_buddy_icons_set_caching(TRUE);
-//	purple_buddy_icons_set_cache_dir(CUSTOM_USER_DIRECTORY "/icons");
 //	purple_prefs_load();
 //	purple_plugins_load_saved(PLUGIN_SAVE_PREF);
 	purple_pounces_load();
 }
 
+
+yobot_log_s yobot_log_params = {
+		"Yobot-Purple",
+		1
+};
 
 int main(int argc, char *argv[])
 {
@@ -165,24 +188,31 @@ int main(int argc, char *argv[])
 		fprintf(stderr,"Need a debug parameter\n");
 		exit(1);
 	}
+#ifdef _WIN32
+	yobot_patch_purple_searchpath();
+	yobot_log_info("testing.. ");
+	const char *tmp = wpurple_install_dir();
+	if (!tmp) {
+		yobot_log_err("install_dir() returned NULL");
+	}
+	yobot_log_info("install_dir() returned %s", tmp);
+	yobot_log_info("trying dependent wpurple_lib_dir");
+	wpurple_lib_dir();
+
+#endif
 	/*get rid of annoying preferences*/
-	remove(CUSTOM_USER_DIRECTORY "/prefs.xml");
-	remove(CUSTOM_USER_DIRECTORY "/accounts.xml");
-	remove(CUSTOM_USER_DIRECTORY "/status.xml");
-	remove(CUSTOM_USER_DIRECTORY "/blist.xml");
+	remove(CUSTOM_USER_DIRECTORY PATHSEP "prefs.xml");
+	remove(CUSTOM_USER_DIRECTORY PATHSEP "accounts.xml");
+	remove(CUSTOM_USER_DIRECTORY PATHSEP "status.xml");
+	remove(CUSTOM_USER_DIRECTORY PATHSEP "blist.xml");
 	gboolean debug = atoi(argv[1]);
 	GMainLoop *loop = g_main_loop_new(NULL, FALSE);
+#ifndef WIN32
 	signal(SIGCHLD, SIG_IGN);
 	signal(SIGHUP, SIG_IGN);
 //	signal(SIGPIPE, SIG_IGN);
+#endif
 	init_libpurple(debug);
-	/*
-	PurpleAccount *account = purple_account_new(ACCT_ID, "prpl-yahoo");
-	purple_account_set_password(account, ACCT_PASS);
-	purple_accounts_add(account);
-	purple_account_set_enabled(account, UI_ID, TRUE);
-	*/
-
 	g_main_loop_run(loop);
 	return 0;
 

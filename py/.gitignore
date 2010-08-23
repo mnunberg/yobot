@@ -1,1 +1,5 @@
 _acctinfo.py
+*.c
+*.o
+*.pyc
+yobotproto.py

@@ -1,7 +1,6 @@
 #include <purple.h>
 #include <glib.h>
 #include <stdio.h>
-#include <prpl.h>
 #include <string.h> /*memset*/
 #include <errno.h>
 #include <assert.h>
@@ -10,18 +9,13 @@
 
 /*For initiating the connection*/
 #include <fcntl.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
 
 #include "yobot_ui.h"
 #include "yobotproto.h"
 #include "yobotutil.h"
 #include "protoclient.h"
 #include "yobot_blist.h"
-
-#define BUFSIZE_MAX 32768
-#define SMALLBUF_SIZE 128
+#include "yobot_log.h"
 
 #define conv_send(conv,msg) \
 	if (purple_conversation_get_type(conv) == PURPLE_CONV_TYPE_CHAT) { \
@@ -85,22 +79,23 @@ static void join_chat(char *room_name, PurpleConnection *gc) {
 		return;
 	}
 	if(!gc) {
-		printf("%s: gc is null! bailing!\n", __func__);
+		yobot_log_err("Connection is null for account. Not joining");
+		return;
 	}
 	PurplePlugin *prpl = purple_connection_get_prpl(gc);
 	if(!prpl) {
-		puts("OOOPS! can't get prpl! bailing");
-		exit(2);
+		yobot_log_err("Couldn't get prpl");
+		return;
 	}
 	PurplePluginProtocolInfo *prpl_info = PURPLE_PLUGIN_PROTOCOL_INFO(prpl);
 	if(!prpl_info) {
-		puts("oops! prpl_info is NULL! bailing!\n");
-		exit(2);
+		yobot_log_err("prpl_info is null");
+		return;
 	}
 	GHashTable *components = prpl_info->chat_info_defaults(gc, room_name);
 	if(!components) {
-		printf("couldn't get components! bailing!\n");
-		exit(2);
+		yobot_log_err("Couldn't get chat components");
+		return;
 	}
 	serv_join_chat(gc, components);
 }
@@ -108,13 +103,24 @@ static void join_chat(char *room_name, PurpleConnection *gc) {
 
 static void init_listener(gboolean first_time)
 {
-	puts(__func__);
+	yobot_log_info("BEGIN");
+#ifndef WIN32
 	tpl_hook.oops = printf;
+#endif
 	/*Initialize the pipes*/
 	int in, out, in_w;
 	static guint cb_handle;
 	static int s, yobot_socket;
 	struct sockaddr_storage incoming_addr;
+#ifdef WIN32
+	if (first_time) {
+		WSADATA wsadata;
+		if(WSAStartup(MAKEWORD(2,0), &wsadata)!=0) {
+			fprintf(stderr, "WSAStartup Failed!\n");
+			exit(1);
+		}
+	}
+#endif
 
 	int status;
 
@@ -141,8 +147,11 @@ static void init_listener(gboolean first_time)
 		s = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
 		if (s < 0)
 			perror("socket");
-
+#ifndef _WIN32
 		unsigned int opt = 1;
+#else
+		char opt = 1;
+#endif
 		status = setsockopt(s,SOL_SOCKET,SO_REUSEADDR,&opt,sizeof(opt));
 		if (status < 0)
 			perror("setsockopt");
@@ -174,12 +183,12 @@ static void init_listener(gboolean first_time)
 	info.severity = YOBOT_INFO;
 	yobot_protoclient_event_encode(info, &yobot_socket, YOBOT_PROTOCLIENT_TO_FD);
 
-	int flags = fcntl(yobot_socket, F_GETFL);
 
-	status = fcntl(yobot_socket,F_SETFL, flags|O_NONBLOCK);
-	if(status == -1 ) {
+	//status = fcntl(yobot_socket,F_SETFL, flags|O_NONBLOCK);
+	YOBOT_SET_SOCK_BLOCK(yobot_socket, 1, status);
+	if(status <= -1 ) {
 		perror(__func__);
-		puts("fcntl error");
+		yobot_log_crit("fcntl failed");
 	}
 
 	in = in_w = out = yobot_socket;
@@ -190,26 +199,27 @@ static void init_listener(gboolean first_time)
 	cb_handle = purple_input_add(in,
 			PURPLE_INPUT_READ,
 			yobot_listener,NULL);
-	puts("finished");
+	yobot_log_info("END");
+
 }
 
 static void yobot_listener(gpointer _null, gint fd, PurpleInputCondition cond)
 {
-	puts(__func__);
+	yobot_log_debug("BEGIN");
 	struct segment_r segr;
 	yobot_protoclient_segment *seg = NULL;
 	segr = yobot_proto_read_segment(&fd);
 	int old_errno = errno;
 	if(!(segr.len)) {
-		puts("segr.len is 0");
+		yobot_log_warn("segr.len is empty... empty read, going to error");
 		goto err;
 	}
 
 	seg = yobot_protoclient_segment_decode(segr);
 	segr.data = NULL;
 	if(!seg) {
+		yobot_log_warn("got NULL decoded segment");
 		goto err;
-		puts("segment is null");
 	}
 
 	if(seg->struct_type == YOBOT_PROTOCLIENT_CMD_SIMPLE ||
@@ -218,15 +228,14 @@ static void yobot_listener(gpointer _null, gint fd, PurpleInputCondition cond)
 			seg->struct_type == YOBOT_PROTOCLIENT_YMKACCTI)
 		cmd_handler(seg);
 	else
-		printf("%s: unsupported transmission. bailing!\n", __func__);
+		yobot_log_err("unsupported transmission");
 
 	yobot_protoclient_free_segment(seg);
 	return;
 
 	err:
 	if(old_errno && !(old_errno == EAGAIN || old_errno == EWOULDBLOCK)) {
-		printf("EAGAIN is %d, old errno is %d\n", EAGAIN, old_errno);
-		fprintf(stderr, "%s(GRRR): %s\n", __func__, strerror(old_errno));
+		yobot_log_err("read error: %s", strerror(old_errno));
 	}
 
 	yobot_protoclient_free_segment(seg);
@@ -250,11 +259,13 @@ static void cmd_handler(yobot_protoclient_segment *seg) {
 	if (account) {
 		gc = purple_account_get_connection(account);
 		if (!gc) {
-			if (!(cmd.command == YOBOT_CMD_ACCT_ENABLE||
+			if (!(
+					cmd.command == YOBOT_CMD_ACCT_ENABLE||
 					cmd.command == YOBOT_CMD_ACCT_NEW ||
-					cmd.command == YOBOT_CMD_ACCT_REMOVE)) {
-				printf("ERROR: command: %d\n", cmd.command);
-				printf("%s: account %d not connected\n", __func__, cmd.acct_id);
+					cmd.command == YOBOT_CMD_ACCT_REMOVE
+					)) {
+				yobot_log_warn(" (command %d): Got NULL connection for account %d",
+						cmd.command, cmd.acct_id);
 				if (comm->reference) {
 					struct yobot_eventinfo info;
 					memset(&info, 0, sizeof(info));
@@ -269,32 +280,30 @@ static void cmd_handler(yobot_protoclient_segment *seg) {
 				return;
 			}
 		}
+	} else {
+		yobot_log_err(" (command %d): Could not find account %d. Possible trouble ahead",
+				cmd.command, cmd.acct_id);
 	}
-	printf("GOT COMMAND %d\n", cmd.command);
+	yobot_log_debug("got command %d", cmd.command);
 	switch (cmd.command) {
 	case YOBOT_CMD_ROOM_JOIN: {
-		puts("JOIN");
 		char *room_name = yci->data;
 		join_chat(room_name, gc);
 		break;
 	}
 	case YOBOT_CMD_ROOM_LEAVE: {
 		char *room_name = yci->data;
-		PurpleConversation *conv = purple_find_conversation_with_account(PURPLE_CONV_TYPE_CHAT, room_name, account);
+		PurpleConversation *conv = purple_find_conversation_with_account(
+				PURPLE_CONV_TYPE_CHAT, room_name, account);
 		if(!conv) {
-			printf("got request to join room which is not joined\n");
+			yobot_log_warn("got request to leave room %s which we are not joined to",
+					room_name);
 			return;
 		}
 		purple_conversation_destroy(conv);
 		break;
 	}
 	case YOBOT_CMD_MSG_SEND: {
-		puts("YOBOT_CMD_MSG_SEND");
-		if(gc == NULL || account == NULL) {
-			printf("%s: account=%p, gc=%p, bailing!\n",
-					__func__, account, gc);
-			break;
-		}
 		yobotmsg_internal *ymi = seg->msgi;
 		PurpleConversation *conv;
 		const char *destination = ymi->to;
@@ -311,7 +320,8 @@ static void cmd_handler(yobot_protoclient_segment *seg) {
 
 		if (!conv) {
 			if (comm->flags & YOBOT_MSG_TYPE_CHAT) {
-				puts("Conversation does not exist..");
+				yobot_log_warn(" (acct %d) trying to send message to room %s which is not joined",
+						cmd.acct_id, destination);
 				//TODO: notify the client
 				break;
 				/*bail -- no such conversation, we'll bother the client to re-join
@@ -329,40 +339,43 @@ static void cmd_handler(yobot_protoclient_segment *seg) {
 	}
 
 	case YOBOT_CMD_ACCT_NEW: {
-		puts("cmd_handler: YOBOT_CMD_ACCT_NEW");
+		yobot_log_info("YOBOT_CMD_ACCT_NEW");
 		const char *name, *pass;
 		yobotmkacct_internal *ymkaccti = seg->mkaccti;
 		name = ymkaccti->user;
 		pass = ymkaccti->pass;
-		printf("%s: got username:%s, password %s, ID %d, improto %d\n", __func__, name, pass, cmd.acct_id, ymkaccti->yomkacct->improto);
-		printf("prpl-id = %s\n", yobot_proto_get_prpl_id(ymkaccti->yomkacct->improto));
-		puts("callign purple_account_new");
+		yobot_log_info("new user: %s, proto %s",
+				name, yobot_proto_get_prpl_id(ymkaccti->yomkacct->improto));
+		yobot_log_debug("calling purple_acount_new");
+
 		PurpleAccount *acct = purple_account_new(name,
 				yobot_proto_get_prpl_id(ymkaccti->yomkacct->improto));
-		puts("done");
+		yobot_log_debug("done.. now setting up account ui data");
 		purple_account_set_password(acct, pass);
 		account_uidata *tmp = malloc(sizeof(account_uidata));
 		tmp->id = cmd.acct_id;
 		acct->ui_data = tmp;
 		purple_accounts_add(acct);
+		yobot_log_debug("added account");
 		break;
-		puts("done making account");
 	}
 
 	case YOBOT_CMD_ACCT_ENABLE: {
-		puts("YOBOT_CMD_ACCT_ENABLE");
+		yobot_log_info("YOBOT_CMD_ACCT_ENABLE");
 		assert (cmd.len == 0);
 		purple_account_set_enabled(account,"user",TRUE);
+//		purple_account_connect(account);
+		yobot_log_debug("account connecting...");
 		break;
 	}
 	case YOBOT_CMD_ACCT_REMOVE: {
-		puts("YOBOT_CMD_ACCT_REMOVE");
+		yobot_log_info("YOBOT_CMD_ACCT_REMOVE");
 		assert (cmd.len == 0);
 		if(!account) {
-			printf("%s: account is NULL, not removing\n", __func__);
+			yobot_log_warn("account %d is NULL, not removing", cmd.acct_id);
 		}
 		purple_accounts_remove(account);
-		puts("account removed");
+		yobot_log_debug("removed");
 		break;
 	}
 	case YOBOT_CMD_ROOM_FETCH_USERS: {
@@ -395,7 +408,6 @@ static void cmd_handler(yobot_protoclient_segment *seg) {
 		for (; users; users = users->next) {
 			PurpleConvChatBuddy *chatbuddy = users->data;
 			char *room_user = g_strconcat(room, YOBOT_TEXT_DELIM, chatbuddy->name, NULL);
-			printf("%s:user is  %s\n", __func__, chatbuddy->name);
 			info.len = strlen(room_user) + 1;
 			info.data = room_user;
 			yobot_protoclient_event_encode(info, &server_write_fd,
@@ -479,7 +491,7 @@ static void cmd_handler(yobot_protoclient_segment *seg) {
 		break;
 	}
 	default:
-		printf("%s: unknown command %d.\n", __func__, cmd.command);
+		yobot_log_warn("unknown command %d.\n", cmd.command);
 		break;
 	}
 }

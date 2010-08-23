@@ -36,7 +36,8 @@ typedef enum
 
 #endif
 
-#define YOBOT_MAX_COMMSIZE 0x0fffff /*1MB*/
+//#define YOBOT_MAX_COMMSIZE 0x0fffff /*1MB*/
+#define YOBOT_MAX_COMMSIZE (1<<16)-1
 #define YOBOT_USER_SELF "*"
 #define YOBOT_TEXT_DELIM "\x01"
 

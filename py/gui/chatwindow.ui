@@ -92,7 +92,7 @@
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
 &lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Lucida Grande'; font-size:10pt; font-weight:400; font-style:normal;&quot;&gt;
-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;hello world&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
            </property>
            <property name="openLinks">
             <bool>false</bool>
@@ -349,6 +349,7 @@ p, li { white-space: pre-wrap; }
     </property>
     <addaction name="actionShow_Formatting_Toolbox"/>
     <addaction name="actionShow_User_List"/>
+    <addaction name="actionTimestamps"/>
    </widget>
    <widget class="QMenu" name="menuActions">
     <property name="title">
@@ -403,12 +404,20 @@ p, li { white-space: pre-wrap; }
     <string>Close</string>
    </property>
    <property name="shortcut">
-    <string>Alt+W</string>
+    <string>Ctrl+W</string>
    </property>
   </action>
   <action name="actionLeave">
    <property name="text">
     <string>Leave</string>
+   </property>
+  </action>
+  <action name="actionTimestamps">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Timestamps</string>
    </property>
   </action>
  </widget>

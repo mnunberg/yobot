@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 import sys
 import os
-if os.name == "posix":
-    sys.path.append("../")
-    import yobotproto
-    from yobotclass import YobotAccount
-    from client_support import YCAccount, YBuddylist, YBuddy
+sys.path.append("../")
+import yobotproto
+from yobotclass import YobotAccount
+from client_support import YCAccount, YBuddylist, YBuddy
 
 import main_auto
 import sendjoin_auto
@@ -45,26 +44,25 @@ IMPROTOS_BY_CONSTANT={}
 STATUS_ICON_MAPS = {}
 #make a mapping between yobot protocol constants and human names:
 
-if os.name == "posix":
-    for proto_name, proto_constant in (
-        ("Yahoo", yobotproto.YOBOT_YAHOO),
-        ("AIM", yobotproto.YOBOT_AIM),
-        ("MSN", yobotproto.YOBOT_MSN),
-        ("Google-Talk", yobotproto.YOBOT_GTALK),
-        ("Jabber", yobotproto.YOBOT_JABBER),
-        ):
-        IMPROTOS_BY_CONSTANT[proto_constant] = proto_name
-        IMPROTOS_BY_NAME[proto_name] = proto_constant
-    
-    STATUS_ICON_MAPS = {
-        yobotproto.YOBOT_EVENT_BUDDY_ONLINE: "user-online",
-        yobotproto.YOBOT_EVENT_BUDDY_OFFLINE: "user-offline",
-        yobotproto.YOBOT_EVENT_BUDDY_AWAY: "user-away",
-        yobotproto.YOBOT_EVENT_BUDDY_BUSY: "user-busy",
-        yobotproto.YOBOT_EVENT_BUDDY_INVISIBLE: "user-invisible",
-        yobotproto.YOBOT_EVENT_BUDDY_IDLE: "user-away",
-        yobotproto.YOBOT_EVENT_BUDDY_BRB: "user-away",
-    }
+for proto_name, proto_constant in (
+    ("Yahoo", yobotproto.YOBOT_YAHOO),
+    ("AIM", yobotproto.YOBOT_AIM),
+    ("MSN", yobotproto.YOBOT_MSN),
+    ("Google-Talk", yobotproto.YOBOT_GTALK),
+    ("Jabber", yobotproto.YOBOT_JABBER),
+    ):
+    IMPROTOS_BY_CONSTANT[proto_constant] = proto_name
+    IMPROTOS_BY_NAME[proto_name] = proto_constant
+
+STATUS_ICON_MAPS = {
+    yobotproto.YOBOT_EVENT_BUDDY_ONLINE: "user-online",
+    yobotproto.YOBOT_EVENT_BUDDY_OFFLINE: "user-offline",
+    yobotproto.YOBOT_EVENT_BUDDY_AWAY: "user-away",
+    yobotproto.YOBOT_EVENT_BUDDY_BUSY: "user-busy",
+    yobotproto.YOBOT_EVENT_BUDDY_INVISIBLE: "user-invisible",
+    yobotproto.YOBOT_EVENT_BUDDY_IDLE: "user-away",
+    yobotproto.YOBOT_EVENT_BUDDY_BRB: "user-away",
+}
     
 def proto_name_int(proto, type):
     """-> (proto_name, proto_int)"""

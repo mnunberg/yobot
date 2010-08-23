@@ -9,6 +9,7 @@
 #include "protoclient.h"
 #include "yobot_ui.h"
 #include "yobot_blist.h"
+#include "yobot_log.h"
 #include <string.h>
 #include <glib.h>
 
@@ -53,7 +54,7 @@ static void event_connection_send(PurpleConnection *gc, yobot_proto_evtype evtyp
 
 static void connect_progress(PurpleConnection *gc, const char *text,
 		size_t step, size_t step_count) {
-	printf("%s: %s\n", __func__, (text) ? text : "...");
+	yobot_log_debug((text) ? text : "...");
 	event_connection_send(gc,YOBOT_INFO,YOBOT_EVENT_CONNECTING,text);
 }
 
@@ -81,12 +82,12 @@ static void report_disconnect_reason(PurpleConnection *gc, PurpleConnectionError
 }
 
 static void connected(PurpleConnection *gc) {
-	printf("%s: connected! sending event\n", __func__);
+	yobot_log_info("%s connected", gc->account->username);
 	event_connection_send(gc,YOBOT_INFO,YOBOT_EVENT_CONNECTED,NULL);
 }
 
 static void disconnected(PurpleConnection *gc) {
-	printf("%s: disconnected! \n", __func__);
+	yobot_log_info("%s disconnected", gc->account->username);
 	event_connection_send(gc,YOBOT_INFO,YOBOT_EVENT_DISCONNECTED,NULL);
 }
 
@@ -117,7 +118,7 @@ void yobot_connection_signals_register(void) {
 static void status_changed(PurpleAccount *account, PurpleStatus *status) {
 	int acctid = yobot_get_acct_id(account);
 	if (!acctid) {
-		printf("%s: got null account. bailing!\n", __func__);
+		yobot_log_warn("account ID is unknown");
 		return;
 	}
 	yobot_status_r ystatus = yobot_blist_get_status(status);
@@ -127,7 +128,7 @@ static void status_changed(PurpleAccount *account, PurpleStatus *status) {
 void yobot_user_authorize(PurpleAccount *account, const char *user, gboolean accept) {
 	account_uidata *priv = account->ui_data;
 	if(!priv) {
-		printf("%s: uidata missing\n", __func__);
+		yobot_log_err("uidata missing");
 		return;
 	}
 	authrequest *ar = g_hash_table_lookup(priv->requests, user);
@@ -175,7 +176,7 @@ static void *request_authorize(PurpleAccount *account, const char *remote_user, 
 	printf("remote_user: %s\n", remote_user);
 	GList *keys = g_hash_table_get_keys(priv->requests);
 	for (; keys; keys = keys->next) {
-		printf("%s: key: %s\n", __func__, (char*)keys->data);
+		yobot_log_debug("key: %s\n",(char*)keys->data);
 	}
 
 	/*send out an event*/
@@ -199,21 +200,18 @@ PurpleAccountUiOps yobot_account_uiops = {
 /*Signal Handlers*/
 
 static void account_added(PurpleAccount *account) {
-	puts(__func__);
 	int id = yobot_get_acct_id(account);
 	g_hash_table_insert(yobot_acct_table,GINT_TO_POINTER(id),account);
 	if (account->ui_data) {
 		account_uidata *priv = account->ui_data;
 		priv->requests = g_hash_table_new_full(g_str_hash, g_str_equal, free, NULL);
 	}
-	puts("inserted account into hash table");
-	puts("sending event...");
+	yobot_log_debug("inserted account [ID=%d, name=%s] into hash table", id, account->username);
 	event_account_send(account,YOBOT_INFO,YOBOT_EVENT_ACCT_REGISTERED,NULL);
-	puts("exited");
 }
 
 static void account_removed(PurpleAccount *account) {
-	printf("%s: removing account %d\n", __func__, yobot_get_acct_id(account));
+	yobot_log_debug("removing account %d\n", __func__, yobot_get_acct_id(account));
 	g_hash_table_remove(yobot_acct_table,GINT_TO_POINTER(yobot_get_acct_id(account)));
 	g_hash_table_destroy(((account_uidata*)account->ui_data)->requests);
 	event_account_send(account,YOBOT_INFO,YOBOT_EVENT_ACCT_UNREGISTERED,NULL);
@@ -239,7 +237,6 @@ static void *notify_message(PurpleNotifyMsgType type, const char *title, const c
 	char *retstr = g_strconcat(title, primary, secondary, NULL);
 	printf("%s: %s\n",__func__,  retstr);
 	g_free(retstr);
-	struct yobot_eventinfo info;
 	return NULL;
 }
 PurpleNotifyUiOps yobot_notify_uiops = {
