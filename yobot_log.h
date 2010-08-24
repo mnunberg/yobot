@@ -20,10 +20,10 @@ typedef struct {
 	char *prefix;
 	int level;
 } yobot_log_s;
-
+#ifndef PROTOLIB
 extern yobot_log_s yobot_log_params;
+#endif
 extern yobot_log_s yobotproto_log_params;
-
 void yobot_logger(yobot_log_s logparams, yobot_log_level level, int line, const char *fn, const char *fmt, ...);
 
 #define __logwrap(level, fmt, ...) yobot_logger(yobot_log_params, level, __LINE__, __func__, fmt, ## __VA_ARGS__)

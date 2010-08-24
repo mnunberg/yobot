@@ -283,8 +283,10 @@ static void cmd_handler(yobot_protoclient_segment *seg) {
 			}
 		}
 	} else {
-		yobot_log_err(" (command %d): Could not find account %d. Possible trouble ahead",
+		if(cmd.command != YOBOT_CMD_ACCT_NEW) {
+			yobot_log_err(" (command %d): Could not find account %d. Possible trouble ahead",
 				cmd.command, cmd.acct_id);
+		}
 	}
 	yobot_log_debug("got command %d", cmd.command);
 	switch (cmd.command) {

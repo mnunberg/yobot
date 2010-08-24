@@ -69,7 +69,7 @@ class AccountManager(object):
         acct_match = self.byUserProto(ybacct.user,ybacct.improto)
         if not acct_match:
             #no match at all
-            log_info( "NO MATCH.. returning", ret)
+            log_debug( "NO MATCH.. returning", ret)
             return ret
         ret[0] |= USERPROTO_MATCH
         ret[1] = acct_match
@@ -83,12 +83,12 @@ class AccountManager(object):
         res_type, acct_data = self.acctExists(acct)
         
         if res_type & (USERPROTO_MATCH|PASSWORD_MATCH):
-            log_info( "FULL MATCH")
+            log_debug( "FULL MATCH")
             #account exists, notify of existing ID
             reqhandler.handle_exists(acct_data)
             
         elif res_type & USERPROTO_MATCH:
-            log_info( "USERPROTO MATCH")
+            log_debug( "USERPROTO MATCH")
             if acct_data[0].loggedin:
                 reqhandler.handle_authfail(acct_data)
             else:
@@ -96,7 +96,7 @@ class AccountManager(object):
                 #wait until an account has been authenticated
                 
         elif res_type == NO_MATCH:
-            log_info( "NO MATCH!!!")
+            log_debug( "NO MATCH!!!")
             #Add to both our indices
             acct_data = self._accounts[acct.user,acct.improto] = [acct, set()]
             self._ids[acct.id] = acct_data
@@ -244,7 +244,7 @@ class AccountRequestHandler(object):
             self.timedOut = True
             d.errback(AccountRemoved("Account authorization timed out"))
             
-        t = reactor.callLater(10, _callTimeout)
+        t = reactor.callLater(1, _callTimeout)
         
         self.newacct.timeoutCb = t
         self.newacct.connectedCb = d

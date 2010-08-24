@@ -542,6 +542,18 @@ class NotificationBox(object):
         while self.qsw.count() > 0:
             self.qsw.removeWidget(self.qsw.currentWidget())
         self.qdw.hide()
+        self._tmp = QWidget()
+        self.qdw.setTitleBarWidget(self._tmp)
+    
+    def navigate(self, next = True):
+        log_debug("")
+        currentIndex = self.qsw.currentIndex()
+        if next: #navigate to next..
+            if currentIndex-1 < self.qsw.count() and currentIndex >= 0:
+                self.qsw.setCurrentIndex(currentIndex+1)
+        else:
+            if currentIndex-1 > 0:
+                self.qsw.setCurrentIndex(currentIndex-1)
     
     def addNotification(self, acct, txt, okCb=None, cancelCb=None, type=NOTICE):
         qw = QWidget()
@@ -560,9 +572,15 @@ class NotificationBox(object):
         else:
             notice_widget.iconlabel.hide()
         
+        accticon = getProtoStatusIcon(acct.name, acct.improto)
+        if accticon:
+            notice_widget.accticon.setPixmap(accticon.pixmap(16, 16))
         notice_widget.account.setText(acct.name)
-        notice_widget.message.setText(txt)
-            
+        notice_widget.message.setPlainText(txt*20)
+        notice_widget.message.setBackgroundRole(QPalette.Window)
+        sb = notice_widget.message.verticalScrollBar()
+        sb.setMaximumWidth(12)
+        
         if not cancelCb:
             notice_widget.discard.hide()
         def _remove_notice():
@@ -581,6 +599,9 @@ class NotificationBox(object):
             _remove_notice()
         signal_connect(notice_widget.accept, SIGNAL("clicked()"), _ok)
         signal_connect(notice_widget.discard, SIGNAL("clicked()"), _cancel)
+        signal_connect(notice_widget.next, SIGNAL("clicked()"), lambda: self.navigate(next=True))
+        signal_connect(notice_widget.prev, SIGNAL("clicked()"), lambda: self.navigate(next=False))
+        
         self.qsw.show()
         self.qdw.show()
         self.qsw.addWidget(qw)
@@ -747,6 +768,7 @@ class YobotGui(object):
     
     def gotRequest(self, request_obj):
         if request_obj.isYesNo:
+            
             mb = QMessageBox()
             mb.setStandardButtons(QMessageBox.Yes|QMessageBox.No|QMessageBox.Cancel)
             mb.setWindowTitle(request_obj.title)
@@ -762,7 +784,7 @@ class YobotGui(object):
             mb.show()
     
     def connectionFailed(self, acct, txt):
-        self.notifications.addNotification(acct, txt)
+        self.notifications.addNotification(acct, txt, type=ERROR)
         
 if __name__ == "__main__":
     gui = YobotGui(None)

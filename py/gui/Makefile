@@ -4,4 +4,4 @@ resources_rc.py: resources.qrc
 	pyrcc4 $^ -o $@
 
 %.py: %.ui
-	pyuic4 $^ -o $@
+	pyuic4 -x $^ -o $@

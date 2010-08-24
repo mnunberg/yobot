@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'main_auto.ui'
 #
-# Created: Mon Aug 23 19:33:00 2010
+# Created: Tue Aug 24 07:46:17 2010
 #      by: PyQt4 UI code generator 4.7.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -13,7 +13,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.setEnabled(True)
-        MainWindow.resize(274, 532)
+        MainWindow.resize(276, 618)
         self.centralwidget = QtGui.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.gridLayout = QtGui.QGridLayout(self.centralwidget)
@@ -138,7 +138,7 @@ class Ui_MainWindow(object):
         self.gridLayout.addWidget(self.blist, 2, 0, 1, 1)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtGui.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 274, 29))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 276, 29))
         self.menubar.setObjectName("menubar")
         self.menu = QtGui.QMenu(self.menubar)
         self.menu.setObjectName("menu")
@@ -161,27 +161,21 @@ class Ui_MainWindow(object):
         self.toolBar.setObjectName("toolBar")
         MainWindow.addToolBar(QtCore.Qt.ToolBarArea(QtCore.Qt.TopToolBarArea), self.toolBar)
         self.noticebox = QtGui.QDockWidget(MainWindow)
+        self.noticebox.setMaximumSize(QtCore.QSize(524287, 120))
+        self.noticebox.setFloating(False)
+        self.noticebox.setFeatures(QtGui.QDockWidget.AllDockWidgetFeatures)
         self.noticebox.setObjectName("noticebox")
         self.notice_w = QtGui.QWidget()
         self.notice_w.setObjectName("notice_w")
         self.gridLayout_3 = QtGui.QGridLayout(self.notice_w)
+        self.gridLayout_3.setMargin(0)
+        self.gridLayout_3.setSpacing(0)
         self.gridLayout_3.setObjectName("gridLayout_3")
         self.notices = QtGui.QStackedWidget(self.notice_w)
+        self.notices.setMinimumSize(QtCore.QSize(256, 0))
         self.notices.setFrameShadow(QtGui.QFrame.Plain)
+        self.notices.setLineWidth(0)
         self.notices.setObjectName("notices")
-        self.page = QtGui.QWidget()
-        self.page.setObjectName("page")
-        self.gridLayout_5 = QtGui.QGridLayout(self.page)
-        self.gridLayout_5.setObjectName("gridLayout_5")
-        self.label = QtGui.QLabel(self.page)
-        self.label.setObjectName("label")
-        self.gridLayout_5.addWidget(self.label, 0, 0, 1, 1)
-        self.notices.addWidget(self.page)
-        self.page_2 = QtGui.QWidget()
-        self.page_2.setObjectName("page_2")
-        self.gridLayout_4 = QtGui.QGridLayout(self.page_2)
-        self.gridLayout_4.setObjectName("gridLayout_4")
-        self.notices.addWidget(self.page_2)
         self.gridLayout_3.addWidget(self.notices, 0, 0, 1, 1)
         self.noticebox.setWidget(self.notice_w)
         MainWindow.addDockWidget(QtCore.Qt.DockWidgetArea(8), self.noticebox)
@@ -252,7 +246,7 @@ class Ui_MainWindow(object):
         self.toolBar.addAction(self.actionIgnoreUser)
 
         self.retranslateUi(MainWindow)
-        self.notices.setCurrentIndex(0)
+        self.notices.setCurrentIndex(-1)
         QtCore.QObject.connect(self.actionQuit, QtCore.SIGNAL("activated()"), MainWindow.close)
         QtCore.QObject.connect(self.conn_close, QtCore.SIGNAL("clicked()"), self.conninput.hide)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
@@ -270,7 +264,6 @@ class Ui_MainWindow(object):
         self.menuHelo.setTitle(QtGui.QApplication.translate("MainWindow", "Help", None, QtGui.QApplication.UnicodeUTF8))
         self.menuContact.setTitle(QtGui.QApplication.translate("MainWindow", "Contact", None, QtGui.QApplication.UnicodeUTF8))
         self.toolBar.setWindowTitle(QtGui.QApplication.translate("MainWindow", "Actions", None, QtGui.QApplication.UnicodeUTF8))
-        self.label.setText(QtGui.QApplication.translate("MainWindow", "TextLabel", None, QtGui.QApplication.UnicodeUTF8))
         self.actionAbout.setText(QtGui.QApplication.translate("MainWindow", "About", None, QtGui.QApplication.UnicodeUTF8))
         self.actionSend_IM.setText(QtGui.QApplication.translate("MainWindow", "Send IM", None, QtGui.QApplication.UnicodeUTF8))
         self.actionSend_IM.setShortcut(QtGui.QApplication.translate("MainWindow", "Ctrl+M", None, QtGui.QApplication.UnicodeUTF8))
@@ -290,3 +283,13 @@ class Ui_MainWindow(object):
         self.actionInvis.setText(QtGui.QApplication.translate("MainWindow", "Invis", None, QtGui.QApplication.UnicodeUTF8))
 
 import resources_rc
+
+if __name__ == "__main__":
+    import sys
+    app = QtGui.QApplication(sys.argv)
+    MainWindow = QtGui.QMainWindow()
+    ui = Ui_MainWindow()
+    ui.setupUi(MainWindow)
+    MainWindow.show()
+    sys.exit(app.exec_())
+

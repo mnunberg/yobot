@@ -14,6 +14,7 @@ ifndef MINGW
 	CLEAN_EXTRA=$(TPL)
 	PROTCLIENT_EXTRA_LIBS=
 	MODULES=
+	LOGGER_EXTRA_LIBS=-lcurses
 else
 	BINPREFIX=i586-mingw32msvc-
 	CC=$(BINPREFIX)gcc
@@ -36,6 +37,7 @@ else
 	PYHDR=-I$(WROOT)/Python26/include
 	PYLIB=-L$(WROOT)/Python26/libs -lpython26 -lws2_32
 	CLEAN_EXTRA=$(TPL)
+	LOGGER_EXTRA_LIBS=
 	#first build the hack dl
 endif
 PROTOCLIENT_LIB=$(LIBPREFIX)yobotprotoclient.$(LIBSUFFIX)
@@ -53,13 +55,14 @@ $(OBJDIR)/%.o: %.c
 all: $(EXEC) $(PYMODULE) 
 
 $(EXEC): main.c $(OBJS) $(SUPPORT) $(PROTOCLIENT_LIB)
-	$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
+	$(CC) $(CFLAGS) $^ -o $@ $(LIBS) $(LOGGER_EXTRA_LIBS)
 
 .EXPORT_ALL_VARIABLES: $(TPL)
 $(TPL):
 	$(MAKE) -C contrib
 $(PROTOCLIENT_LIB): protoclient.c yobot_log.c $(TPL)
-	$(CC) $(CFLAGS) -DTPL_NOLIB -shared -fpic protoclient.c yobot_log.c -o $@ $(TPL) $(PROTOCLIENT_EXTRA_LIBS)
+	$(CC) $(CFLAGS) -DTPL_NOLIB -DPROTOLIB -shared -fpic protoclient.c yobot_log.c -o $@ \
+		$(TPL) $(PROTOCLIENT_EXTRA_LIBS) $(LOGGER_EXTRA_LIBS)
 
 #SWIG stuff
 $(PYMODULE_SRC): yobotproto.i
