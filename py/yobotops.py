@@ -35,7 +35,8 @@ for t in ("INFO","CRIT","WARN","PURPLE_CONNECTION_ERROR"):
     s = 'YOBOT_' + t
     _codes['severity'][getattr(yobotproto, s)] = s
 
-for k, v in yobotproto.__dict__.iteritems():
+for k in dir(yobotproto):
+    v = getattr(yobotproto, k)
     for d in ("evt", "cmd", "err", "prplmsg", "msg"):
         if k.startswith(_codes[d]['PREFIX']):
             _codes[d][v] = k

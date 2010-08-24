@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'chatwindow.ui'
+# Form implementation generated from reading ui file 'chatwindow_auto.ui'
 #
-# Created: Wed Aug 18 23:10:36 2010
+# Created: Mon Aug 23 19:33:00 2010
 #      by: PyQt4 UI code generator 4.7.3
 #
 # WARNING! All changes made in this file will be lost!

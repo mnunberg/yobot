@@ -369,7 +369,7 @@ class YobotClientService(YobotServiceBase):
         if not acct:
             return None
         if obj.evt.event != yobotproto.YOBOT_EVENT_ACCT_REMOVED:
-            self.uihooks.accountConnectionFailed(acct)
+            self.uihooks.accountConnectionFailed(acct, obj.evt.txt)
         else:
             self.uihooks.accountConnectionRemoved(acct)
             

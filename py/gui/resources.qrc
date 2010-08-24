@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="icons">
+    <file>res/16x16/status/dialog-error.png</file>
     <file>icons/im-ban-user.png</file>
     <file>icons/list-add-user.png</file>
     <file>icons/application-exit.png</file>
@@ -110,6 +111,9 @@
     <file>icons/user-offline.png</file>
     <file>icons/irc-voice.png</file>
     <file>icons/user-online.png</file>
+    <file>res/16x16/actions/dialog-close.png</file>
+    <file>res/16x16/actions/dialog-ok-apply.png</file>
+    <file>res/16x16/actions/dialog-ok.png</file>
     <file>icons/yahoo.png</file>
     <file>icons/zephyr.png</file>
   </qresource>

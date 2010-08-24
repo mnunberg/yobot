@@ -61,9 +61,10 @@ class UIClient(object):
         acct.fetchBuddies()
         self.uihooks.accountConnected(acct)
         
-    def accountConnectionFailed(self, acct):
+    def accountConnectionFailed(self, acct, txt):
         acct._logged_in = False
-        log_err( "AUTHORIZATION FAILED!", acct)
+        log_err( "AUTHORIZATION FAILED!", txt, acct)
+        self.uihooks.connectionFailed(acct, txt)
     def accountConnectionRemoved(self, acct):
         acct._logged_in = False
         log_warn( "ACCOUNT REMOVED!")

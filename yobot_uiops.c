@@ -206,12 +206,12 @@ static void account_added(PurpleAccount *account) {
 		account_uidata *priv = account->ui_data;
 		priv->requests = g_hash_table_new_full(g_str_hash, g_str_equal, free, NULL);
 	}
-	yobot_log_debug("inserted account [ID=%d, name=%s] into hash table", id, account->username);
+	yobot_log_debug("inserted account [ID=%ld, name=%s] into hash table", id, account->username);
 	event_account_send(account,YOBOT_INFO,YOBOT_EVENT_ACCT_REGISTERED,NULL);
 }
 
 static void account_removed(PurpleAccount *account) {
-	yobot_log_debug("removing account %d\n", __func__, yobot_get_acct_id(account));
+	yobot_log_debug("removing account %d", yobot_get_acct_id(account));
 	g_hash_table_remove(yobot_acct_table,GINT_TO_POINTER(yobot_get_acct_id(account)));
 	g_hash_table_destroy(((account_uidata*)account->ui_data)->requests);
 	event_account_send(account,YOBOT_INFO,YOBOT_EVENT_ACCT_UNREGISTERED,NULL);

@@ -219,8 +219,8 @@ class AccountRequestHandler(object):
         self.proto = proto
         self.prpl = prpl
         self.acct_mgr = acct_mgr
-        
         self.acct_mgr.addAcct(self)
+        self.timedOut = False
         
     def handle_added(self,acct_data):
         existing_acct, _ = acct_data
@@ -240,7 +240,11 @@ class AccountRequestHandler(object):
         
         d = defer.Deferred()
         d.addErrback(self.rm_account)
-        t = reactor.callLater(10, d.errback, AccountRemoved("Account authorization timed out"))
+        def _callTimeout():
+            self.timedOut = True
+            d.errback(AccountRemoved("Account authorization timed out"))
+            
+        t = reactor.callLater(10, _callTimeout)
         
         self.newacct.timeoutCb = t
         self.newacct.connectedCb = d
@@ -284,11 +288,13 @@ class AccountRequestHandler(object):
     def rm_account(self, cbresult):
         log_debug( "rm_account...")
         #tell the client we've timed out
-        log_debug( "sending event..")
-        self.proto.sendAccountEvent(yobotproto.YOBOT_EVENT_LOGIN_TIMEOUT,
+        if self.timedOut:
+            log_debug( "sending event..")
+
+            self.proto.sendAccountEvent(yobotproto.YOBOT_EVENT_LOGIN_TIMEOUT,
                                     self.newacct.id,severity=yobotproto.YOBOT_WARN,
                                     txt="Yobot Server did not get a response from purple")
-        log_debug( "Sent event")
+            log_debug( "Sent event")
         
         #tell purple to forget about our account
         log_debug( "telling purple to remove the account...")

@@ -30,7 +30,7 @@ typedef struct {
 } authrequest;
 
 typedef struct {
-	int id;
+	uint32_t id;
 	GHashTable *requests;
 } account_uidata;
 

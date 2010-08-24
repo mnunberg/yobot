@@ -10,6 +10,7 @@ from debuglog import log_debug, log_info, log_err, log_crit, log_warn
 import main_auto
 import sendjoin_auto
 import chatwindow_auto
+import notification
 import time
 import string
 import random
@@ -35,7 +36,7 @@ signal_connect = QObject.connect
 CHAT, IM = (1,2)
 INDEX_ACCT, INDEX_BUDDY = (1,2)
 PROTO_INT, PROTO_NAME = (1,2)
-
+NOTICE, ERROR, DIALOG = (1,2,3)
 ROLE_ACCT_OBJ = Qt.UserRole + 2
 ROLE_SMALL_BUDDY_TEXT = Qt.UserRole + 3
 
@@ -80,6 +81,7 @@ def proto_name_int(proto, type):
 
 def getIcon(name):
     return QtGui.QIcon.fromTheme(name, QIcon(":/icons/icons/"+name.lower()))
+
 
 def getProtoStatusIcon(name, proto_int=None):
     """Creates a nice little overlay of the status and the protocol icon.
@@ -532,7 +534,60 @@ class ChatWindow(QMainWindow):
         "to be attached to YobotGui's _openChat()"
         pass
     
+
+class NotificationBox(object):
+    def __init__(self, qdockwidget, qstackedwidget):
+        self.qdw = qdockwidget
+        self.qsw = qstackedwidget
+        while self.qsw.count() > 0:
+            self.qsw.removeWidget(self.qsw.currentWidget())
+        self.qdw.hide()
+    
+    def addNotification(self, acct, txt, okCb=None, cancelCb=None, type=NOTICE):
+        qw = QWidget()
+        #setup the widget
+        notice_widget = notification.Ui_Form()
+        notice_widget.setupUi(qw)
+        notice_widget.iconlabel
+        #get an icon:
+        icon = None
+        if type == NOTICE:
+            icon = QPixmap(":/icons/icons/help-about.png")
+        elif type == ERROR:
+            icon = QPixmap(":/icons/res/16x16/status/dialog-error.png")
+        if icon:
+            notice_widget.iconlabel.setPixmap(icon)
+        else:
+            notice_widget.iconlabel.hide()
+        
+        notice_widget.account.setText(acct.name)
+        notice_widget.message.setText(txt)
+            
+        if not cancelCb:
+            notice_widget.discard.hide()
+        def _remove_notice():
+            self.qsw.removeWidget(qw)
+            if not self.qsw.count():
+                self.qsw.hide()
+                self.qdw.hide()
+                
+        def _ok():
+            if okCb:
+                okCb()
+            _remove_notice()
+        def _cancel():
+            if cancelCb:
+                cancelCb()
+            _remove_notice()
+        signal_connect(notice_widget.accept, SIGNAL("clicked()"), _ok)
+        signal_connect(notice_widget.discard, SIGNAL("clicked()"), _cancel)
+        self.qsw.show()
+        self.qdw.show()
+        self.qsw.addWidget(qw)
+        self.qsw.setCurrentWidget(qw)
+
 class YobotGui(object):
+ 
     chats = {} #chats[account,target]->ChatWindow instance
     
     def __init__(self, client):
@@ -632,6 +687,7 @@ class YobotGui(object):
         d = BuddyItemDelegate(w.blist)
         w.blist.setItemDelegate(d)
         
+        self.notifications = NotificationBox(w.noticebox, w.notices)
         #connect signals...
         signal_connect(w.blist, SIGNAL("doubleClicked(QModelIndex)"),
                self._buddyClick)
@@ -704,7 +760,10 @@ class YobotGui(object):
                     request_obj.respond(False)
             signal_connect(mb, SIGNAL("buttonClicked(QAbstractButton*)"), _cb)
             mb.show()
-
+    
+    def connectionFailed(self, acct, txt):
+        self.notifications.addNotification(acct, txt)
+        
 if __name__ == "__main__":
     gui = YobotGui(None)
     gui._testgui()
