@@ -16,10 +16,13 @@ from twisted.internet import defer
 from account import AccountManager, AccountRequestHandler, AccountRemoved
 from msglogger import MessageLogger, CONV_TYPE_CHAT, CONV_TYPE_IM
 from client_support import ModelBase, BuddyAuthorize
+from debuglog import log_debug, log_err, log_warn, log_crit, log_info
+import debuglog
+
 
 
 if __name__ == "__main__":
-    print "INSTALLING REACTOR..."
+    log_info( "INSTALLING REACTOR...")
     from twisted.internet import reactor
 
 def get_rand(bits,st):
@@ -85,7 +88,6 @@ class YobotSegment(object):
             if self.commflags & yobotproto.YOBOT_DATA_IS_BINARY:
                 result = yobotproto.cdata(decoded_segment.rawdata,decoded_segment.evi.evt.len)
                 self.evt.txt = result
-                open("icon_log", "wb").write(result)
 
                 
             
@@ -99,6 +101,9 @@ class YobotSegment(object):
         """prepare the string so it can be passed back into C for decoding.
         I need to get rid of this"""
         return yobotproto.yobot_protoclient_segment_decode_from_buf(msg, len(msg))
+        
+    def __str__(self):
+        return str(self.base) if self.base else "<Unknown Segment>"
     
 #############################   PROTOCOLS   ##########################
 class YobotNode(Int16StringReceiver):
@@ -124,7 +129,7 @@ class YobotNode(Int16StringReceiver):
         """
         Calls the object's .encode() method and returns a python string version
         """
-        print pycls
+        log_debug( pycls)
         ptr = pycls.encode()
         if not ptr:
             return
@@ -149,7 +154,7 @@ class YobotNode(Int16StringReceiver):
     #some convenience functions:
     def sendAccountEvent(self, event, id,
                          severity=yobotproto.YOBOT_INFO, txt=None):
-        print "sendAccountEvent"
+        log_debug("begin")
         evt = yobotclass.YobotEvent()
         evt.objid = id
         evt.objtype = yobotproto.YOBOT_PURPLE_ACCOUNT
@@ -157,7 +162,7 @@ class YobotNode(Int16StringReceiver):
         evt.txt = txt
         evt.event = event
         self.sendSegment(evt)
-        print "done"
+        log_debug( "done")
     
     def sendCommand(self, command, id, flags=0, txt=None):
         cmd = yobotclass.YobotCommand()
@@ -184,7 +189,7 @@ class YobotClient(YobotNode):
         """
         self.factory.requestRegistration(self)
     def connectionLost(self, reason):
-        print "lost server.. shutting down"
+        log_err( "lost server.. shutting down")
         if self.factory.reactor and self.factory.reactor.running:
             self.factory.reactor.stop()
         
@@ -194,7 +199,7 @@ class YobotPurple(YobotNode):
         self.factory.setPurple(self)
         
     def connectionLost(self, reason):
-        print "lost purple.. shutting down"
+        log_err( "lost purple.. shutting down")
         if reactor.running:
             reactor.stop()
         
@@ -211,7 +216,7 @@ def mkDispatcher(tbl_name, attrs):
             for attr in attrs.split("."):
                 target = getattr(target, attr)
         except AttributeError, e:
-            print e
+            log_warn( e)
             return None
         
         f_name = tbl.get(target, None)
@@ -228,20 +233,13 @@ class YobotServiceBase(service.Service):
         return NotImplemented
     
     def unhandled(self, obj, proto):
-        print "UNHANDLED!!"
-        if obj.evt:
-            print obj.evt
-        if obj.cmd:
-            print obj.cmd
-        if obj.msg:
-            print obj.msg
-        print obj
+        log_warn("UNHANDLED", obj)
         return NotImplemented
     
     dispatch = mkDispatcher("handlers", "struct_type")
     
     for i in ("evt","msg","mkacct","cmd"):
-        exec(("def handle_%s(self,obj,proto): print obj.base; return NotImplemented") % i)
+        exec(("def handle_%s(self,obj,proto): log_warn( obj.base); return NotImplemented") % i)
     
     handlers = {
         yobotproto.YOBOT_PROTOCLIENT_YEVTI : "handle_evt",
@@ -258,7 +256,7 @@ class ClientAccountStore(ModelBase):
     def addAccount(self, acctid, acct):
         self._addItem(acct, acctid)
         self.svc._all_accounts.add(acct)
-        print self._d
+        log_debug( self._d)
     def delAccount(self, acctid):
         #we might be called twice.. do some checks..
         acct = self._getItem(acctid)
@@ -302,9 +300,9 @@ class YobotClientService(YobotServiceBase):
             obj.base.event == yobotproto.YOBOT_EVENT_CLIENT_REGISTERED):
             proto.cid = obj.base.objid
             proto.registered = True
-            print "client received registration response with cid ", proto.cid
+            log_info( "client received registration response with cid", proto.cid)
         else:
-            print "not expecting this..."
+            log_err( "not expecting this...")
             proto.transport.loseConnection()
             
     def requestRegistration(self, proto):
@@ -318,7 +316,7 @@ class YobotClientService(YobotServiceBase):
 #since we aren't receiving any commands or mkacct object (for now), we aren't implementing their handlers.
 
     def handle_evt(self, obj, proto):
-        print obj.evt
+        log_info( obj.evt)
         self.dispatchEvent(obj, proto)
     def handle_msg(self,obj,proto):
         acct = self.accounts.getAccount(obj.msg.acctid)
@@ -336,7 +334,7 @@ class YobotClientService(YobotServiceBase):
     dispatchEvent = mkDispatcher("evthandlers", "evt.event")
         
     def clientRegistered(self, obj, proto):
-        print "client registered"
+        log_info( "client registered")
         self.uihooks.clientRegistered()
 
     def gotNewId(self, obj, proto):
@@ -344,7 +342,7 @@ class YobotClientService(YobotServiceBase):
         #find an account that's pending...
         acct = self.pending_accounts.get(block=False)
         if acct:
-            print "APPLYING GRANTED ID TO ACCOUNT"
+            log_info( "APPLYING GRANTED ID TO ACCOUNT")
             #assign it an ID...
             acct.changeid(self.id_pool.pop())
             self.accounts.addAccount(acct.id, acct)
@@ -355,7 +353,7 @@ class YobotClientService(YobotServiceBase):
         #get the old ID
         cur_id = obj.evt.objid
         new_id = int(obj.evt.txt)
-        print "cur_id: ", cur_id
+        log_info( "cur_id:", cur_id, "new id:", new_id)
         acct = self.accounts.delAccount(cur_id)
         acct.changeid(new_id)
         self.accounts.addAccount(new_id, acct)
@@ -382,11 +380,11 @@ class YobotClientService(YobotServiceBase):
         
     def buddyEvent(self, obj, proto):
         #find account...
-        print "id: ", obj.evt.objid
+        log_info( "id: ", obj.evt.objid)
         acct = self.accounts.getAccount(obj.evt.objid)
         if not acct:
-            print "Couldn't find account!!!! <buddyEvent>"
-        print acct
+            log_warn( "Couldn't find account!")
+        log_debug( acct)
         
         name, data = obj.evt.txt.split(str(yobotproto.YOBOT_TEXT_DELIM), 1)
         name = name.replace('\0', '')
@@ -405,11 +403,10 @@ class YobotClientService(YobotServiceBase):
             joined = False
             
         room, user = evt.txt.split(yobotproto.YOBOT_TEXT_DELIM, 1)
-        print "Room is", room
-        print "User is", user
+        log_info("room:", room, "user:", user)
         acct = self.accounts.getAccount(evt.objid)
         if not acct:
-            print "couldn't find account"
+            log_warn( "couldn't find account")
             return
         
         if joined:
@@ -417,7 +414,7 @@ class YobotClientService(YobotServiceBase):
         else:
             self.uihooks.chatUserLeft(acct, room, user)
             
-        print obj.evt
+        log_info( obj.evt)
 
     
     evthandlers = {
@@ -445,11 +442,11 @@ class YobotClientService(YobotServiceBase):
     def addAcct(self, acct):
         #add an account and request an ID..
         if acct in self._all_accounts:
-            print "request already completed or pending.. not adding"
+            log_warn( "request already completed or pending.. not adding")
             return
         self.pending_accounts.put(acct)
         self.yobot_server.sendCommand(yobotproto.YOBOT_CMD_ACCT_ID_REQUEST,0)
-        print "send account connect command for account %s" % (acct, )
+        log_debug( "send account connect command for account %s" % (acct, ))
     
     def addreqAuthorize(self, acct, buddy):
         self.yobot_server.sendCommand(yobotproto.YOBOT_CMD_USER_AUTHORIZE_ADD_ACCEPT, acct.id,
@@ -626,7 +623,7 @@ class YobotServerService(YobotServiceBase):
         if not newcid:
             return None
         else:
-            print "newcid:", newcid
+            log_info( "newcid:", newcid)
             return newcid
             
     def unregisterClient(self, proto):
@@ -634,7 +631,7 @@ class YobotServerService(YobotServiceBase):
         Hook for connectionLost(). Removes the CID (if any) and its associated
         protocol instance from the table of clients
         """
-        print "UNREGISTERING: ", proto.cid
+        log_debug( "UNREGISTERING: ", proto.cid)
         #first remove it from the accounts list:
         acct_refs = self.accounts.getConnectionData(proto)
         if acct_refs:
@@ -645,16 +642,16 @@ class YobotServerService(YobotServiceBase):
         try:
             self.accounts._connections.pop(proto)
         except KeyError, e:
-            print e, "don't care"
-        print "Unregistered connection from all accounts"
+            log_warn( e, "don't care")
+        log_info( "Unregistered connection from all accounts")
         
         try:
             self.clients.pop(proto.cid)
         except KeyError, e:
-            print e, "(don't care)"
+            log_warn( e, "(don't care)")
         
-        print "CURRENT CONNECTIONS: ", self.clients
-        print "Connections: ", self.accounts._connections, "Accounts ", self.accounts._ids
+        log_debug( "CURRENT CONNECTIONS: ", self.clients)
+        log_debug( "Connections: ", self.accounts._connections, "Accounts ", self.accounts._ids)
     
     
     #########################   HANDLERS    ####################################
@@ -671,20 +668,20 @@ class YobotServerService(YobotServiceBase):
             acct_entry = self.accounts.byId(acctid)
             if not acct_entry:
                 #Account doesn't exist.
-                print "verification failing.. no such account", acctid
+                log_err( "verification failing.. no such account", acctid)
                 return False
             
             _, protos = acct_entry
             if not protos:
                 #there's no protocol instance currently connected
-                print "verification failing, no connected instances", acctid
+                log_err( "verification failing, no connected instances", acctid)
                 return False
             
             if proto in protos:
                     #Account exits and has this CID in its list of clients
                     return True
                 #Account exits but CID not found
-            print "verification failing, CID %d not in associated client list for account %d" % (proto.cid, acctid)
+            log_err( "verification failing, CID %d not in associated client list for account %d" % (proto.cid, acctid))
             return False
         
         #Account ID is the special value of 0
@@ -720,14 +717,14 @@ class YobotServerService(YobotServiceBase):
                 raise Exception("New ID cannot be allocated!!!!")
             proto.sendAccountEvent(yobotproto.YOBOT_EVENT_ACCT_ID_NEW, new_id)
         elif command == yobotproto.YOBOT_CMD_CLIENT_REGISTER:
-            print "not relaying registration command to purple.."
+            log_info( "not relaying registration command to purple..")
         elif command in (yobotproto.YOBOT_CMD_FETCH_BUDDIES,
                          yobotproto.YOBOT_CMD_ROOM_FETCH_USERS,
                          yobotproto.YOBOT_CMD_FETCH_BUDDY_ICONS):
             #generate reference..
             reference = get_rand(8,self.requests.keys())
             if not reference:
-                print "CAN'T ALLOCATE REQUEST ID!"
+                log_err( "CAN'T ALLOCATE REQUEST ID!")
                 return
             #generate new command..
             obj.cmd.reference = reference
@@ -779,7 +776,7 @@ class YobotServerService(YobotServiceBase):
         if obj.struct_type == yobotproto.YOBOT_PROTOCLIENT_YEVTI:
             if obj.event == yobotproto.YOBOT_EVENT_CLIENT_REGISTERED:
                 proto.registered = True
-                print "Purple is ", self.prpl_server, "REGISTERED!"
+                log_info( "Purple is ", self.prpl_server, "REGISTERED!")
     
     
     
@@ -789,8 +786,7 @@ class YobotServerService(YobotServiceBase):
             p.sendPrefixed(obj.raw)
     
     def purple_handle_msg(self, obj, proto):
-        print "GOT MESSAGE"
-        print obj.msg
+        log_debug( obj.msg)
         #relay the message to all connected clients...
         self._relay_segment(obj, obj.cmd.acctid)
             
@@ -800,9 +796,8 @@ class YobotServerService(YobotServiceBase):
     
     def purple_handle_acct_connection(self, obj, proto):
         """This will handle account events coming from purple.."""
-        print "purple_handle_acct_connection"
         evt = obj.evt
-        print evt
+        log_info( evt)
         acct_id = evt.objid
         if evt.event in (yobotproto.YOBOT_EVENT_AUTH_FAIL, yobotproto.YOBOT_EVENT_LOGIN_ERR):
             #find account and trigger its errback:
@@ -823,15 +818,15 @@ class YobotServerService(YobotServiceBase):
                     "account %d was connected but was not found in the accounts list" % (acct_id,))
             acct.timeoutCb.cancel()
             acct.connectedCb.callback(None)
-            print "ACCOUNT %d connected!" % acct_id
+            log_info( "ACCOUNT %d connected!" % acct_id)
         
         elif evt.event == yobotproto.YOBOT_EVENT_DISCONNECTED:
             #FIXME: HANDLE THIS
-            print "DISCONNECTED..."
+            log_warn( "DISCONNECTED...")
             return
         
         else:
-            print evt
+            log_info( evt)
         self._relay_segment(obj, acct_id)
         
         
@@ -841,14 +836,14 @@ class YobotServerService(YobotServiceBase):
         #first get the type...
         if obj.commflags & yobotproto.YOBOT_RESPONSE_END:
             self.requests.pop(obj.reference, None)
-            print "request done.. removing.."
+            log_debug( "request done.. removing..")
             return
         if not obj.commflags & yobotproto.YOBOT_RESPONSE:
-            print "how the hell did this get here.."
+            log_err( "how the hell did this get here..")
             return
         client = self.requests.get(obj.reference, None)
         if not client:
-            print "couldn't get client!"
+            log_err( "couldn't get client!")
             return
         #check that the client is associated with the account ID still (this is
         #a really paranoid provision, for e.g. a new client which has taken the
@@ -857,7 +852,7 @@ class YobotServerService(YobotServiceBase):
         #if not self.verifyObj(obj, client):
         #    raise UnauthorizedTransmission()
         #finally.. relay..
-        print obj.evt
+        log_debug( obj.evt)
         client.sendPrefixed(obj.raw)
         
     def relay_event(self, obj, proto):
@@ -885,16 +880,10 @@ class YobotServerService(YobotServiceBase):
 ############## TESTING ################
 if __name__ == "__main__":
     CLIENT, SERVER = [1,2]
-    mode = None
-    if sys.argv[1] == "-c":
-        mode = CLIENT
-    elif sys.argv[1] == "-s":
+    if sys.argv[1] == "-s":
+        debuglog.init("Agent", title_color="cyan")
+        yobotproto.yobot_proto_setlogger("Agent")
         mode = SERVER
-        
-    if mode == CLIENT:
-        svc = YobotClientService()
-        reactor.connectTCP("localhost", 7770, svc.getYobotClientFactory())
-    elif mode == SERVER:
         svc = YobotServerService()
         reactor.connectTCP("localhost", 7771, svc.getYobotPurpleFactory())
         reactor.listenTCP(7770, svc.getYobotServerFactory())

@@ -3,6 +3,7 @@ from yobotclass import YobotAccount, YobotMessage, YobotCommand
 import yobotproto
 from yobotops import buddystatustostr
 from time import time
+from debuglog import log_debug, log_err, log_warn, log_crit, log_info
 
 
 class YCRequest(object):
@@ -63,7 +64,7 @@ class ModelBase(object):
         
     def _addItem(self, item, key):
         if item in self:
-            print "item exists"
+            log_warn( "item exists")
             return
         self.beginAdd(len(self._t))
         l = list(self._t)
@@ -186,12 +187,12 @@ class YCAccount(YobotAccount):
     def connect(self):
         #assume we have an ID...
         self.svc.addAcct(self)
-        print "adding self to connected list..."
+        log_info( "adding self to connected list...")
         
     def fetchBuddies(self):
         self.svc.fetchBuddies(self)
         self.svc.fetchBuddyIcons(self)
-        print "Fetching buddies.."
+        log_info( "Fetching buddies..")
         
     def fetchRoomUsers(self, room):
         self.svc.fetchRoomUsers(self, room)
@@ -216,18 +217,17 @@ class YCAccount(YobotAccount):
     
     def gotmsg(self, msg):
         """This should be overridden by the GUI"""
-        print "gotmsg: msg"
-        print msg
+        log_debug( msg)
         if msg.yprotoflags & yobotproto.YOBOT_MSG_TYPE_CHAT:
             #find room...
             for room in self.rooms:
                 if room.name == msg.name:
                     room.gotmsg(msg)
         elif msg.yprotoflags & yobotproto.YOBOT_MSG_ATTENTION:
-            print msg.name, "Has buzzed you!!"
+            log_info( msg.name, "Has buzzed you!!")
         elif msg.yprotoflags & yobotproto.YOBOT_MSG_TYPE_IM:
-            print msg
-            
+            pass
+        
     def _getBuddy(self, name):
         buddy = None
         if name in self.blist:
@@ -246,16 +246,16 @@ class YCAccount(YobotAccount):
             self.notifier.dataChanged(self.index)
             return
         
-        print "adding buddy %s with status %d" % (name, status)
+        log_info( "adding buddy %s with status %d" % (name, status))
         buddy = self._getBuddy(name)
         #process events..
         buddy.status = status
         buddy.status_message = text if text else buddystatustostr(status)
-        print buddy.status_message
+        log_info("status message", buddy.status_message)
         self.notifier.dataChanged(self.index, buddy.index)
     
     def gotBuddyIcon(self, name, icon_data):
-        print "gotBuddyIcon"
+        log_debug("got buddy icon for", name)
         buddy = self._getBuddy(name)
         buddy.icon = icon_data
         self.notifier.dataChanged(self.index, buddy.index)
@@ -303,7 +303,7 @@ class _YobotRoom(object):
         self.account.joinchat(self)
         
     def gotmsg(self, msg):
-        print msg
+        log_info( msg)
     def __hash__(self):
         return hash(self.name)
     def __eq__(self, other):

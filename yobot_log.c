@@ -4,15 +4,15 @@
 #include "yobot_log.h"
 
 /*Logging subsystem*/
-void yobot_logger(yobot_log_level level, int line, const char *fn, const char *fmt, ...) {
-	if(yobot_log_params.level > level) {
+void yobot_logger(yobot_log_s logparams, yobot_log_level level, int line, const char *fn, const char *fmt, ...) {
+	if(logparams.level > level) {
 		printf("level failed");
 		return;
 	}
 	va_list ap;
 	va_start(ap, fmt);
-	printf("[%s:%d] ", yobot_log_params.prefix, line);
-	printf("%s: ", fn);
+	printf("[%s] ", logparams.prefix);
+	printf("%s:%d ", fn, line);
 	vprintf(fmt, ap);
 	printf("\n");
 	fflush(NULL);

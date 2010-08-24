@@ -8,8 +8,6 @@ import sys
 
 sys.stdout = sys.stderr
 _codes = {}
-def _log(m):
-    print m
 
 for typ,enumprefix in (
     ("evt","EVENT"),

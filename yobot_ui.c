@@ -45,7 +45,7 @@ static void yobot_listener(gpointer _null, gint fd, PurpleInputCondition cond);
 
 void yobot_core_ui_init()
 {
-	puts(__func__);
+	yobot_log_debug("begin");
 	yobot_acct_table = g_hash_table_new(g_direct_hash, g_direct_equal);
 	yobot_request_table = g_hash_table_new(g_direct_hash, g_direct_equal);
 
@@ -62,6 +62,7 @@ void yobot_core_ui_init()
 	yobot_connection_signals_register();
 	yobot_blist_signals_register();
 	/*...*/
+	yobot_proto_setlogger(yobot_log_params.prefix);
 	init_listener(TRUE);
 }
 
@@ -103,6 +104,7 @@ static void join_chat(char *room_name, PurpleConnection *gc) {
 
 static void init_listener(gboolean first_time)
 {
+	yobot_proto_segfrombuf(yobot_log_params.prefix);
 	yobot_log_info("BEGIN");
 #ifndef WIN32
 	tpl_hook.oops = printf;

@@ -2,6 +2,7 @@
 from yobotclass import YobotAccount
 from twisted.internet import reactor, defer
 from twisted.python.failure import Failure
+from debuglog import log_debug, log_err, log_warn, log_crit, log_info
 
 import random
 import yobotproto
@@ -68,7 +69,7 @@ class AccountManager(object):
         acct_match = self.byUserProto(ybacct.user,ybacct.improto)
         if not acct_match:
             #no match at all
-            print "NO MATCH.. returning", ret
+            log_info( "NO MATCH.. returning", ret)
             return ret
         ret[0] |= USERPROTO_MATCH
         ret[1] = acct_match
@@ -78,17 +79,16 @@ class AccountManager(object):
         return ret
     
     def addAcct(self,reqhandler):
-        print "addAcct"
         acct = reqhandler.newacct
         res_type, acct_data = self.acctExists(acct)
         
         if res_type & (USERPROTO_MATCH|PASSWORD_MATCH):
-            print "FULL MATCH"
+            log_info( "FULL MATCH")
             #account exists, notify of existing ID
             reqhandler.handle_exists(acct_data)
             
         elif res_type & USERPROTO_MATCH:
-            print "USERPROTO MATCH"
+            log_info( "USERPROTO MATCH")
             if acct_data[0].loggedin:
                 reqhandler.handle_authfail(acct_data)
             else:
@@ -96,42 +96,41 @@ class AccountManager(object):
                 #wait until an account has been authenticated
                 
         elif res_type == NO_MATCH:
-            print "NO MATCH!!!"
+            log_info( "NO MATCH!!!")
             #Add to both our indices
             acct_data = self._accounts[acct.user,acct.improto] = [acct, set()]
             self._ids[acct.id] = acct_data
             reqhandler.handle_added(acct_data)
     
     def delAcct(self, id=None,userproto=None):
-        print "delAcct"
         """Deletes an account indexed by ID or (user,proto) pair. If the account
         exists, it will return the data portion of the entry. This will also
         delete the account from the connected protocol instances..
         Raises KeyError if something doesn't exist"""
         (acct, data) = None, None
         if id:
-            print "looking up ID"
+            log_debug("looking up ID")
             #get account from ID and remove from other dict:
             res = self._ids.pop(id)
             if res == RESERVED_ID:
-                print "Reserved ID"
+                log_debug("Reserved ID")
                 return None
             
             acct, data = res
             self._accounts.pop((acct.user,acct.improto))
         elif userproto:
-            print "looking up userproto"
+            log_debug("looking up userproto")
             res = self._accounts.pop((userproto))
             assert res
             acct, data = res
             self._ids.pop(acct.id)
         else:
-            print "oops.. neither id or userproto was specified"
+            log_err("oops.. neither id or userproto was specified")
             raise TypeError, "Must provide a (user,proto) or ID as a key"
         
         for conn in data:
             self._connections[conn].remove(acct.id)
-        print "done"
+        log_debug("done")
         
         
     def _update_both(self, acct, st, lookup_table):
@@ -162,7 +161,7 @@ class AccountManager(object):
         try:
             st.remove(connection)
         except KeyError, e:
-            print e
+            log_warn( e)
             return
         
         self._update_both(acct, st, lookup_table)
@@ -170,7 +169,7 @@ class AccountManager(object):
         try:
             self._connections[connection].remove(acct.id)
         except KeyError, e:
-            print e
+            log_warn( e)
             return
     
     def getConnectionData(self, connection):
@@ -283,24 +282,24 @@ class AccountRequestHandler(object):
         pending_acct.connectedCb.addCallback(pending_succeeded)                
         
     def rm_account(self, cbresult):
-        print "rm_account..."
+        log_debug( "rm_account...")
         #tell the client we've timed out
-        print "sending event.."
+        log_debug( "sending event..")
         self.proto.sendAccountEvent(yobotproto.YOBOT_EVENT_LOGIN_TIMEOUT,
                                     self.newacct.id,severity=yobotproto.YOBOT_WARN,
                                     txt="Yobot Server did not get a response from purple")
-        print "Sent event"
+        log_debug( "Sent event")
         
         #tell purple to forget about our account
-        print "telling purple to remove the account..."
+        log_debug( "telling purple to remove the account...")
         self.prpl.sendCommand(yobotproto.YOBOT_CMD_ACCT_REMOVE,self.newacct.id)
-        print "done"
+        log_debug( "done")
         
         try:
-            print "deleting account from relay..."
+            log_debug( "deleting account from relay...")
             self.acct_mgr.delAcct(id=self.newacct.id)
-            print "done"
+            log_debug( "done")
         except Exception,e:
-            print err
+            log_warn( err)
         
-        print "deleted account %d" % self.newacct.id
+        log_info( "deleted account %d" % self.newacct.id)

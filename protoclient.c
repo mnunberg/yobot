@@ -5,6 +5,7 @@
 #include <assert.h>
 #include "yobotutil.h"
 #include "protoclient.h"
+#include "yobot_log.h"
 #include <errno.h>
 
 #ifdef WIN32
@@ -28,7 +29,27 @@
 
 #define USE_TPL
 
-
+/*for logging*/
+yobot_log_s yobotproto_log_params = {
+		"Yobot Proto",
+		1
+};
+static char* logprefix = NULL;
+void yobot_proto_setlogger(char *prefix) {
+	if(prefix && !logprefix) {
+		logprefix = malloc(32);
+		memset(logprefix, 0, 32);
+		strncat(logprefix, prefix, 32);
+		strncat(logprefix, "(proto)", 32-strlen(logprefix));
+		yobotproto_log_params.prefix = logprefix;
+	}
+}
+/*finally, make sure we don't use the main logging facilities*/
+#undef yobot_log_crit
+#undef yobot_log_debug
+#undef yobot_log_err
+#undef yobot_log_info
+#undef yobot_log_warn
 
 /*these functions free data structures*/
 static void free_yobotmkacct_internal(yobotmkacct_internal *ymkaccti);
@@ -68,19 +89,19 @@ struct segment_r yobot_proto_segfrombuf(void *buf) {
 	extern char edata, end;
 	void *_end = sbrk(0);
 	if(buf+2 > _end || buf == NULL || (void*)&end > buf) {
-		printf("%s: invalid buffer! starts at %p but can only read from %p until %p\n",
-				__func__,buf,&edata,_end); goto err;
+		yobotproto_log_err("invalid buffer! starts at %p but can only read from %p until %p",
+				buf,&edata,_end); goto err;
 		}
 #endif
 
 	uint16_t len = ntohs(*(uint16_t*)buf);
 	if(len >= YOBOT_MAX_COMMSIZE) {
-		printf("%s: sanity check failed! len is %d\n", __func__, len);
+		yobotproto_log_err("sanity check failed! len is %d",len);
 		goto err;
 	}
 #ifndef WIN32
 	if(buf+len+sizeof(uint16_t) > _end) {
-		printf("%s: len is %d but only have %lu for buffer\n",__func__,len,
+		yobotproto_log_err("len is %d but only have %lu for buffer",len,
 				_end-(buf+sizeof(uint16_t)+len));
 		goto err;
 	}
@@ -92,7 +113,7 @@ struct segment_r yobot_proto_segfrombuf(void *buf) {
 	return ret;
 
 	err:
-	printf("%s: returning empty segment_r\n", __func__);
+	yobotproto_log_warn("returning empty segment_r");
 	ret.len = 0;
 	if(ret.data) free(ret.data);
 	ret.data = NULL;
@@ -107,7 +128,7 @@ struct segment_r yobot_proto_read_segment(void *input) {
 		err = recv(fd,bufp,size-nread,0); \
 		if (err <= 0) { \
 			if ((errno == EWOULDBLOCK) && err != 0) { \
-				puts("continuing to read...");\
+				yobotproto_log_debug("continuing to read...");\
 				usleep(100); \
 				continue; \
 			} else /*got a HUP*/ { \
@@ -138,7 +159,7 @@ struct segment_r yobot_proto_read_segment(void *input) {
 	len = ntohs(*(uint16_t*)bufp);
 
 	if (len > YOBOT_MAX_COMMSIZE) {
-		printf("LEGNTH %d EXCEEDS MAX %d!\n",
+		yobotproto_log_err("LEGNTH %d EXCEEDS MAX %d!\n",
 				len, YOBOT_MAX_COMMSIZE);
 		free(buf);
 		return ret;
@@ -255,7 +276,6 @@ void *yobot_protoclient_msg_encode(struct yobot_msginfo info,
 	PurpleMessageFlags prpl_flags = info.purple_flags;
 	uint32_t mtime = info.msgtime;
 
-//	puts(__func__);
 //	printf("%s: got WHO as %s\n", __func__, who);
 	yobot_proto_model_internal model;
 	yobotmsg ymsg;
@@ -428,7 +448,7 @@ void *yobot_proto_segment_encode(yobot_proto_model_internal *model, void *output
 
 		}
 		else if (cmd->command == YOBOT_CMD_ACCT_NEW) {
-//			puts("YOBOT_CMD_ACCT_NEW");
+			yobotproto_log_info("new account");
 			yobotmkacct *acct_req = model->commtype_u.cmd_s.type.accreq;
 			const char *user = model->commdata_u.cmddata_u.acctreqpayload->user;
 			const char *pass = model->commdata_u.cmddata_u.acctreqpayload->pass;
@@ -437,7 +457,7 @@ void *yobot_proto_segment_encode(yobot_proto_model_internal *model, void *output
 			acct_req->passlen = strlen(pass) + 1;
 			bufsz += (acct_req->namelen + acct_req->passlen);
 			assert(bufsz < YOBOT_MAX_COMMSIZE);
-			printf("USER:%s PASS:%s \n", user, pass);
+			yobotproto_log_debug("USER:%s PASS:%s \n", user, pass);
 
 			pack_valstruct_in_buf(yobot_proto_tpl_mkacct, sizeof(yobotmkacct),
 					acct_req, &bufp, &bufsz);
@@ -464,7 +484,9 @@ void *yobot_proto_segment_encode(yobot_proto_model_internal *model, void *output
 		int fd = *(int*) output;
 		int status;
 		YOBOT_SET_SOCK_BLOCK(fd, 0, status)
-		write(fd,buf,bufsz+2);
+		if(send(fd,buf,bufsz+2,0) == -1) {
+			perror(__func__);
+		}
 		YOBOT_SET_SOCK_BLOCK(fd, 1, status);
 		/*done...*/
 	} else if (out_type == YOBOT_PROTOCLIENT_TO_BUF) {

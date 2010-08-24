@@ -3,6 +3,7 @@ import collections
 import yobotops
 import datetime
 import time
+from debuglog import log_debug, log_err, log_warn, log_crit, log_info
 
 class IMUnsupportedProtocol(Exception): pass
 class NotConnected(Exception): pass
@@ -69,7 +70,7 @@ class YobotCommand(YobotBase):
         info.reference = self.reference
                         
         ptr = yobotproto.yobot_protoclient_cmd_encode(info, None, yobotproto.YOBOT_PROTOCLIENT_TO_BUF)
-        print "encoding done"
+        log_debug( "encoding done")
         return ptr
     
 class YobotEvent(YobotBase):
@@ -88,10 +89,8 @@ class YobotEvent(YobotBase):
         self.objtype   = evi.evt.purple_type if evi.evt.purple_type else None
         self.txt = evi.data if evi.data else None
     def __str__(self):
-        return "SEVERITY: %s EVENT: %s OBJECT: %s %s MESSAGE: %s" % (
-            yobotops.severitytostr(self.severity),
+        return "EVENT: %s OBJECT: %s MESSAGE: %s" % (
             yobotops.evttostr(self.event),
-            yobotops.prpltypetostr(self.objtype),
             str(self.objid),
             self.txt if not self.commflags & yobotproto.YOBOT_DATA_IS_BINARY else "<BINARY_DATA>")
         
@@ -250,20 +249,3 @@ class YobotAccount(YobotBase):
     
     def __str__(self):
         return "Account: name=%s protocol=%s" % (self.user,yobotops.imprototostr(self.improto))
-    
-#helper functions
-def mkcommand(command, acctid, data=None, flags=0):
-    cmd = YobotCommand()
-    cmd.commflags = flags
-    cmd.cmd = command
-    cmd.data = data
-    cmd.acctid = acctid
-    return cmd
-
-def mkevent(event, object_type, id, severity=yobotproto.YOBOT_INFO):
-    evt = YobotEvent()
-    evt.event = event
-    evt.objid = id
-    evt.objtype = object_type
-    evt.severity = severity
-    return evt

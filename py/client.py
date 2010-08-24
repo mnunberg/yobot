@@ -11,14 +11,8 @@ import yobotproto
 from time import time
 from datetime import datetime
 from client_support import ModelBase, YCAccount
-
-try:
-    from _acctinfo import (PASS_1, USER_1, PROTO_1,
-                           USER_2, PASS_2, PROTO_2,
-                           USER_3, PASS_3, PROTO_3)
-except Exception:
-    raise Exception("Please hack me.. so that i have some user data")
-
+import debuglog
+from debuglog import log_debug, log_err, log_warn, log_crit, log_info
 
 ID_COUNTER=1
 
@@ -37,12 +31,12 @@ class UIClient(object):
         reactor.connectTCP("localhost", 7770, self.svc.getYobotClientFactory())
         reactor.run()
     def clientRegistered(self):
-        print "REGISTERED"
-        print "trying to register account..."
+        log_info( "REGISTERED")
+        log_info( "trying to register account...")
         self.test_acct()
     
     def test_acct(self, ):
-        print "test_acct"
+        log_info("creating new test account")
         new_account = YCAccount(self.svc, "meh@10.0.0.99/", "1", yobotproto.YOBOT_JABBER)
         new_account.connect()
     def gotmsg(self, acct, msg):
@@ -55,7 +49,7 @@ class UIClient(object):
         self.uihooks.chatUserLeft(acct, room, user)
     
     def roomJoined(self, acct, room):
-        print "ROOM JOINED ", room
+        log_info( "ROOM JOINED ", room)
         #fetch the users...
         acct.fetchRoomUsers(room)
     
@@ -63,16 +57,16 @@ class UIClient(object):
         self.uihooks.gotRequest(request_obj)
     
     def accountConnected(self, acct):
-        print "ACCOUNT CONNECTED", acct
+        log_info( "ACCOUNT CONNECTED", acct)
         acct.fetchBuddies()
         self.uihooks.accountConnected(acct)
         
     def accountConnectionFailed(self, acct):
         acct._logged_in = False
-        print "AUTHORIZATION FAILED!", acct
+        log_err( "AUTHORIZATION FAILED!", acct)
     def accountConnectionRemoved(self, acct):
         acct._logged_in = False
-        print "ACCOUNT REMOVED!"
+        log_warn( "ACCOUNT REMOVED!")
         
     #####   GUI HOOKS    #####
     def connect(self, user, passw, improto):
@@ -82,6 +76,7 @@ class UIClient(object):
         new_account.connect()
 
 if __name__ == "__main__":
-    print "Grrrr"
+    debuglog.init("Client", title_color="green")
+    yobotproto.yobot_proto_setlogger("Client")
     ui = UIClient()
     ui.run()

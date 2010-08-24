@@ -190,58 +190,92 @@ typedef enum {
 	YOBOT_JABBER,
 } yobot_proto_improto;
 
+
+/*Typedefs*/
+#define _TPL_ENUM_T "i"
+
+typedef int32_t ycommlen_t;
+#define _TPL_COMMLEN_T "i"
+typedef uint8_t ybcommref_t;
+#define _TPL_COMMREF_T "c"
+typedef uint8_t ybmsgtolen_t;
+#define _TPL_MSGTOLEN_T "c"
+typedef uint16_t ybmsgdatalen_t;
+#define _TPL_MSGDATALEN_T "v"
+typedef uint8_t ybmsgwholen_t;
+#define _TPL_MSGWHOLEN_T "c"
+typedef uint32_t ybtime_t;
+#define _TPL_YBTIME_T "u"
+typedef uint32_t ybacctid_t;
+#define _TPL_YBACCTID_T "u"
+typedef uint16_t ybevtlen_t;
+#define _TPL_EVTLEN_T "u"
+typedef uint16_t ybcmdlen_t;
+#define _TPL_CMDLEN_T "v"
+typedef uint8_t ybnamelen_t;
+#define _TPL_YBNAMELEN_T "c"
+typedef uint8_t ybpasslen_t;
+#define _TPL_YBPASSLEN_T "c"
+
 /*all communication uses this struct*/
 /*uint16_t segment_len*/
 typedef struct {
-	int len;
+	ycommlen_t len;
 	yobot_proto_commtype type;
 	yobot_proto_flags flags;
-	uint8_t reference;
+	ybcommref_t reference;
 /*	char *data; */
 } yobotcomm;
-#define yobot_proto_tpl_comm_layout "iiiv"
+#define yobot_proto_tpl_comm_layout _TPL_COMMLEN_T _TPL_ENUM_T \
+	_TPL_ENUM_T _TPL_COMMREF_T
+//"iiiv"
 #define yobot_proto_tpl_comm "S(" yobot_proto_tpl_comm_layout ")"
 
 /*chat message, sent to a user or a room*/
 typedef struct {
-	uint8_t to_len;
-	uint16_t data_len;
-	uint8_t who_len;
-	uint32_t msgtime;
+	ybmsgtolen_t to_len;
+	ybmsgdatalen_t data_len;
+	ybmsgwholen_t who_len;
+	ybtime_t msgtime;
 	PurpleMessageFlags msgflags;
 /*	char *to;*/
 /*	char *data;*/
 /*  char *who*/
 } yobotmsg;
-#define yobot_proto_tpl_msg_layout "cvcvui"
+#define yobot_proto_tpl_msg_layout _TPL_MSGTOLEN_T _TPL_MSGDATALEN_T \
+	_TPL_MSGWHOLEN_T _TPL_YBTIME_T _TPL_ENUM_T
+//"cvcvui"
 #define yobot_proto_tpl_msg "S(" yobot_proto_tpl_msg_layout ")"
 
 typedef struct {
 	yobot_proto_cmd command;
-	uint32_t acct_id;
-	uint16_t len;
+	ybacctid_t acct_id;
+	ybcmdlen_t len;
 } yobotcmd;
-#define yobot_proto_tpl_cmd_layout "iuv"
+#define yobot_proto_tpl_cmd_layout _TPL_ENUM_T _TPL_YBACCTID_T _TPL_CMDLEN_T
+//"iuv"
 #define yobot_proto_tpl_cmd "S(" yobot_proto_tpl_cmd_layout ")"
 
 typedef struct {
 	yobot_proto_improto improto;
-	uint32_t id;
-	uint8_t namelen;
-	uint8_t passlen;
+	ybacctid_t id;
+	ybnamelen_t namelen;
+	ybpasslen_t passlen;
 } yobotmkacct;
-#define yobot_proto_tpl_mkacct_layout "iucc"
+#define yobot_proto_tpl_mkacct_layout _TPL_ENUM_T _TPL_YBACCTID_T _TPL_YBNAMELEN_T _TPL_YBPASSLEN_T
+//"iucc"
 #define yobot_proto_tpl_mkacct "S(" yobot_proto_tpl_mkacct_layout ")"
 
 typedef struct {
 	yobot_proto_event event;
 	yobot_proto_purple_type purple_type;
 	yobot_proto_evtype event_type;
-	uint32_t obj_id;
-	uint16_t len;
+	ybacctid_t obj_id;
+	ybevtlen_t len;
 	/*char *data*/
 } yobotevent;
-#define yobot_proto_tpl_event_layout "iiiuv"
+#define yobot_proto_tpl_event_layout _TPL_ENUM_T _TPL_ENUM_T _TPL_ENUM_T _TPL_YBACCTID_T _TPL_EVTLEN_T
+//"iiiuv"
 #define yobot_proto_tpl_event "S(" yobot_proto_tpl_event_layout ")"
 /*END YOBOT PROTOCOL*/
 

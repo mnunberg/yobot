@@ -41,7 +41,7 @@ static const char id[]="$Id: tpl.c 192 2009-04-24 10:35:30Z thanson $";
 #include <sys/stat.h>   /* for 'open' */
 #include <fcntl.h>      /* for 'open' */
 #include <errno.h>
-#ifndef _WIN32
+#if !defined _WIN32 || defined __MINGW32__
 #include <inttypes.h>   /* uint32_t, uint64_t, etc */
 #else
 typedef unsigned short ushort;

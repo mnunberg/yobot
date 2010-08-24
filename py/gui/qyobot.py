@@ -5,6 +5,7 @@ sys.path.append("../")
 import yobotproto
 from yobotclass import YobotAccount
 from client_support import YCAccount, YBuddylist, YBuddy
+from debuglog import log_debug, log_info, log_err, log_crit, log_warn
 
 import main_auto
 import sendjoin_auto
@@ -241,7 +242,7 @@ class BuddyItemDelegate(QStyledItemDelegate):
         self.qw.setPalette(option.palette)
         self.qw.setAutoFillBackground(False)
         if option.state & QStyle.State_Selected:
-            print "selected"
+            log_debug( "selected")
             self.qw.setBackgroundRole(QPalette.Highlight)
         else:
             self.qw.setBackgroundRole(QPalette.Base)
@@ -279,7 +280,7 @@ class AccountModel(QAbstractItemModel):
         self.backend.endAdd = self.endInsertRows
         self.backend.endRemove = self.endRemoveRows
         self.backend.dataChanged = self.statusChange
-        print "AccountModel: init done"
+        log_debug( "AccountModel: init done")
         
     def index(self, row, column = 0, parent = QModelIndex()):
         #if not self.hasIndex(row, column, parent):
@@ -396,7 +397,7 @@ class AccountInputDialog(QDialog):
     def dialogDone(self):
         acct_obj = self.model.index(self.widgets.account.currentIndex()).internalPointer()
         target  = self.widgets.target.text()
-        print "account: ", acct_obj, " target: ", target
+        log_debug( "account: ", acct_obj, " target: ", target)
         self.action(acct_obj, target, self.type)
         #do something...
         
@@ -430,7 +431,7 @@ class ChatWindow(QMainWindow):
     users = {} #dict containing the name of the user mapped to the model object..
     def __init__(self, client, parent=None, type=IM, acct_obj=None, target=None):
         if not target or not acct_obj:
-            print "must have target and account for chatwindow"
+            log_err( "must have target and account for chatwindow")
             return
         
         QMainWindow.__init__(self, parent)
@@ -489,7 +490,7 @@ class ChatWindow(QMainWindow):
         if not txt:
             return
         txt = simplify_css(str(txt))
-        print txt
+        log_debug( txt)
         self.sendMsg(txt)
         self.widgets.input.clear()
     
@@ -537,7 +538,7 @@ class YobotGui(object):
     def __init__(self, client):
         "Client should have a ... shit.."
         self.client = client
-        print "__init__ done"
+        log_debug( "__init__ done")
     def init_backend(self, backend):
         self.datamodel = AccountModel(backend)
     ######################      PRIVATE HELPERS     ###########################
@@ -562,11 +563,11 @@ class YobotGui(object):
         
         improto_list = self.mw_widgets.w_improto
         improto = improto_list.model().index(improto_list.currentIndex(), 0,QModelIndex()).data(Qt.UserRole).toPyObject()
-        print improto
+        log_debug( improto)
         try:
             self.client.connect(user, passw, improto)
         except AttributeError, e:
-            print e
+            log_warn( e)
         self.mw_widgets.statusbar.showMessage("connecting " + user)
                 
     def _showAbout(self):
@@ -579,9 +580,9 @@ class YobotGui(object):
     def _buddyClick(self, index):
         obj = index.internalPointer()
         if not hasattr(obj, "account"): #account
-            print "not processing account ops"
+            log_debug( "not processing account ops")
             return
-        print obj
+        log_debug( obj)
         acct = obj.account
         target = obj.name
         self._openChat(acct, target, IM)
@@ -602,8 +603,8 @@ class YobotGui(object):
         self.chats[(acct, target)].closeEvent = _closeEvent
         self.chats[(acct, target)].show()
         self.chats[(acct, target)].activateWindow()
-        print "created chat with type %d, target %s" % (type, target)
-        print self.chats
+        log_info( "created chat with type %d, target %s" % (type, target))
+        log_debug( self.chats)
 
     def _sendjoin(self, type):
         dlg = SendJoinDialog(self.datamodel,parent=self.mw,type=type)
@@ -668,7 +669,7 @@ class YobotGui(object):
         self.mw_widgets.blist.setExpanded(self.datamodel.index(acct_obj.index, 0),True)
         
     def gotMessage(self, acct_obj, msg_obj):
-        print msg_obj
+        log_debug( msg_obj)
         #FIXME: hack..
         name = msg_obj.name
         if acct_obj.improto == yobotproto.YOBOT_JABBER:

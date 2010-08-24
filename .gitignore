@@ -1,6 +1,14 @@
 *.o
 *.pyc
+*.pyd
 *.so
 *.swp
+.gitignore
+*.dll
+*.a
+*.zip
+*.exe
+
+tools/*
 yobot
 proto_test

@@ -107,4 +107,7 @@ int yobot_protoclient_getsegsize(void *buf);
 void yobot_protoclient_free_segment(yobot_protoclient_segment *seg);
 
 
+/*init logger*/
+void yobot_proto_setlogger(char *prefix);
+
 #endif /*PROTOCLIENT_H_*/
