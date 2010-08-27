@@ -7,6 +7,7 @@
 #include <purple.h>
 #include <stdint.h>
 #else
+/*copied from one of the libpurple headers v. 2.7.1*/
 typedef enum
 {
 	PURPLE_MESSAGE_SEND        = 0x0001, /**< Outgoing message.        */
@@ -68,12 +69,14 @@ typedef enum {
 	YOBOT_CMD_STATUS_CHANGE,
 
 	YOBOT_CMD_CLIENT_REGISTER,
+	YOBOT_CMD_CLIENT_RMACCT,
 
 	YOBOT_CMD_ROOM_FETCH_USERS,
 	YOBOT_CMD_FETCH_BUDDIES,
 	YOBOT_CMD_FETCH_BUDDY_ICONS,
 
-	YOBOT_CMD_REQUEST_BACKLOG
+	YOBOT_CMD_REQUEST_BACKLOG,
+	YOBOT_CMD_PURPLE_REQUEST_GENERIC_RESPONSE,
 } yobot_proto_cmd;
 
 typedef enum {
@@ -139,11 +142,18 @@ typedef enum {
 	YOBOT_EVENT_BUDDY_FETCH_RESPONSE,
 	YOBOT_EVENT_BUDDY_FETCH_RESPONSE_END,
 
+	/*notifications and client requests*/
+	YOBOT_EVENT_PURPLE_REQUEST_GENERIC,
+	YOBOT_EVENT_PURPLE_REQUEST_GENERIC_CLOSED,
+	YOBOT_EVENT_PURPLE_NOTICE_GENERIC,
+	YOBOT_EVENT_AGENT_NOTICE_GENERIC,
+
 } yobot_proto_event;
 
 typedef enum {
 	YOBOT_INFO = 1,
 	YOBOT_WARN,
+	YOBOT_ERR,
 	YOBOT_CRIT,
 	YOBOT_PURPLE_CONNECTION_ERROR,
 	YOBOT_CLIENT_INTERNAL,
@@ -179,6 +189,7 @@ typedef enum {
 	YOBOT_RESPONSE_END  = 	1 << 5,
 	YOBOT_BACKLOG = 		1 << 6,
 	YOBOT_DATA_IS_BINARY = 	1 << 7,
+
 } yobot_proto_flags;
 
 typedef enum {
@@ -191,6 +202,16 @@ typedef enum {
 } yobot_proto_improto;
 
 
+typedef enum {
+	YOBOT_REQUEST_OK = 4096,
+	YOBOT_REQUEST_CANCEL,
+	YOBOT_REQUEST_INPUT,
+} yobot_proto_request_cb;
+
+typedef enum {
+	YOBOT_ACTIONTYPE_OK,
+	YOBOT_ACTIONTYPE_CANCEL
+} yobot_proto_actiontype;
 /*Typedefs*/
 #define _TPL_ENUM_T "i"
 

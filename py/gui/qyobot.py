@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 import sys
-import os
 sys.path.append("../")
 import yobotproto
 from yobotclass import YobotAccount
-from client_support import YCAccount, YBuddylist, YBuddy
+from client_support import YCAccount, YBuddylist, YBuddy, YCRequest, SimpleNotice
 from debuglog import log_debug, log_info, log_err, log_crit, log_warn
 
 import main_auto
@@ -12,8 +11,6 @@ import sendjoin_auto
 import chatwindow_auto
 import notification
 import time
-import string
-import random
 import buddy_entry
 
 from css_sax import simplify_css
@@ -26,7 +23,7 @@ from PyQt4.QtGui import (QComboBox, QMainWindow, QStandardItemModel, QStandardIt
                          QApplication, QFont, QTextEdit, QColorDialog, QPalette,
                          QListWidget, QListWidgetItem, QStyledItemDelegate,
                          QStyleOptionViewItem, QRegion, QWidget, QBrush, QStyle,
-                         QPen)
+                         QPen, QPushButton, QStyleOption)
 
 from PyQt4.QtCore import (QPoint, QSize, QModelIndex, Qt, QObject, SIGNAL, QVariant,
                           QAbstractItemModel, QRect, QRectF, QPointF)
@@ -117,8 +114,6 @@ def getProtoStatusIcon(name, proto_int=None):
 
 
 def mkProtocolComboBox(cbox):
-    if os.name != "posix":
-        pass
     """Stores human readable improto names along with their yobt constants"""
     for proto_constant, proto_name in IMPROTOS_BY_CONSTANT.items():
         icon = getProtoStatusIcon(proto_name)
@@ -257,10 +252,6 @@ class BuddyItemDelegate(QStyledItemDelegate):
             return
         
         self._paintDirect(painter, option, index)
-        
-        
-        
-            
         
 class AccountModel(QAbstractItemModel):
     def __init__(self, backend):
@@ -430,8 +421,8 @@ class UserAddDialog(AccountInputDialog):
 class ChatWindow(QMainWindow):
     """This class is quite dumb, but it does contain client hooks to get and send
     messages"""
-    users = {} #dict containing the name of the user mapped to the model object..
     def __init__(self, client, parent=None, type=IM, acct_obj=None, target=None):
+        self.users = {} #dict containing the name of the user mapped to the model object..
         if not target or not acct_obj:
             log_err( "must have target and account for chatwindow")
             return
@@ -506,7 +497,7 @@ class ChatWindow(QMainWindow):
         #get time..
         msg_str = ""
         msg_str += "(%s) " % (msg_obj.timeFmt,) if self.widgets.actionTimestamps.isChecked() else ""
-        msg_str += "<font color='mediumblue'><b>%s</b></font>: " % (msg_obj.who,)
+        msg_str += "<font size='2' color='mediumblue'><b>%s</b></font>: " % (msg_obj.who,)
         msg_str += msg_obj.txt
         self.widgets.convtext.append(msg_str)
         #TODO: make special formatting for the message... give the name a different color and perhaps a
@@ -537,6 +528,7 @@ class ChatWindow(QMainWindow):
 
 class NotificationBox(object):
     def __init__(self, qdockwidget, qstackedwidget):
+        self.reqs = {}
         self.qdw = qdockwidget
         self.qsw = qstackedwidget
         while self.qsw.count() > 0:
@@ -544,6 +536,11 @@ class NotificationBox(object):
         self.qdw.hide()
         self._tmp = QWidget()
         self.qdw.setTitleBarWidget(self._tmp)
+        btn_font = QFont()
+        btn_font.setBold(True)
+        btn_font.setPointSize(8)
+        self.btn_font = btn_font
+        
     
     def navigate(self, next = True):
         log_debug("")
@@ -554,51 +551,72 @@ class NotificationBox(object):
         else:
             if currentIndex-1 > 0:
                 self.qsw.setCurrentIndex(currentIndex-1)
-    
-    def addNotification(self, acct, txt, okCb=None, cancelCb=None, type=NOTICE):
+                
+    def addItem(self, ycreqobj):
         qw = QWidget()
+        if ycreqobj.refid:
+            self.reqs[(ycreqobj.acct, ycreqobj.refid)] = qw
         #setup the widget
         notice_widget = notification.Ui_Form()
         notice_widget.setupUi(qw)
-        notice_widget.iconlabel
+        #notice_widget.iconlabel.hide()
+        notice_widget.discard.hide()
+        notice_widget.accept.hide()
+        
         #get an icon:
+        acct = ycreqobj.acct
         icon = None
-        if type == NOTICE:
+        if not ycreqobj.isError:
             icon = QPixmap(":/icons/icons/help-about.png")
-        elif type == ERROR:
+        else:
             icon = QPixmap(":/icons/res/16x16/status/dialog-error.png")
+            
         if icon:
             notice_widget.iconlabel.setPixmap(icon)
         else:
             notice_widget.iconlabel.hide()
-        
-        accticon = getProtoStatusIcon(acct.name, acct.improto)
-        if accticon:
-            notice_widget.accticon.setPixmap(accticon.pixmap(16, 16))
-        notice_widget.account.setText(acct.name)
-        notice_widget.message.setPlainText(txt*20)
-        notice_widget.message.setBackgroundRole(QPalette.Window)
-        sb = notice_widget.message.verticalScrollBar()
-        sb.setMaximumWidth(12)
-        
-        if not cancelCb:
-            notice_widget.discard.hide()
-        def _remove_notice():
+        #get options..
+        def _cbwrap(cb):
+            #closes the notification after an action has been sent
+            cb()
             self.qsw.removeWidget(qw)
             if not self.qsw.count():
                 self.qsw.hide()
                 self.qdw.hide()
-                
-        def _ok():
-            if okCb:
-                okCb()
-            _remove_notice()
-        def _cancel():
-            if cancelCb:
-                cancelCb()
-            _remove_notice()
-        signal_connect(notice_widget.accept, SIGNAL("clicked()"), _ok)
-        signal_connect(notice_widget.discard, SIGNAL("clicked()"), _cancel)
+            qw.destroy()
+
+        for o in ycreqobj.options:
+            optname, optcb, typehint = o
+            b = QPushButton()
+            b.setText(optname)
+            b.setFont(self.btn_font)
+            icon = None
+            try:
+                typehint = int(typehint)
+            except ValueError, TypeError:
+                typehint = -1
+            if typehint == yobotproto.YOBOT_ACTIONTYPE_OK:
+                icon = QIcon(":/icons/icons/help-about.png")
+            elif typehint == yobotproto.YOBOT_ACTIONTYPE_CANCEL:
+                icon = QIcon(":/icons/res/16x16/actions/dialog-close.png")
+            else:
+                icon = QIcon()
+            b.setIcon(icon)
+            
+            signal_connect(b, SIGNAL("clicked()"), lambda optcb=optcb: _cbwrap(optcb))
+            notice_widget.bbox.addWidget(b)
+            
+        accticon = getProtoStatusIcon(acct.name, acct.improto)
+        if accticon:
+            notice_widget.accticon.setPixmap(accticon.pixmap(24, 24))
+        notice_widget.account.setText(acct.name)
+        #FIXME: make nice fields for title, primary, and secondary
+        txt = "::".join([ycreqobj.title, ycreqobj.primary, ycreqobj.secondary])
+        notice_widget.message.setPlainText(txt)
+        notice_widget.message.setBackgroundRole(QPalette.Window)
+        sb = notice_widget.message.verticalScrollBar()
+        sb.setMaximumWidth(12)
+        
         signal_connect(notice_widget.next, SIGNAL("clicked()"), lambda: self.navigate(next=True))
         signal_connect(notice_widget.prev, SIGNAL("clicked()"), lambda: self.navigate(next=False))
         
@@ -625,6 +643,9 @@ class YobotGui(object):
         self.mw_widgets.w_username.setText("")
         self.mw_widgets.w_password.setText("")
         self.mw_widgets.conninput.show()
+        
+    def _disconnectAccount(self, acct, server=False):
+        acct.disconnect(server)
     
     def _requestConnection(self):
         user, passw = (self.mw_widgets.w_username.text(),
@@ -767,24 +788,15 @@ class YobotGui(object):
         c.userLeft(user)
     
     def gotRequest(self, request_obj):
-        if request_obj.isYesNo:
-            
-            mb = QMessageBox()
-            mb.setStandardButtons(QMessageBox.Yes|QMessageBox.No|QMessageBox.Cancel)
-            mb.setWindowTitle(request_obj.title)
-            mb.setText(request_obj.header)
-            mb.setInformativeText(request_obj.message)
-            mb.setIcon(QMessageBox.Question)
-            def _cb(button):
-                if mb.buttonRole(button) == mb.YesRole:
-                    request_obj.respond(True)
-                else:
-                    request_obj.respond(False)
-            signal_connect(mb, SIGNAL("buttonClicked(QAbstractButton*)"), _cb)
-            mb.show()
+        log_err(str(request_obj))
+        self.notifications.addItem(request_obj)
     
+    def delRequest(self, acct, refid):
+        self.notifications.delItem(acct, refid)
     def connectionFailed(self, acct, txt):
-        self.notifications.addNotification(acct, txt, type=ERROR)
+        m = SimpleNotice(acct, txt)
+        m.isError = True
+        self.notifications.addItem(m)
         
 if __name__ == "__main__":
     gui = YobotGui(None)

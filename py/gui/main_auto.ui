@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>276</width>
-    <height>618</height>
+    <height>544</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -265,10 +265,14 @@
    </property>
    <widget class="QMenu" name="menu">
     <property name="title">
-     <string>File</string>
+     <string>Client</string>
     </property>
     <addaction name="actionNewconn"/>
     <addaction name="separator"/>
+    <addaction name="actionDisconnect_Account_Client"/>
+    <addaction name="actionDisconnect_Account_Server"/>
+    <addaction name="actionDisconnect_All_Server"/>
+    <addaction name="actionQuit_And_Disconnect_all_from_Server"/>
     <addaction name="actionQuit"/>
    </widget>
    <widget class="QMenu" name="menuChat">
@@ -325,7 +329,7 @@
     <enum>TopToolBarArea</enum>
    </attribute>
    <attribute name="toolBarBreak">
-    <bool>false</bool>
+    <bool>true</bool>
    </attribute>
    <addaction name="actionNewconn"/>
    <addaction name="actionGo_Invisible"/>
@@ -419,7 +423,7 @@
      <normaloff>:/icons/icons/application-exit.png</normaloff>:/icons/icons/application-exit.png</iconset>
    </property>
    <property name="text">
-    <string>Quit</string>
+    <string>Quit (And Disconnect All From Client)</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+Q</string>
@@ -483,6 +487,49 @@
   <action name="actionInvis">
    <property name="text">
     <string>Invis</string>
+   </property>
+  </action>
+  <action name="actionDisconnect_All_Server">
+   <property name="icon">
+    <iconset resource="../../../yobot/py/gui/resources.qrc">
+     <normaloff>:/icons/icons/format-disconnect-node.png</normaloff>:/icons/icons/format-disconnect-node.png</iconset>
+   </property>
+   <property name="text">
+    <string>Disconnect All (Server)</string>
+   </property>
+   <property name="toolTip">
+    <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Lucida Grande'; font-size:10pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;Disconnect &lt;span style=&quot; font-style:italic;&quot;&gt;all&lt;/span&gt; accounts from protocol server. &lt;span style=&quot; color:#aa0000;&quot;&gt;This account will be unavailable to all connected clients&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+  </action>
+  <action name="actionQuit_And_Disconnect_all_from_Server">
+   <property name="icon">
+    <iconset resource="../../../yobot/py/gui/resources.qrc">
+     <normaloff>:/icons/icons/format-disconnect-node.png</normaloff>:/icons/icons/format-disconnect-node.png</iconset>
+   </property>
+   <property name="text">
+    <string>Quit (And Disconnect All From Server)</string>
+   </property>
+  </action>
+  <action name="actionDisconnect_Account_Client">
+   <property name="icon">
+    <iconset resource="../../../yobot/py/gui/resources.qrc">
+     <normaloff>:/icons/icons/format-disconnect-node.png</normaloff>:/icons/icons/format-disconnect-node.png</iconset>
+   </property>
+   <property name="text">
+    <string>Disconnect Account (Client)</string>
+   </property>
+  </action>
+  <action name="actionDisconnect_Account_Server">
+   <property name="icon">
+    <iconset resource="../../../yobot/py/gui/resources.qrc">
+     <normaloff>:/icons/icons/format-disconnect-node.png</normaloff>:/icons/icons/format-disconnect-node.png</iconset>
+   </property>
+   <property name="text">
+    <string>Disconnect Account (Server)</string>
    </property>
   </action>
  </widget>

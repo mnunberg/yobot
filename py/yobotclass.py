@@ -1,39 +1,56 @@
 import yobotproto
-import collections
 import yobotops
 import datetime
 import time
 from debuglog import log_debug, log_err, log_warn, log_crit, log_info
+from yobotproto import (yobot_protoclient_cmd_encode,
+                        yobot_protoclient_msg_encode,
+                        yobot_protoclient_event_encode,
+                        yobot_protoclient_mkacct_encode,
+                        YOBOT_PROTOCLIENT_TO_BUF,
+                        YOBOT_DATA_IS_BINARY,
+                        yobotevent_internal,
+                        yobotcmd_internal,
+                        yobotmsg_internal,
+                        yobot_cmdinfo,
+                        yobot_msginfo,
+                        yobot_mkacctinfo,
+                        yobot_eventinfo)
 
 class IMUnsupportedProtocol(Exception): pass
 class NotConnected(Exception): pass
 class NotInRoom(Exception): pass
 
 class YobotBase(object):
-    attr = "Hello"
-    struct_type = None
-    commflags = 0    
+    def _initvars(self):
+        self.attr = "Hello"
+        self.struct_type = None
+        self.commflags = 0
+        self.reference = 0
+        
     def __new__(cls,*args,**kwargs):
         obj = kwargs.get("cast", None)
         if obj and isinstance(obj, cls):
             return obj
         else:
             return super(YobotBase,cls).__new__(cls)
-            
+        
     def encode(self):
         return NotImplemented
     
     
 class YobotCommand(YobotBase):
-    cmd = None
-    acctid = None
-    data = None
-    reference = 0
-    
+    def _initvars(self):
+        super(YobotCommand, self)._initvars()
+        self.cmd = None
+        self.acctid = None
+        self.data = None
+        
     def __init__(self, cmdi=None, **kwargs):
+        self._initvars()
         if not cmdi:
             return
-        assert isinstance(cmdi,yobotproto.yobotcmd_internal)
+        assert isinstance(cmdi,yobotcmd_internal)
         self.cmd = int(cmdi.cmd.command)
         self.acctid = int(cmdi.cmd.acct_id)
         self.data = cmdi.data
@@ -61,7 +78,7 @@ class YobotCommand(YobotBase):
         if self.data and isinstance(self.data,str):
             dlen = len(self.data) + 1
 
-        info = yobotproto.yobot_cmdinfo()
+        info = yobot_cmdinfo()
         info.command = self.cmd
         info.acctid = self.acctid
         info.data = self.data
@@ -69,20 +86,25 @@ class YobotCommand(YobotBase):
         info.commflags = self.commflags
         info.reference = self.reference
                         
-        ptr = yobotproto.yobot_protoclient_cmd_encode(info, None, yobotproto.YOBOT_PROTOCLIENT_TO_BUF)
+        ptr = yobot_protoclient_cmd_encode(info, None, YOBOT_PROTOCLIENT_TO_BUF)
         log_debug( "encoding done")
         return ptr
     
 class YobotEvent(YobotBase):
-    event = None
-    severity = None
-    objid = None
-    objtype = None
-    txt = None
+    def _initvars(self):
+        super(YobotEvent, self)._initvars()
+        self.event = None
+        self.severity = None
+        self.objid = None
+        self.objtype = None
+        self.txt = None
+
     def __init__(self, evi=None):
+        self._initvars()
         if not evi:
             return
-        assert isinstance(evi,yobotproto.yobotevent_internal)
+
+        assert isinstance(evi, yobotevent_internal)
         self.event = evi.evt.event
         self.severity = evi.evt.event_type
         self.objid = evi.evt.obj_id if evi.evt.obj_id else None
@@ -92,7 +114,7 @@ class YobotEvent(YobotBase):
         return "EVENT: %s OBJECT: %s MESSAGE: %s" % (
             yobotops.evttostr(self.event),
             str(self.objid),
-            self.txt if not self.commflags & yobotproto.YOBOT_DATA_IS_BINARY else "<BINARY_DATA>")
+            self.txt if not self.commflags & YOBOT_DATA_IS_BINARY else "<BINARY_DATA>")
         
     def encode(self):
         if self.event is None or self.objid is None:
@@ -101,32 +123,39 @@ class YobotEvent(YobotBase):
         txtlen = 0
         if self.txt:
             txtlen = len(self.txt) + 1
-        info = yobotproto.yobot_eventinfo()
+        info = yobot_eventinfo()
         info.event = self.event
         info.purple_type = self.objtype
         info.acctid = long(self.objid)
         info.severity = self.severity
         info.len = txtlen
         info.data = self.txt
-        ptr = yobotproto.yobot_protoclient_event_encode(info, None, yobotproto.YOBOT_PROTOCLIENT_TO_BUF)
+        ptr = yobot_protoclient_event_encode(info, None, YOBOT_PROTOCLIENT_TO_BUF)
         return ptr
     
+    @property
+    def acctid(self):
+        return self.objid
+
 class YobotMessage(YobotBase):
     """
     Class used for both incoming and outgoing messages
     """
-    prplmsgflags = 0
-    time = 0
-    name = ""
-    txt = ""
-    who = ""
-    acctid = 0
-    #yprotoflags = 0
-     
+    def _initvars(self):
+        super(YobotMessage, self)._initvars()
+        self.prplmsgflags = 0
+        self.time = 0
+        self.name = ""
+        self.txt = ""
+        self.who = ""
+        self.acctid = 0
+        #yprotoflags = 0
+        
     def __init__(self, ymi=None):
+        self._initvars()
         if not ymi:
             return
-        assert isinstance(ymi,yobotproto.yobotmsg_internal)
+        assert isinstance(ymi, yobotmsg_internal)
         self.prplmsgflags = ymi.yomsg.msgflags
         self.time = ymi.yomsg.msgtime #timestamp
         self.name = ymi.to
@@ -161,7 +190,7 @@ class YobotMessage(YobotBase):
         info.commflags = self.yprotoflags
         info.purple_flags = self.prplmsgflags
         
-        ptr = yobotproto.yobot_protoclient_msg_encode(info, None, yobotproto.YOBOT_PROTOCLIENT_TO_BUF)
+        ptr = yobot_protoclient_msg_encode(info, None, YOBOT_PROTOCLIENT_TO_BUF)
         return ptr
     
     #for compatibility...
@@ -206,16 +235,19 @@ def attr_getter(attr):
     return get_any
 
 class YobotAccount(YobotBase):
-    _improto = None
-    _user = None
-    _passw = None
-    _id = None
-    _logged_in = False
-    _registered = False
-    _yobot = None
-    _rooms = set()
-    
+    def _initvars(self):
+        super(YobotAccount, self)._initvars()
+        self._improto = None
+        self._user = None
+        self._passw = None
+        self._id = None
+        self._logged_in = False
+        self._registered = False
+        self._yobot = None
+        self._rooms = set()
+
     def __init__(self, mkaccti=None, user=None, passw=None, id=None, improto=None):
+        self._initvars()
         if mkaccti is not None:
             self._improto = mkaccti.yomkacct.improto
             self._user = mkaccti.user
@@ -236,12 +268,12 @@ class YobotAccount(YobotBase):
     def encode(self):
         if not self.user or not self.passw or not self.improto or not self.id:
             raise TypeError("missing parameters")
-        info = yobotproto.yobot_mkacctinfo()
+        info = yobot_mkacctinfo()
         info.user = self.user
         info.password = self.passw
         info.acctid = self.id
         info.improto = self.improto
-        ptr = yobotproto.yobot_protoclient_mkacct_encode(info, None, yobotproto.YOBOT_PROTOCLIENT_TO_BUF)
+        ptr = yobot_protoclient_mkacct_encode(info, None, YOBOT_PROTOCLIENT_TO_BUF)
         return ptr
     
     def changeid(self, new_id):

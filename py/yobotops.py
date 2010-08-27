@@ -1,12 +1,8 @@
 #!/usr/bin/env python
 import yobotproto
 import collections
-import select
 import yobotclass
-import time
-import sys
 
-sys.stdout = sys.stderr
 _codes = {}
 
 for typ,enumprefix in (

@@ -3,7 +3,7 @@ import traceback
 import os
 import sys
 
-class _BlackHole(object):
+class _BlackHole(str):
     def __init__(self, *args, **kwargs):
         pass
     def __getattr__(self, name):
@@ -28,7 +28,7 @@ class _LogMessage(object):
     def __str__(self):
         return "[%s]: %s" % (self.title, self.body)
 try:
-    assert sys.stdout.isatty
+    assert sys.stdout.isatty()
     import colorama
 except (ImportError, AssertionError),  e:
     print e, "warning.. fancy display will not be available"
@@ -38,7 +38,7 @@ except (ImportError, AssertionError),  e:
 
 _prefix = ""
 _title_color = ""
-_TERM_RESET = colorama.Fore.RESET + colorama.Back.RESET + colorama.Style.RESET_ALL
+_TERM_RESET = str(colorama.Fore.RESET) + str(colorama.Back.RESET) + str(colorama.Style.RESET_ALL)
 
 def init(prefix, title_color=""):
     colorama.init()

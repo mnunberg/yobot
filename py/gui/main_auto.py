@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'main_auto.ui'
 #
-# Created: Tue Aug 24 07:46:17 2010
+# Created: Fri Aug 27 11:24:17 2010
 #      by: PyQt4 UI code generator 4.7.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -13,7 +13,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.setEnabled(True)
-        MainWindow.resize(276, 618)
+        MainWindow.resize(276, 544)
         self.centralwidget = QtGui.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.gridLayout = QtGui.QGridLayout(self.centralwidget)
@@ -160,6 +160,7 @@ class Ui_MainWindow(object):
         self.toolBar.setFloatable(False)
         self.toolBar.setObjectName("toolBar")
         MainWindow.addToolBar(QtCore.Qt.ToolBarArea(QtCore.Qt.TopToolBarArea), self.toolBar)
+        MainWindow.insertToolBarBreak(self.toolBar)
         self.noticebox = QtGui.QDockWidget(MainWindow)
         self.noticebox.setMaximumSize(QtCore.QSize(524287, 120))
         self.noticebox.setFloating(False)
@@ -223,8 +224,26 @@ class Ui_MainWindow(object):
         self.actionIgnore.setObjectName("actionIgnore")
         self.actionInvis = QtGui.QAction(MainWindow)
         self.actionInvis.setObjectName("actionInvis")
+        self.actionDisconnect_All_Server = QtGui.QAction(MainWindow)
+        icon9 = QtGui.QIcon()
+        icon9.addPixmap(QtGui.QPixmap(":/icons/icons/format-disconnect-node.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.actionDisconnect_All_Server.setIcon(icon9)
+        self.actionDisconnect_All_Server.setObjectName("actionDisconnect_All_Server")
+        self.actionQuit_And_Disconnect_all_from_Server = QtGui.QAction(MainWindow)
+        self.actionQuit_And_Disconnect_all_from_Server.setIcon(icon9)
+        self.actionQuit_And_Disconnect_all_from_Server.setObjectName("actionQuit_And_Disconnect_all_from_Server")
+        self.actionDisconnect_Account_Client = QtGui.QAction(MainWindow)
+        self.actionDisconnect_Account_Client.setIcon(icon9)
+        self.actionDisconnect_Account_Client.setObjectName("actionDisconnect_Account_Client")
+        self.actionDisconnect_Account_Server = QtGui.QAction(MainWindow)
+        self.actionDisconnect_Account_Server.setIcon(icon9)
+        self.actionDisconnect_Account_Server.setObjectName("actionDisconnect_Account_Server")
         self.menu.addAction(self.actionNewconn)
         self.menu.addSeparator()
+        self.menu.addAction(self.actionDisconnect_Account_Client)
+        self.menu.addAction(self.actionDisconnect_Account_Server)
+        self.menu.addAction(self.actionDisconnect_All_Server)
+        self.menu.addAction(self.actionQuit_And_Disconnect_all_from_Server)
         self.menu.addAction(self.actionQuit)
         self.menuChat.addAction(self.actionSend_IM)
         self.menuChat.addAction(self.actionJoin_Room)
@@ -258,7 +277,7 @@ class Ui_MainWindow(object):
         self._protolabel.setText(QtGui.QApplication.translate("MainWindow", "Protocol", None, QtGui.QApplication.UnicodeUTF8))
         self.w_connect.setText(QtGui.QApplication.translate("MainWindow", "Connect", None, QtGui.QApplication.UnicodeUTF8))
         self.conn_close.setText(QtGui.QApplication.translate("MainWindow", "Close", None, QtGui.QApplication.UnicodeUTF8))
-        self.menu.setTitle(QtGui.QApplication.translate("MainWindow", "File", None, QtGui.QApplication.UnicodeUTF8))
+        self.menu.setTitle(QtGui.QApplication.translate("MainWindow", "Client", None, QtGui.QApplication.UnicodeUTF8))
         self.menuChat.setTitle(QtGui.QApplication.translate("MainWindow", "Chat", None, QtGui.QApplication.UnicodeUTF8))
         self.menuSet_Status.setTitle(QtGui.QApplication.translate("MainWindow", "Set Status", None, QtGui.QApplication.UnicodeUTF8))
         self.menuHelo.setTitle(QtGui.QApplication.translate("MainWindow", "Help", None, QtGui.QApplication.UnicodeUTF8))
@@ -269,7 +288,7 @@ class Ui_MainWindow(object):
         self.actionSend_IM.setShortcut(QtGui.QApplication.translate("MainWindow", "Ctrl+M", None, QtGui.QApplication.UnicodeUTF8))
         self.actionJoin_Room.setText(QtGui.QApplication.translate("MainWindow", "Join Room", None, QtGui.QApplication.UnicodeUTF8))
         self.actionJoin_Room.setShortcut(QtGui.QApplication.translate("MainWindow", "Ctrl+J", None, QtGui.QApplication.UnicodeUTF8))
-        self.actionQuit.setText(QtGui.QApplication.translate("MainWindow", "Quit", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionQuit.setText(QtGui.QApplication.translate("MainWindow", "Quit (And Disconnect All From Client)", None, QtGui.QApplication.UnicodeUTF8))
         self.actionQuit.setShortcut(QtGui.QApplication.translate("MainWindow", "Ctrl+Q", None, QtGui.QApplication.UnicodeUTF8))
         self.actionNewconn.setText(QtGui.QApplication.translate("MainWindow", "New Connection", None, QtGui.QApplication.UnicodeUTF8))
         self.actionNewconn.setToolTip(QtGui.QApplication.translate("MainWindow", "Add a New Connection", None, QtGui.QApplication.UnicodeUTF8))
@@ -281,6 +300,15 @@ class Ui_MainWindow(object):
         self.actionAdd.setText(QtGui.QApplication.translate("MainWindow", "Add", None, QtGui.QApplication.UnicodeUTF8))
         self.actionIgnore.setText(QtGui.QApplication.translate("MainWindow", "Ignore", None, QtGui.QApplication.UnicodeUTF8))
         self.actionInvis.setText(QtGui.QApplication.translate("MainWindow", "Invis", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionDisconnect_All_Server.setText(QtGui.QApplication.translate("MainWindow", "Disconnect All (Server)", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionDisconnect_All_Server.setToolTip(QtGui.QApplication.translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
+"<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
+"p, li { white-space: pre-wrap; }\n"
+"</style></head><body style=\" font-family:\'Lucida Grande\'; font-size:10pt; font-weight:400; font-style:normal;\">\n"
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">Disconnect <span style=\" font-style:italic;\">all</span> accounts from protocol server. <span style=\" color:#aa0000;\">This account will be unavailable to all connected clients</span></p></body></html>", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionQuit_And_Disconnect_all_from_Server.setText(QtGui.QApplication.translate("MainWindow", "Quit (And Disconnect All From Server)", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionDisconnect_Account_Client.setText(QtGui.QApplication.translate("MainWindow", "Disconnect Account (Client)", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionDisconnect_Account_Server.setText(QtGui.QApplication.translate("MainWindow", "Disconnect Account (Server)", None, QtGui.QApplication.UnicodeUTF8))
 
 import resources_rc
 

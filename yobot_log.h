@@ -22,12 +22,15 @@ typedef struct {
 } yobot_log_s;
 #ifndef PROTOLIB
 extern yobot_log_s yobot_log_params;
+extern yobot_log_s yobot_libpurple_logparams;
 #endif
 extern yobot_log_s yobotproto_log_params;
+
 void yobot_logger(yobot_log_s logparams, yobot_log_level level, int line, const char *fn, const char *fmt, ...);
 
 #define __logwrap(level, fmt, ...) yobot_logger(yobot_log_params, level, __LINE__, __func__, fmt, ## __VA_ARGS__)
 #define __protologwrap(level, fmt, ...) yobot_logger(yobotproto_log_params, level, __LINE__, __func__, fmt, ## __VA_ARGS__)
+#define __purplelogwrap(level, fmt, ...) yobot_logger(yobot_libpurple_logparams, level, 42, category, fmt, ## __VA_ARGS__)
 
 #define yobot_log_info(fmt, ...) __logwrap(YOBOT_LOG_INFO, fmt, ## __VA_ARGS__)
 #define yobot_log_debug(fmt, ...) __logwrap(YOBOT_LOG_DEBUG, fmt, ## __VA_ARGS__)
@@ -42,5 +45,10 @@ void yobot_logger(yobot_log_s logparams, yobot_log_level level, int line, const 
 #define yobotproto_log_crit(fmt, ...) __protologwrap(YOBOT_LOG_CRIT, fmt, ## __VA_ARGS__)
 
 
+#define libpurple_log_info(fmt, ...) __purplelogwrap(YOBOT_LOG_INFO, fmt, ## __VA_ARGS__)
+#define libpurple_log_debug(fmt, ...) __purplelogwrap(YOBOT_LOG_DEBUG, fmt, ## __VA_ARGS__)
+#define libpurple_log_warn(fmt, ...) __purplelogwrap(YOBOT_LOG_WARN, fmt, ## __VA_ARGS__)
+#define libpurple_log_err(fmt, ...) __purplelogwrap(YOBOT_LOG_ERROR, fmt, ## __VA_ARGS__)
+#define libpurple_log_crit(fmt, ...) __purplelogwrap(YOBOT_LOG_CRIT, fmt, ## __VA_ARGS__)
 
 #endif /* YOBOT_LOG_H_ */

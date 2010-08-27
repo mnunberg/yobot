@@ -398,11 +398,9 @@ void *yobot_proto_segment_encode(yobot_proto_model_internal *model, void *output
 			&bufp,&bufsz);
 
 	if (comm->type == YOBOT_COMMTYPE_EVENT) {
-//		puts("YOBOT_COMMTYPE_EVENT");
 		yobotevent *evt = model->commtype_u.evt;
 		if ((simple_data = model->commdata_u.simple_comm_data))
 			assert(evt->len > 0);
-			//evt->len = strlen(simple_data) + 1;
 		else
 			evt->len = 0;
 		pack_valstruct_in_buf(yobot_proto_tpl_event, sizeof(yobotevent), evt,
@@ -414,7 +412,6 @@ void *yobot_proto_segment_encode(yobot_proto_model_internal *model, void *output
 	else if(comm->type == YOBOT_COMMTYPE_CMD)
 	{
 		yobotcmd *cmd = model->commtype_u.cmd_s.cmd;
-//		printf("%s: COMMAND %d\n", __func__,cmd->command);
 		pack_valstruct_in_buf(yobot_proto_tpl_cmd, sizeof(yobotcmd), cmd,
 				&bufp, &bufsz);
 

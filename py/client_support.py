@@ -4,38 +4,116 @@ import yobotproto
 from yobotops import buddystatustostr
 from time import time
 from debuglog import log_debug, log_err, log_warn, log_crit, log_info
-
+import lxml.html
 
 class YCRequest(object):
-    _type = 'yesno'
-    title = ""
-    header = ""
-    message = ""
-    modal = False
-    acct = None
-    @property
-    def isYesNo(self):
-        if self._type == 'yesno':
-            return True
-        return False
+    def _initvars(self):
+        self.isError = False
+        self.title = ""
+        self.primary = ""
+        self.secondary = ""
+        self.modal = False
+        self.acct = None
+        self.refid = 0
+        self.options = [] #(option name, callback, type hint<constant>)
+
+    def __init__(self, svc=None, evt=None, acct=None):
+        self._initvars()
+        self.evt = evt
+        self.acct = acct
+        self.svc = svc
+        if evt:
+            self._mkopts()
+            self.refid = self.evt.reference
+        
+    def _mkopts(self):
+        #use lxml
+        evt = self.evt
+        xmlstring = lxml.html.fromstring(evt.txt)
+        #get the strings...
+        self.title = xmlstring.attrib.get("title", "")
+        self.primary = xmlstring.attrib.get("primary", "")
+        self.secondary = xmlstring.attrib.get("secondary", "")
+        for opt in xmlstring.iterchildren():
+            optname = opt.attrib.get("text")
+            optret = opt.attrib.get("return")
+            typehint = opt.attrib.get("typehint", "")
+            optcb = lambda optret=optret: self.callback(optret)
+            self.options.append((optname, optcb, typehint))
+            
+    def callback(self, ret):
+        if not self.svc:
+            log_warn("service was not specified")
+            return
+        cmd = YobotCommand()
+        cmd.acctid = self.evt.objid
+        cmd.cmd = yobotproto.YOBOT_CMD_PURPLE_REQUEST_GENERIC_RESPONSE
+        cmd.data = str(ret)
+        cmd.reference = self.evt.reference
+        self.svc.sendSegment(cmd)
+        log_info("send response - %s" % (cmd.reference,))
+    def __str__(self):
+        return "title: %s, options: %d" % (self.title, len(self.options))
         
 class BuddyAuthorize(YCRequest):
     def __init__(self, svc, buddy, acct):
-        self.title = "Authorization Request"
-        self.header = acct.name
-        self.message = "Allow %s to add you to his/her list?" % (buddy,)
-        self.name = buddy
+        self._initvars()
         self.acct = acct
         self.svc = svc
+        self.title = "Authorization Request"
+        self.message = "Allow %s to add you to his/her list?" % (buddy,)
+        self.name = buddy
+        self.options.append(("Accept",
+                            lambda: self.respond(auth=True),
+                            yobotproto.YOBOT_ACTIONTYPE_OK))
+        self.options.append(("Reject",
+                             lambda: self.respond(auth=False),
+                             yobotproto.YOBOT_ACTIONTYPE_CANCEL))
+        
     def respond(self, auth=False):
         if auth:
             self.svc.addreqAuthorize(self.acct, self.name)
             self.svc.addUser(self.acct, self.name)
         else:
             self.svc.addreqDeny(self.acct, self.name)
+
+class SimpleNotice(YCRequest):
+    def __init__(self, account, txt, refid=0):
+        self.refid = refid
+        self._initvars()
+        self.acct = account
+        self.options.append(("Ok",
+                             lambda: None,
+                             yobotproto.YOBOT_ACTIONTYPE_OK))
+        self._prettyformat(txt)
+        
+    def _prettyformat(self, txt):
+        xmlstring = lxml.html.fromstring(txt)
+        if not len(xmlstring):
+            self.primary = txt
+            return
+        self.title = xmlstring.attrib.get("title", "")
+        self.primary = xmlstring.attrib.get("primary", "")
+        self.secondary = xmlstring.attrib.get("secondary", "")
+        for c in xmlstring.iterchildren():
+            #FIXME: well.. we're throwing away the formatting.. but we don't *have*
+            #to is the point..
+            if c.tag == "formatted":
+                self.secondary + "::" + c.text_content()
+            elif c.tag == "entries":
+                #parse..
+                tmp = c.attrib.get("text", "")
+                tmp = tmp.split(yobotproto.YOBOT_TEXT_DELIM)
+                for s in tmp:
+                    self.secondary += "::" + s + "\n"
+        
+        
 class ModelBase(object):
-    _t = ()
-    _d = {}
+    def _initvars(self):
+        self._t = {}
+        self._d = {}
+    def __init__(self):
+        self._initvars()
     
     def __iter__(self):
         return iter(self._t)
@@ -92,14 +170,17 @@ class ModelBase(object):
 
 
 class YBuddy(object):
-    status = None
-    status_message = None
-    alias = None
-    blist = None
-    account =  None
-    index = None
-    icon = None
+    def _initvars(self):
+        self.status = None
+        self.status_message = None
+        self.alias = None
+        self.blist = None
+        self.account =  None
+        self.index = None
+        self.icon = None
+
     def __init__(self, blist, name):
+        self._initvars()
         self.name = name
         self.blist = blist
         self.account = blist.account #why not?
@@ -121,8 +202,8 @@ class YBuddy(object):
         return 0
     
 class YBuddylist(ModelBase):
-    account = None
     def __init__(self, account):
+        self._initvars()
         self.account = account
         
     def add(self, buddy):
@@ -138,13 +219,17 @@ class YBuddylist(ModelBase):
     
     
     
-class YCAccount(YobotAccount):
-    blist = None
-    index = 0
-    _status = None
-    _status_message = None
-    
+class YCAccount(YobotAccount):    
+    def _initvars(self):
+        super(YobotAccount, self)._initvars()
+        self.blist = None
+        self.index = 0
+        self._status = None
+        self._status_message = None
+        self.icon = None
+
     def __init__(self, svc, user, passw, improto):
+        self._initvars()
         "Needs service to interface with the outside world"
         self.svc = svc
         self.notifier = svc.accounts
@@ -162,15 +247,6 @@ class YCAccount(YobotAccount):
     def __hash__(self):
         return hash(self.user + str(self.improto))
     
-    def addroom(self,room_name):
-        for room in self._rooms:
-            if room.name == room_name:
-                return None
-        room = _YobotRoom()
-        room.name = room_name
-        room.account = self
-        self._rooms.append(room)
-        return room
     
     def addUser(self, name):
         self.svc.addUser(self, name)
@@ -188,6 +264,9 @@ class YCAccount(YobotAccount):
         #assume we have an ID...
         self.svc.addAcct(self)
         log_info( "adding self to connected list...")
+        
+    def disconnect(self, server=False):
+        self.svc.disconnectAccount(self, server)
         
     def fetchBuddies(self):
         self.svc.fetchBuddies(self)
@@ -274,7 +353,6 @@ class YCAccount(YobotAccount):
     status = property(fget=_status_get, fset=_status_set)
     status_message = property(fget=_status_message_get, fset=_status_message_set)
     #################### TREE STUFF ############################
-    icon = None
     @property
     def parent(self):
         return -1
@@ -284,29 +362,3 @@ class YCAccount(YobotAccount):
     @property
     def name(self):
         return self._user
-    
-class _YobotRoom(object):
-    users = []
-    joined = False
-    account = None
-    name = None
-    def __init__(self, name, account):
-        self.name = name
-        self.account = account
-    
-    def sendmsg(self, txt):
-        if not self.joined:
-            raise NotInRoom, "Not yet connected to room %s" % self.name
-        self.account.sendchat(self, txt)
-    
-    def join(self):
-        self.account.joinchat(self)
-        
-    def gotmsg(self, msg):
-        log_info( msg)
-    def __hash__(self):
-        return hash(self.name)
-    def __eq__(self, other):
-        return self.name == other.name
-
-

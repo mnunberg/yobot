@@ -7,8 +7,10 @@ LD_LIBRARY_PATH=$PWD
 #PYTHONPATH+=:$PWD/py urxvt -hold -title "yobot agent" -e py/yobotnet.py -s & relay_pid=$!
 #sleep 0.5
 #PYTHONPATH+=:$PWD/py urxvt -hold -title "yobot client" -e py/client.py & client_pid=$!
-
+ulimit -c 16384
 ./yobot 0 & yobot_pid=$!
+#sleep 0.5
+#urxvt -hold -title "GDB:Purple" -e gdb ./yobot -x gdbcmds & gdb_pid=$!
 sleep 0.5
 py/yobotnet.py -s & relay_pid=$!
 sleep 0.5

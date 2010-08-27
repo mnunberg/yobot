@@ -15,12 +15,10 @@
 #ifdef _WIN32
 #include "win32/win32dep.h"
 #include <windows.h>
-#define PATHSEP "\\"
-#define CUSTOM_USER_DIRECTORY  "C:" PATHSEP "temp" PATHSEP "yobot"
+#define CUSTOM_USER_DIRECTORY  "C:" G_DIR_SEPARATOR_S "temp" G_DIR_SEPARATOR_S "yobot"
 #define WPURPLE_ROOT "C:\\Program Files\\Pidgin"
 #else
-#define PATHSEP "/"
-#define CUSTOM_USER_DIRECTORY PATHSEP "tmp" PATHSEP "yobot"
+#define CUSTOM_USER_DIRECTORY G_DIR_SEPARATOR_S "tmp" G_DIR_SEPARATOR_S "yobot"
 #endif
 
 #define CUSTOM_PLUGIN_PATH     ""
@@ -40,56 +38,65 @@ typedef struct _PurpleGLibIOClosure {
 	PurpleInputFunction function;
 	guint result;
 	gpointer data;
+	PurpleAccount *account;
 } PurpleGLibIOClosure;
 
-typedef struct
-{
-	PurpleAccountRequestType type;
+typedef struct {
+	GSourceFunc function;
+	guint result;
+	gpointer data;
 	PurpleAccount *account;
-	void *ui_handle;
-	char *user;
-	gpointer userdata;
-	PurpleAccountRequestAuthorizationCb auth_cb;
-	PurpleAccountRequestAuthorizationCb deny_cb;
-	guint ref;
-} PurpleAccountRequestInfo;
+} YobotPurpleTimeoutCb;
+
+//typedef struct
+//{
+//	PurpleAccountRequestType type;
+//	PurpleAccount *account;
+//	void *ui_handle;
+//	char *user;
+//	gpointer userdata;
+//	PurpleAccountRequestAuthorizationCb auth_cb;
+//	PurpleAccountRequestAuthorizationCb deny_cb;
+//	guint ref;
+//} PurpleAccountRequestInfo;
 
 static void purple_glib_io_destroy(gpointer data)
 {
 	g_free(data);
 }
 
+PurpleAccount *global_current_account = NULL;
+
 static gboolean purple_glib_io_invoke(GIOChannel *source, GIOCondition condition, gpointer data)
 {
 	PurpleGLibIOClosure *closure = data;
 	PurpleInputCondition purple_cond = 0;
+	yobot_purple_account_context_set(closure->account);
+	yobot_purple_account_context_printf();
 
 	if (condition & PURPLE_GLIB_READ_COND)
 		purple_cond |= PURPLE_INPUT_READ;
 	if (condition & PURPLE_GLIB_WRITE_COND)
 		purple_cond |= PURPLE_INPUT_WRITE;
-	closure->function(closure->data, g_io_channel_unix_get_fd(source),
-			purple_cond);
-
+	int fd = g_io_channel_unix_get_fd(source);
+	closure->function(closure->data, fd, purple_cond);
 	return TRUE;
 }
 
 static guint glib_input_add(gint fd, PurpleInputCondition condition, PurpleInputFunction function,
-		gpointer data)
-{
+		gpointer data) {
 	PurpleGLibIOClosure *closure = g_new0(PurpleGLibIOClosure, 1);
 	GIOChannel *channel;
 	GIOCondition cond = 0;
 
 	closure->function = function;
 	closure->data = data;
+	closure->account = yobot_purple_account_context_get();
 
 	if (condition & PURPLE_INPUT_READ)
 		cond |= PURPLE_GLIB_READ_COND;
 	if (condition & PURPLE_INPUT_WRITE)
 		cond |= PURPLE_GLIB_WRITE_COND;
-	if (condition & YOBOT_LISTEN_COND)
-		cond |= (G_IO_IN|G_IO_ERR);
 
 #if defined _WIN32
 	channel = wpurple_g_io_channel_win32_new_socket(fd);
@@ -103,9 +110,31 @@ static guint glib_input_add(gint fd, PurpleInputCondition condition, PurpleInput
 	return closure->result;
 }
 
+static void glib_timeout_destroy(gpointer data) {
+	g_free(data);
+}
+
+static gboolean glib_timeout_invoke(gpointer data) {
+	YobotPurpleTimeoutCb *cbinfo = data;
+	/*set context*/
+	yobot_purple_account_context_set(cbinfo->account);
+	yobot_purple_account_context_printf();
+	return cbinfo->function(cbinfo->data);
+}
+
+static guint glib_timeout_add(guint interval, GSourceFunc function, gpointer data) {
+	YobotPurpleTimeoutCb *cbinfo = g_new0(YobotPurpleTimeoutCb, 1);
+	cbinfo->data = data;
+	cbinfo->function = function;
+	cbinfo->account = yobot_purple_account_context_get();
+	cbinfo->result = g_timeout_add_full(G_PRIORITY_DEFAULT, interval,
+			glib_timeout_invoke, cbinfo, glib_timeout_destroy);
+	return cbinfo->result;
+}
+
 static PurpleEventLoopUiOps glib_eventloops =
 {
-	g_timeout_add,
+	glib_timeout_add,
 	g_source_remove,
 	glib_input_add,
 	g_source_remove,
@@ -155,14 +184,15 @@ static void init_libpurple(debug)
 	purple_debug_set_enabled(debug);
 
 	purple_core_set_ui_ops(&core_uiops);
+	purple_debug_set_ui_ops(&yobot_libpurple_debug_uiops);
 	purple_eventloop_set_ui_ops(&glib_eventloops);
 
-#ifdef WIN32
-	purple_plugins_add_search_path(WPURPLE_ROOT);
-	purple_plugins_add_search_path(WPURPLE_ROOT PATHSEP "Plugins");
-	purple_plugins_add_search_path(WPURPLE_ROOT PATHSEP "sasl2");
-	purple_certificate_add_ca_search_path(WPURPLE_ROOT PATHSEP "ca-certs");
-#endif
+//#ifdef WIN32
+//	purple_plugins_add_search_path(WPURPLE_ROOT);
+//	purple_plugins_add_search_path(WPURPLE_ROOT G_DIR_SEPARATOR_S "Plugins");
+//	purple_plugins_add_search_path(WPURPLE_ROOT G_DIR_SEPARATOR_S "sasl2");
+//	purple_certificate_add_ca_search_path(WPURPLE_ROOT G_DIR_SEPARATOR_S "ca-certs");
+//#endif
 	if (!purple_core_init(UI_ID)) {
 		fprintf(stderr,
 				"libpurple initialization failed. Dumping core.\n"
@@ -201,16 +231,15 @@ int main(int argc, char *argv[])
 
 #endif
 	/*get rid of annoying preferences*/
-	remove(CUSTOM_USER_DIRECTORY PATHSEP "prefs.xml");
-	remove(CUSTOM_USER_DIRECTORY PATHSEP "accounts.xml");
-	remove(CUSTOM_USER_DIRECTORY PATHSEP "status.xml");
-	remove(CUSTOM_USER_DIRECTORY PATHSEP "blist.xml");
+	remove(CUSTOM_USER_DIRECTORY G_DIR_SEPARATOR_S "prefs.xml");
+	remove(CUSTOM_USER_DIRECTORY G_DIR_SEPARATOR_S "accounts.xml");
+	remove(CUSTOM_USER_DIRECTORY G_DIR_SEPARATOR_S "status.xml");
+	remove(CUSTOM_USER_DIRECTORY G_DIR_SEPARATOR_S "blist.xml");
 	gboolean debug = atoi(argv[1]);
 	GMainLoop *loop = g_main_loop_new(NULL, FALSE);
 #ifndef WIN32
 	signal(SIGCHLD, SIG_IGN);
 	signal(SIGHUP, SIG_IGN);
-//	signal(SIGPIPE, SIG_IGN);
 #endif
 	init_libpurple(debug);
 	g_main_loop_run(loop);

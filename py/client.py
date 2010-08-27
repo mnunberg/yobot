@@ -8,8 +8,6 @@ from twisted.internet import reactor
 from yobotclass import YobotAccount, YobotMessage
 from yobotnet import YobotClientService
 import yobotproto
-from time import time
-from datetime import datetime
 from client_support import ModelBase, YCAccount
 import debuglog
 from debuglog import log_debug, log_err, log_warn, log_crit, log_info
@@ -55,6 +53,8 @@ class UIClient(object):
     
     def gotRequest(self, request_obj):
         self.uihooks.gotRequest(request_obj)
+    def delRequest(self, acct, refid):
+        self.uihooks.delRequest(acct, refid)
     
     def accountConnected(self, acct):
         log_info( "ACCOUNT CONNECTED", acct)

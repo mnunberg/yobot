@@ -4,6 +4,7 @@
 #include <string.h> /*memset*/
 #include <errno.h>
 #include <assert.h>
+#include <limits.h>
 
 #include <unistd.h>
 
@@ -48,12 +49,16 @@ void yobot_core_ui_init()
 	yobot_log_debug("begin");
 	yobot_acct_table = g_hash_table_new(g_direct_hash, g_direct_equal);
 	yobot_request_table = g_hash_table_new(g_direct_hash, g_direct_equal);
+	yobot_purple_account_refcount = g_hash_table_new_full(g_direct_hash,
+			g_direct_equal, NULL, free);
 
 	/*Set UiOps*/
 	purple_connections_set_ui_ops(&yobot_connection_uiops);
 	purple_conversations_set_ui_ops(&yobot_conversation_uiops);
 	purple_accounts_set_ui_ops(&yobot_account_uiops);
 	purple_blist_set_ui_ops(&yobot_blist_uiops);
+	purple_request_set_ui_ops(&yobot_request_uiops);
+	purple_notify_set_ui_ops(&yobot_notify_uiops);
 
 
 	/*Connect signal handlers.. each module should implement its own wrapper*/
@@ -64,6 +69,49 @@ void yobot_core_ui_init()
 	/*...*/
 	yobot_proto_setlogger(yobot_log_params.prefix);
 	init_listener(TRUE);
+}
+
+int *yobot_purple_account_refcount_get(PurpleAccount *acct) {
+	int *tmp = g_hash_table_lookup(yobot_purple_account_refcount, acct);
+	if(!tmp) /*NULL POINTER*/ {
+		yobot_log_err("got null value for refcount - for acct ptr %p", acct);
+	}
+	return tmp;
+}
+
+int *yobot_purple_account_refcount_decrease(PurpleAccount *acct) {
+	int *tmp = yobot_purple_account_refcount_get(acct);
+	if(!tmp) {
+		yobot_log_err("refcount is already null for %p", acct);
+		return tmp;
+	}
+	(*tmp)--;
+	if(*tmp == 0) {
+		purple_account_destroy(acct);
+		g_hash_table_destroy(((account_uidata*)acct->ui_data)->buddy_requests);
+		g_hash_table_destroy(((account_uidata*)acct->ui_data)->general_requests);
+	}
+	return tmp;
+}
+
+int *yobot_purple_account_refcount_increase(PurpleAccount *acct) {
+	int *tmp = yobot_purple_account_refcount_get(acct);
+	if(!tmp) {
+		yobot_log_err("refcount is null for acct %p", acct);
+		return tmp;
+	}
+	(*tmp)++;
+	yobot_log_debug("tmp is now %d", *tmp);
+	return tmp;
+}
+
+int *yobot_purple_account_refcount_register(PurpleAccount *acct) {
+	yobot_log_debug("adding account %p to the refcount table", acct);
+	int *tmp = malloc(sizeof(int));
+	*tmp = 0;
+	g_hash_table_insert(yobot_purple_account_refcount, acct, tmp);
+	return tmp;
+
 }
 
 static void join_chat(char *room_name, PurpleConnection *gc) {
@@ -259,6 +307,7 @@ static void cmd_handler(yobot_protoclient_segment *seg) {
 	PurpleConnection *gc = NULL;
 
 	if (account) {
+		yobot_purple_account_context_set(account);
 		gc = purple_account_get_connection(account);
 		if (!gc) {
 			if (!(
@@ -354,6 +403,9 @@ static void cmd_handler(yobot_protoclient_segment *seg) {
 
 		PurpleAccount *acct = purple_account_new(name,
 				yobot_proto_get_prpl_id(ymkaccti->yomkacct->improto));
+		yobot_purple_account_refcount_register(acct);
+		yobot_purple_account_refcount_increase(acct);
+		yobot_purple_account_context_set(acct);
 		yobot_log_debug("done.. now setting up account ui data");
 		purple_account_set_password(acct, pass);
 		account_uidata *tmp = malloc(sizeof(account_uidata));
@@ -378,7 +430,10 @@ static void cmd_handler(yobot_protoclient_segment *seg) {
 		if(!account) {
 			yobot_log_warn("account %d is NULL, not removing", cmd.acct_id);
 		}
-		purple_accounts_remove(account);
+		purple_accounts_remove(account); /*remove ID too*/
+		account_uidata *priv = account->ui_data;
+		priv->id = 0;
+		yobot_purple_account_refcount_decrease(account);
 		yobot_log_debug("removed");
 		break;
 	}
@@ -492,6 +547,11 @@ static void cmd_handler(yobot_protoclient_segment *seg) {
 			break;
 		}
 		purple_account_remove_buddy(account, buddy, purple_buddy_get_group(buddy));
+		break;
+	}
+	case YOBOT_CMD_PURPLE_REQUEST_GENERIC_RESPONSE: {
+		yobot_log_info("YOBOT_CMD_PURPLE_REQUEST_GENERIC_RESPONSE");
+		yobot_request_handle_response(account, yci->data, comm->reference);
 		break;
 	}
 	default:

@@ -18,11 +18,13 @@ TABLE_USERPROTO = 2
 class YAccountWrapper(object):
     """This is a wrapper class for YobotAccount which stores server-specific
     data"""
-    _wrapped = None
-    timeoutCb = None
-    connectedCb = None
+    def _initvars(self):
+        super(YAccountWrapper, self).__setattr__("timeoutCb", None)
+        super(YAccountWrapper, self).__setattr__("connectedCb", None)
     def __init__(self, yobotaccount_instance):
-        self._wrapped = yobotaccount_instance
+        super(YAccountWrapper, self).__setattr__("_wrapped", yobotaccount_instance)
+        self._initvars()
+
     def __getattr__(self, name):
         try:
             #try to see if we have the attribute
@@ -37,11 +39,13 @@ class YAccountWrapper(object):
             super(YAccountWrapper, self).__setattr__(name, value)
 
 class AccountManager(object):
-    _accounts = {} #acounts[user,protocol]->(<YobotAccount>,set([protocol instances,..]))
-    _ids = {} #ids[id] -> """"" duplicate lookup
-    
-    _connections = {} #proto[<proto connection instance>]->set([acct ids,...])
-    
+    def _initvars(self):
+        self._accounts = {} #acounts[user,protocol]->(<YobotAccount>,set([protocol instances,..]))
+        self._ids = {} #ids[id] -> """"" duplicate lookup
+        self._connections = {} #proto[<proto connection instance>]->set([acct ids,...])
+    def __init__(self):
+        self._initvars()
+
     def byId(self, id):
         """->(account, protocol_instances)"""
         return self._ids.get(id, None)
@@ -244,7 +248,7 @@ class AccountRequestHandler(object):
             self.timedOut = True
             d.errback(AccountRemoved("Account authorization timed out"))
             
-        t = reactor.callLater(1, _callTimeout)
+        t = reactor.callLater(10, _callTimeout)
         
         self.newacct.timeoutCb = t
         self.newacct.connectedCb = d

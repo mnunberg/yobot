@@ -41,7 +41,7 @@ else
 	#first build the hack dl
 endif
 PROTOCLIENT_LIB=$(LIBPREFIX)yobotprotoclient.$(LIBSUFFIX)
-MODULES+=yobot_ui yobot_uiops yobot_conversation yobot_blist yobot_log
+MODULES+=yobot_ui yobot_uiops yobot_conversation yobot_blist yobot_log yobot_request
 OBJS+=$(addprefix $(OBJDIR)/, $(addsuffix .o, $(MODULES)))
 INCLUDES+=-I$(shell pwd)
 CFLAGS=-Wall -ggdb3 $(DEFINES) $(INCLUDES)
