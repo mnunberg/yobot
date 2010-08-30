@@ -13,6 +13,7 @@
 #include <string.h>
 #include "yobot_ui.h"
 #include "yobot_blist.h"
+#include "yobot_log.h"
 #include <stdarg.h>
 
 #define register_signal(purple_component, signal, fn) \
@@ -62,7 +63,7 @@ void yobot_blist_send_status_change(char *user, yobot_status_r status,
 	info.purple_type = YOBOT_PURPLE_ACCOUNT;
 	info.severity = YOBOT_INFO;
 	info.len = strlen(user_status) + 1;
-	printf("%s: USER: %s\n", __func__, user_status);
+	yobot_log_info("USER: %s", user_status);
 	info.data = user_status;
 	yobot_protoclient_event_encode(info, &server_write_fd, YOBOT_PROTOCLIENT_TO_FD);
 	g_free(user_status);
@@ -85,8 +86,8 @@ void yobot_blist_send_icon(PurpleBuddy *buddy, uint32_t acctid, ...) {
 	if ((!icon_data) ||
 			(name_len /*buddy len*/ > _NAME_MAX) ||
 			(icon_len > YOBOT_MAX_COMMSIZE - _NAME_MAX-1)) {
-		fprintf(stderr, "%s:wtf.. icon is %p, length is %d, namelen is %d\n",
-				__func__, icon_data, (int)icon_len, (int)name_len);
+		yobot_log_warn("wtf.. icon is %p, length is %d, namelen is %d",
+				icon_data, (int)icon_len, (int)name_len);
 		free(name);
 		return;
 	}

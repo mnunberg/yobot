@@ -75,7 +75,17 @@ class UIClient(object):
         passw = str(passw)
         new_account = YCAccount(self.svc, user, passw, improto)
         new_account.connect()
-
+    
+    def uiClosed(self):
+        #stop the reactor..
+        reactor.stop()
+    
+    def disconnectAll(self, fromServer):
+        if fromServer:
+            self.svc.disconnectAll()
+        else:
+            reactor.stop()
+            
 if __name__ == "__main__":
     debuglog.init("Client", title_color="green")
     yobotproto.yobot_proto_setlogger("Client")

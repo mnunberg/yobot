@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>276</width>
-    <height>544</height>
+    <height>528</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -339,11 +339,20 @@
    <addaction name="actionIgnoreUser"/>
   </widget>
   <widget class="QDockWidget" name="noticebox">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
    <property name="maximumSize">
     <size>
      <width>524287</width>
-     <height>120</height>
+     <height>400</height>
     </size>
+   </property>
+   <property name="autoFillBackground">
+    <bool>false</bool>
    </property>
    <property name="floating">
     <bool>false</bool>
@@ -530,6 +539,33 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="text">
     <string>Disconnect Account (Server)</string>
+   </property>
+  </action>
+  <action name="actionAppearHiddenToContact">
+   <property name="icon">
+    <iconset resource="../../../yobot/py/gui/resources.qrc">
+     <normaloff>:/icons/icons/user-invisible.png</normaloff>:/icons/icons/user-invisible.png</iconset>
+   </property>
+   <property name="text">
+    <string>Appear Invisible To Contact</string>
+   </property>
+  </action>
+  <action name="actionSendMessage">
+   <property name="icon">
+    <iconset resource="../../../yobot/py/gui/resources.qrc">
+     <normaloff>:/icons/icons/message-new.png</normaloff>:/icons/icons/message-new.png</iconset>
+   </property>
+   <property name="text">
+    <string>Send Message</string>
+   </property>
+  </action>
+  <action name="actionDelete">
+   <property name="icon">
+    <iconset resource="../../../yobot/py/gui/resources.qrc">
+     <normaloff>:/icons/icons/im-ban-user.png</normaloff>:/icons/icons/im-ban-user.png</iconset>
+   </property>
+   <property name="text">
+    <string>Delete</string>
    </property>
   </action>
  </widget>

@@ -21,6 +21,7 @@ class YAccountWrapper(object):
     def _initvars(self):
         super(YAccountWrapper, self).__setattr__("timeoutCb", None)
         super(YAccountWrapper, self).__setattr__("connectedCb", None)
+        super(YAccountWrapper, self).__setattr__("nconnections", 0)
     def __init__(self, yobotaccount_instance):
         super(YAccountWrapper, self).__setattr__("_wrapped", yobotaccount_instance)
         self._initvars()
@@ -157,11 +158,13 @@ class AccountManager(object):
         except KeyError, e:
             self._connections[connection] = set()
             self._connections[connection].add(acct.id)
+        acct.nconnections += 1
         
     def delConnection(self, connection, id=None, userproto=(None,None)):
         """Removes a connection from the account's data list"""
         #FIXME: accept iterables for id and userproto
         ((acct, st), lookup_table) = self._getacct(id, userproto)
+        acct.nconnections -= 1
         try:
             st.remove(connection)
         except KeyError, e:

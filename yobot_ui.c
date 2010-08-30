@@ -453,8 +453,7 @@ static void cmd_handler(yobot_protoclient_segment *seg) {
 		conv = purple_find_conversation_with_account(
 				PURPLE_CONV_TYPE_CHAT, room, account);
 		if (!conv) {
-			printf("%s: couldn't find room %s. can't fetch user list. \n",
-					__func__, room);
+			yobot_log_err("couldn't find room %s. can't fetch user list", room);
 			/*return a failure notice*/
 			info.severity = YOBOT_WARN;
 			info.data = "Room doesn't exist";
@@ -534,7 +533,7 @@ static void cmd_handler(yobot_protoclient_segment *seg) {
 	case YOBOT_CMD_USER_ADD: {
 		PurpleBuddy *buddy = purple_buddy_new(account, yci->data, NULL);
 		if(!buddy) {
-			printf("%s: ADD: buddy is null... grrr\n", __func__);
+			yobot_log_err("ADD: buddy is null");
 			break;
 		}
 		purple_account_add_buddy(account, buddy);
@@ -543,7 +542,7 @@ static void cmd_handler(yobot_protoclient_segment *seg) {
 	case YOBOT_CMD_USER_REMOVE: {
 		PurpleBuddy *buddy = purple_find_buddy(account, yci->data);
 		if(!buddy) {
-			printf("%s: REMOVE: buddy is null.. \n", __func__);
+			yobot_log_err("REMOVE: buddy is null");
 			break;
 		}
 		purple_account_remove_buddy(account, buddy, purple_buddy_get_group(buddy));
@@ -555,7 +554,7 @@ static void cmd_handler(yobot_protoclient_segment *seg) {
 		break;
 	}
 	default:
-		yobot_log_warn("unknown command %d.\n", cmd.command);
+		yobot_log_warn("unknown command %d.", cmd.command);
 		break;
 	}
 }

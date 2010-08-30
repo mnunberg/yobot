@@ -1,0 +1,9 @@
+set args 0
+set breakpoint pending on
+break purple_request_action
+break purple_ssl_connect_fd
+break purple_ssl_connect
+break purple_connection_new
+break purple_connection_set_account
+break main
+run

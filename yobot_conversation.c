@@ -9,6 +9,7 @@
 #include "yobotproto.h"
 #include "protoclient.h"
 #include "yobot_ui.h"
+#include "yobot_log.h"
 #include <time.h>
 #include <string.h>
 #include <assert.h>
@@ -23,26 +24,27 @@ static void event_conversation_send(PurpleConversation *conv, yobot_proto_evtype
 	info.data = conv->name;
 	info.len = strlen(conv->name);
 	yobot_protoclient_event_encode(info, &server_write_fd,YOBOT_PROTOCLIENT_TO_FD);
-	printf("%s: done\n", __func__);
 
 }
 
 
 static void create_conversation(PurpleConversation *conv) {
-	printf("%s: %s\n", __func__, conv->name);
+	char *type;
 	if (conv->type == PURPLE_CONV_TYPE_CHAT) {
-		puts("chat");
+		type="chat";
 	} else if (conv->type == PURPLE_CONV_TYPE_IM) {
-		puts("IM");
+		type="IM";
 	} else {
-		puts("something else be here...");
+		type="something else";
 	}
+
+	yobot_log_debug("name: %s, type=%s",conv->name, type);
 }
 
 static void write_chat(PurpleConversation *conv, const char *who,
 		const char *message, PurpleMessageFlags flags, time_t mtime) {
 	puts(__func__);
-	printf("<%s> %s\n", who, message);
+	yobot_log_debug("<%s> %s", who, message);
 	struct yobot_msginfo info;
 	memset(&info, 0, sizeof(info));
 	info.acctid = yobot_get_acct_id(conv->account);
@@ -54,13 +56,12 @@ static void write_chat(PurpleConversation *conv, const char *who,
 	info.purple_flags = flags;
 
 	yobot_protoclient_msg_encode(info, &server_write_fd, YOBOT_PROTOCLIENT_TO_FD);
-	printf("%s: strlen(who): %d\n", __func__,(int)strlen(who));
 }
 
 static void write_conv(PurpleConversation *conv, const char *name,
 		const char *alias, const char *message, PurpleMessageFlags flags,
 		time_t mtime) {
-	printf("%s: [%d] %s: %s\n",__func__,flags,name,message);
+	yobot_log_debug("[%d] %s: %s",flags,name,message);
 	if (flags & PURPLE_MESSAGE_RECV) {
 		struct yobot_msginfo info;
 		memset(&info, 0, sizeof(info));
@@ -73,30 +74,23 @@ static void write_conv(PurpleConversation *conv, const char *name,
 		info.purple_flags = flags;
 		yobot_protoclient_msg_encode(info, &server_write_fd, YOBOT_PROTOCLIENT_TO_FD);
 	}
-	printf("sent\n");
 }
 
 static void write_im(PurpleConversation *conv, const char *who,
 		const char *message, PurpleMessageFlags flags, time_t mtime) {
 
 	if (flags & PURPLE_MESSAGE_SEND) {
-		puts("SEND");
 		who = purple_account_get_username(conv->account);
 		if(!who) {
-			printf("WHO IS STILL NULL! WTF!\n");
+			yobot_log_err("WHO IS STILL NULL! WTF!");
 			return;
 		}
 	} else if (flags & PURPLE_MESSAGE_RECV) {
-		puts("RECV");
 		who = conv->name;
 	} else {
-		printf("%s: neither send nor receive...\n", __func__);
-		printf("trying.. anyway\n");
+		yobot_log_warn("can't handle flag %d", flags);
 	}
-	printf("PASSING WHO AS %s\n", who);
-	printf("conv->name is %s\n", conv->name);
-	printf("message is %s\n", message);
-	puts(__func__);
+	yobot_log_debug("who: %s, conv->name: %s, msg: %s", who, conv->name, message);
 	struct yobot_msginfo info;
 	memset(&info, 0, sizeof(info));
 	info.acctid = yobot_get_acct_id(conv->account);
@@ -158,7 +152,7 @@ PurpleConversationUiOps yobot_conversation_uiops = {
 
 /*Signal callbacks*/
 static void chat_joined(PurpleConversation *conv) {
-	printf("%s: Joined %s\n", __func__, conv->name);
+	yobot_log_info("joined room %s", conv->name);
 	event_conversation_send(conv,YOBOT_INFO,YOBOT_EVENT_ROOM_JOINED);
 }
 

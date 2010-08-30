@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'main_auto.ui'
 #
-# Created: Fri Aug 27 11:24:17 2010
+# Created: Fri Aug 27 22:16:23 2010
 #      by: PyQt4 UI code generator 4.7.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -13,7 +13,7 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.setEnabled(True)
-        MainWindow.resize(276, 544)
+        MainWindow.resize(276, 528)
         self.centralwidget = QtGui.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.gridLayout = QtGui.QGridLayout(self.centralwidget)
@@ -162,7 +162,13 @@ class Ui_MainWindow(object):
         MainWindow.addToolBar(QtCore.Qt.ToolBarArea(QtCore.Qt.TopToolBarArea), self.toolBar)
         MainWindow.insertToolBarBreak(self.toolBar)
         self.noticebox = QtGui.QDockWidget(MainWindow)
-        self.noticebox.setMaximumSize(QtCore.QSize(524287, 120))
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Expanding)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.noticebox.sizePolicy().hasHeightForWidth())
+        self.noticebox.setSizePolicy(sizePolicy)
+        self.noticebox.setMaximumSize(QtCore.QSize(524287, 400))
+        self.noticebox.setAutoFillBackground(False)
         self.noticebox.setFloating(False)
         self.noticebox.setFeatures(QtGui.QDockWidget.AllDockWidgetFeatures)
         self.noticebox.setObjectName("noticebox")
@@ -238,6 +244,17 @@ class Ui_MainWindow(object):
         self.actionDisconnect_Account_Server = QtGui.QAction(MainWindow)
         self.actionDisconnect_Account_Server.setIcon(icon9)
         self.actionDisconnect_Account_Server.setObjectName("actionDisconnect_Account_Server")
+        self.actionAppearHiddenToContact = QtGui.QAction(MainWindow)
+        self.actionAppearHiddenToContact.setIcon(icon6)
+        self.actionAppearHiddenToContact.setObjectName("actionAppearHiddenToContact")
+        self.actionSendMessage = QtGui.QAction(MainWindow)
+        icon10 = QtGui.QIcon()
+        icon10.addPixmap(QtGui.QPixmap(":/icons/icons/message-new.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.actionSendMessage.setIcon(icon10)
+        self.actionSendMessage.setObjectName("actionSendMessage")
+        self.actionDelete = QtGui.QAction(MainWindow)
+        self.actionDelete.setIcon(icon8)
+        self.actionDelete.setObjectName("actionDelete")
         self.menu.addAction(self.actionNewconn)
         self.menu.addSeparator()
         self.menu.addAction(self.actionDisconnect_Account_Client)
@@ -309,6 +326,9 @@ class Ui_MainWindow(object):
         self.actionQuit_And_Disconnect_all_from_Server.setText(QtGui.QApplication.translate("MainWindow", "Quit (And Disconnect All From Server)", None, QtGui.QApplication.UnicodeUTF8))
         self.actionDisconnect_Account_Client.setText(QtGui.QApplication.translate("MainWindow", "Disconnect Account (Client)", None, QtGui.QApplication.UnicodeUTF8))
         self.actionDisconnect_Account_Server.setText(QtGui.QApplication.translate("MainWindow", "Disconnect Account (Server)", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionAppearHiddenToContact.setText(QtGui.QApplication.translate("MainWindow", "Appear Invisible To Contact", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionSendMessage.setText(QtGui.QApplication.translate("MainWindow", "Send Message", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionDelete.setText(QtGui.QApplication.translate("MainWindow", "Delete", None, QtGui.QApplication.UnicodeUTF8))
 
 import resources_rc
 

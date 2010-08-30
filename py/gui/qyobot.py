@@ -5,15 +5,17 @@ import yobotproto
 from yobotclass import YobotAccount
 from client_support import YCAccount, YBuddylist, YBuddy, YCRequest, SimpleNotice
 from debuglog import log_debug, log_info, log_err, log_crit, log_warn
-
+from cgi import escape as html_escape
 import main_auto
 import sendjoin_auto
 import chatwindow_auto
 import notification
 import time
 import buddy_entry
-
-from css_sax import simplify_css
+import lxml.html
+from html_fmt import simplify_css, process_input, insert_smileys
+import smileys_rc
+from modeltest import ModelTest
 
 from PyQt4 import QtCore, QtGui
 
@@ -23,7 +25,7 @@ from PyQt4.QtGui import (QComboBox, QMainWindow, QStandardItemModel, QStandardIt
                          QApplication, QFont, QTextEdit, QColorDialog, QPalette,
                          QListWidget, QListWidgetItem, QStyledItemDelegate,
                          QStyleOptionViewItem, QRegion, QWidget, QBrush, QStyle,
-                         QPen, QPushButton, QStyleOption)
+                         QPen, QPushButton, QStyleOption, QMenu, QAction, QCursor)
 
 from PyQt4.QtCore import (QPoint, QSize, QModelIndex, Qt, QObject, SIGNAL, QVariant,
                           QAbstractItemModel, QRect, QRectF, QPointF)
@@ -110,16 +112,12 @@ def getProtoStatusIcon(name, proto_int=None):
         #add cache
         status_icon_cache[(name, proto_int)] = QIcon(QPixmap.fromImage(combined_pixmap))
         return status_icon_cache[(name, proto_int)]
-
-
-
+        
 def mkProtocolComboBox(cbox):
     """Stores human readable improto names along with their yobt constants"""
     for proto_constant, proto_name in IMPROTOS_BY_CONSTANT.items():
         icon = getProtoStatusIcon(proto_name)
         cbox.addItem(icon, proto_name, proto_constant)
-
-
 
 class BuddyItemDelegate(QStyledItemDelegate):
     largeEntryIcon = (32, 32)
@@ -151,9 +149,9 @@ class BuddyItemDelegate(QStyledItemDelegate):
         item = index.internalPointer()
                 
         if item.icon:
-            bicon = QPixmap()
-            bicon.loadFromData(item.icon)
-            bicon = bicon.scaled(QSize(*self.largeEntryIcon),Qt.KeepAspectRatio)
+            buddyicon = QPixmap()
+            buddyicon.loadFromData(item.icon)
+            buddyicon = buddyicon.scaled(QSize(*self.largeEntryIcon),Qt.KeepAspectRatio)
             
         protostatus_icon = index.data(Qt.DecorationRole)
         if protostatus_icon and protostatus_icon.canConvert(QVariant.Icon):
@@ -187,10 +185,10 @@ class BuddyItemDelegate(QStyledItemDelegate):
         if protostatus and protostatus.canConvert(QVariant.Icon):
             protostatus = QIcon(protostatus).pixmap(*self.largeEntryIcon)
             #get target rect..
-            tr = QRect(option.rect.topLeft(), QSize(*self.largeEntryIcon))
-            sr = QRect(0,0,*self.largeEntryIcon)
+            target_rect = QRect(option.rect.topLeft(), QSize(*self.largeEntryIcon))
+            source_rect = QRect(0,0,*self.largeEntryIcon)
             
-            painter.drawPixmap(tr,protostatus,sr)
+            painter.drawPixmap(target_rect,protostatus,source_rect)
         #first get the font..
         font_style = index.data(Qt.FontRole)
         if font_style and font_style.canConvert(QVariant.Font):
@@ -222,12 +220,12 @@ class BuddyItemDelegate(QStyledItemDelegate):
         #finally.. the buddy icon...
         item = index.internalPointer()
         if item.icon:
-            bicon = QPixmap()
-            bicon.loadFromData(item.icon)
-            bicon = bicon.scaled(QSize(*self.largeEntryIcon),Qt.KeepAspectRatio)
-            tr = QRect(option.rect.right()-self.largeEntryIcon[0], option.rect.top(), *self.largeEntryIcon)
-            sr = QRect(0,0,*self.largeEntryIcon)
-            painter.drawPixmap(tr, bicon, sr)
+            buddyicon = QPixmap()
+            buddyicon.loadFromData(item.icon)
+            buddyicon = buddyicon.scaled(QSize(*self.largeEntryIcon),Qt.KeepAspectRatio)
+            target_rect = QRect(option.rect.right()-self.largeEntryIcon[0], option.rect.top(), *self.largeEntryIcon)
+            source_rect = QRect(0,0,*self.largeEntryIcon)
+            painter.drawPixmap(target_rect, buddyicon, source_rect)
         
         QApplication.style().drawPrimitive(QStyle.PE_PanelItemViewRow, option, painter)
 
@@ -259,10 +257,12 @@ class AccountModel(QAbstractItemModel):
         must contain list of blist objects which should also be iterable and indexable.
         Additionally, each item should have a status, status_message, and name attribute
         """
-        QAbstractItemModel.__init__(self)
+        self.IDSTR="hi"
+        super(AccountModel, self).__init__()
         self.backend = backend
         
         self.acctRoot = backend
+        self.blist = None
         
         #tie up some functions..
         self.backend.beginAdd = self.beginAccountAdd
@@ -273,20 +273,29 @@ class AccountModel(QAbstractItemModel):
         self.backend.endAdd = self.endInsertRows
         self.backend.endRemove = self.endRemoveRows
         self.backend.dataChanged = self.statusChange
+        self.backend.firstChildInserted = self._firstChange
         log_debug( "AccountModel: init done")
-        
+    
+    def flags(self, index):
+        return (Qt.ItemIsSelectable|Qt.ItemIsEnabled|Qt.ItemIsEditable)
+    
+    def _firstChange(self, index):
+        if self.blist:
+            self.blist.setExpanded(self.index(index, 0), True)
+            
     def index(self, row, column = 0, parent = QModelIndex()):
         #if not self.hasIndex(row, column, parent):
         #    return QModelIndex()
-        if column > 0:
+        if column != 0 or row <0:
             return QModelIndex()
             
         if not parent.isValid():
             #top level account..
             try:
                 acct_obj = self.acctRoot[row]
-                return self.createIndex(row, column, acct_obj)
-            except IndexError:
+                ret = self.createIndex(row, 0, acct_obj)
+                return ret
+            except (IndexError, KeyError), e:
                 return QModelIndex()
                 
         #if we got here.. we have a buddy item...
@@ -294,31 +303,56 @@ class AccountModel(QAbstractItemModel):
         try:
             buddy = parent_item.blist[row]
             return self.createIndex(row, column, buddy)
-        except IndexError:
+        except (IndexError, KeyError), e:
+            parent_chain = ""
+            _p = parent
+            while _p.isValid():
+                parent_chain += "-> %d %d" % (_p.row(), _p.column())
+                _p = _p.parent()
+            log_err("Error", e, row, column, "parents", parent_chain)
             return QModelIndex()
             
     def parent(self, index):
         obj = index.internalPointer()
+        if not obj:
+            return QModelIndex() #no data, nothing valid
         if not index.isValid(): #or obj.parent == -1
             return QModelIndex()
-        try:
-            if obj.parent == -1:
-                return QModelIndex()
-        except (ValueError, AttributeError), e:
-            pass
+            
+        if not obj.parent:
+            return QModelIndex()
+        #except (ValueError, AttributeError), e:
+        #    log_warn(e)
+        #    raise
+        #    pass
+        #    #return QModelIndex()
         
         #return index of the buddy.. this is tough..
         return self.createIndex(obj.parent.index, 0, obj.parent)
     
-    def rowCount(self, index = QModelIndex()):
-        if index.column() > 0:
-            return 0
-        if not index.isValid():
+    def hasChildren(self, parent=QModelIndex()):
+        if not parent.isValid():
             return len(self.backend)
+        else: #valid index:
+            return bool(parent.internalPointer().childCount)
+        
+    def rowCount(self, index = QModelIndex()):
+        #if index.column() > 0:
+        #    log_debug("returning 0 for column > 0")
+        #    return 0
+        if not index.isValid():
+            ret = len(self.backend)
         else:
-            return index.internalPointer().childCount
+            ret = index.internalPointer().childCount
             
+        return ret
+        
     def columnCount(self, index = QModelIndex()):
+        if index.isValid():
+            if index.internalPointer().childCount:
+                return 1
+            else:
+                return 0
         return 1
     
     def data(self, index, role = Qt.DisplayRole):
@@ -352,19 +386,28 @@ class AccountModel(QAbstractItemModel):
                 return QVariant(getProtoStatusIcon(status_name, proto_int = improto))
     
     #ugly hacks
+    
+    def endInsertRows(self):
+        QAbstractItemModel.endInsertRows(self)
+        
     def beginAccountAdd(self, index_no):
         self.beginInsertRows(QModelIndex(), index_no, index_no)
+        
     def beginAccountRemove(self, index_no):
         self.beginRemoveRows(QModelIndex(), index_no, index_no)
         
     def beginBuddyAdd(self, parent_index, child_index):
         #get parent index first..
+        iindex = parent_index
         parent_index = self.index(parent_index, 0)
+        log_err("inserting buddy [%d] with parent index %d VALID: %s PARENT VALID: %s" %
+                (child_index, iindex, parent_index.isValid(), parent_index.parent().isValid()))
         self.beginInsertRows(parent_index, child_index, child_index)
     def beginBuddyRemove(self, parent_index, child_index):
         parent_index = self.index(parent_index, 0)
         self.beginRemoveRows(parent_index, child_index, child_index)
     def statusChange(self, parent_index=None, child_index=None):
+        return
         if not child_index:
             #account status:
             index = self.index(parent_index, 0)
@@ -418,17 +461,32 @@ class UserAddDialog(AccountInputDialog):
     def action(self, acct_obj, target, _null):
         acct_obj.addUser(str(target))
 
+
+class DisconnectDialog(AccountInputDialog):
+    def __init__(self, model, parent=None, server=False):
+        super(DisconnectDialog, self).__init__(model, parent)
+        self.widgets.target.hide()
+        self.widgets.target_label.hide()
+        title = "Disconnect account from "
+        title += "client" if not server else "server"
+        self.setWindowTitle(title)
+        self.fromServer = server
+    def action(self, acct_obj, _null, _null2):
+        acct_obj.disconnect(self.fromServer)
+
 class ChatWindow(QMainWindow):
     """This class is quite dumb, but it does contain client hooks to get and send
     messages"""
-    def __init__(self, client, parent=None, type=IM, acct_obj=None, target=None):
+    def __init__(self, client, parent=None, type=IM, acct_obj=None, target=None,
+                 factory=None):
         self.users = {} #dict containing the name of the user mapped to the model object..
+        self.ignore_list = set()
+        
         if not target or not acct_obj:
             log_err( "must have target and account for chatwindow")
             return
         
         QMainWindow.__init__(self, parent)
-
         self.type = type
         self.target = target
         self.account = acct_obj
@@ -436,24 +494,10 @@ class ChatWindow(QMainWindow):
         
         self.widgets.setupUi(self)
         self.setWindowTitle(target)
-        
-        #add some buttons.. we shouldn't be doing this here, but we don't want to
-        #rely on the auto generated .ui file or _auto.py
-        self.widgets.bold.setIcon(getIcon("format-text-bold"))
-        self.widgets.underline.setIcon(getIcon("format-text-underline"))
-        self.widgets.italic.setIcon(getIcon("format-text-italic"))
-        
+                
         #and some key press events..
         self.widgets.input.keyPressEvent = self._inputKeyPressEvent
         self.widgets.input.setHtml("")
-        def setbold(weight):
-            bv = None
-            if weight:
-                bv = 75
-            else:
-                bv = 50
-            self.widgets.input.setFontWeight(bv)
-        signal_connect(self.widgets.bold, SIGNAL("toggled(bool)"),setbold)
 
         if type == CHAT:
             self.widgets.userlist.show()
@@ -465,66 +509,144 @@ class ChatWindow(QMainWindow):
         elif type == IM:
             self.widgets.userlist.hide()
         
+        self.current_action_target = ""
+        self.widgets.userlist.clear()
+        self.factory = factory
+        self._init_input()
+        self._init_menu()
+    
+    def _init_input(self):
+        #bold
+        def setbold(weight):
+            self.widgets.input.setFontWeight(75 if weight else 50)
+        signal_connect(self.widgets.bold, SIGNAL("toggled(bool)"),setbold)
+        
+        #color handling
         def choosecolor():
             def _onClicked(color):
-                self.widgets.input.setColor(color)
-                self.widgets.fg_color.setPalette(QPalette(color))
+                self.widgets.input.setTextColor(color)
+                self.widgets.fg_color.setStyleSheet("background-color: '%s'" % (color.name()))
             cdlg = QColorDialog(self)
-            signal_connect(cdlg, SIGNAL("colorSelected()"), _onClicked)
-            cdlg.open()
+            signal_connect(cdlg, SIGNAL("colorSelected(QColor)"), _onClicked)
+            ret = cdlg.open()
         signal_connect(self.widgets.fg_color, SIGNAL("clicked()"), choosecolor)
-        self.widgets.fg_color.setPalette(QPalette(Qt.white))
+        fgcolor = self.widgets.input.textColor().name()
+        self.widgets.fg_color.setStyleSheet("background-color: '%s'" % (fgcolor,))
+        
+        #fontsize handling
+        current_size = int(self.widgets.input.currentFont().pointSize())
+        def _setSize(i):
+            try:
+                self.widgets.input.setFontPointSize(float(i))
+            except Exception, e:
+                log_err(e)
+        signal_connect(self.widgets.fontsize, SIGNAL("valueChanged(int)"), _setSize)
+        
+        #for updating the formatting buttons
+        signal_connect(self.widgets.input, SIGNAL("currentCharFormatChanged(QTextCharFormat)"),
+                       self._currentCharFormatChanged)
+                        
+    def _init_menu(self):
+        if not self.type == CHAT:
+            return
+        menu = QMenu()
+        self._action_newmsg = menu.addAction(
+            QIcon(":/icons/icons/message-new.png"), "Send IM")
+        self._action_ignore_tmp = menu.addAction(
+            QIcon(":/icons/res/16x16/actions/dialog-cancel.png"), "Ignore (from chat)")
+        self._action_ignore_perm = menu.addAction(
+            QIcon(":/icons/res/16x16/actions/dialog-cancel.png"), "Ignore (server)")
+        
+        if self.factory:
+            signal_connect(self._action_newmsg, SIGNAL("activated()"), lambda: self.factory(
+                target = self.current_action_target, account = self.account, type = self.type))
+        signal_connect(self._action_ignore_tmp, SIGNAL("activated()"),
+                       lambda: self.ignore_list.add(self.current_action_target))
+        self.userActionMenu = menu
+        def _anchorClicked(link):
+            link = str(link.toString())
+            if link.startswith("YOBOT_INTERNAL"):
+                user = link.split("/", 1)[1]
+                if user:
+                    self.current_action_target = user
+                    self.userActionMenu.exec_(QCursor().pos())
+        signal_connect(self.widgets.convtext, SIGNAL("anchorClicked(QUrl)"),
+                       _anchorClicked)
+            #get mouse position and pop up menu..
+            
+    
+    def _currentCharFormatChanged(self,format):
+        self.widgets.font.setCurrentFont(format.font())
+        self.widgets.fontsize.setValue(int(format.fontPointSize()))
+        self.widgets.bold.setChecked(format.fontWeight() >= 75)
+        self.widgets.italic.setChecked(format.fontItalic())
+        self.widgets.underline.setChecked(format.fontUnderline())
+        self.widgets.fg_color.setStyleSheet("background-color: '%s'" % (format.foreground().color().name(),))
+        
+        
         
     def _inputKeyPressEvent(self, event):
-        if not event.key() == Qt.Key_Return:
-            QTextEdit.keyPressEvent(self.widgets.input,event)
+        key = event.key()
+        modifiers = event.modifiers()
+        if key== Qt.Key_Return:
+            txt = self.widgets.input.toHtml()
+            if not txt:
+                return
+            log_warn(txt)
+            txt = simplify_css(str(txt))
+            log_warn(txt)
+            self.sendMsg(txt)
+            self.widgets.input.clear()
             return
-        txt = self.widgets.input.toHtml()
-        if not txt:
+        if key == Qt.Key_Backspace:
+            log_debug("backspace")
+            self.widgets.input.textCursor().deletePreviousChar()
+                #log_debug("at beginning")
             return
-        txt = simplify_css(str(txt))
-        log_debug( txt)
-        self.sendMsg(txt)
-        self.widgets.input.clear()
+        if modifiers & Qt.CTRL:
+            print "control"
+            if key == Qt.Key_BracketLeft:
+                self.widgets.fontsize.stepBy(-1)
+                return
+            elif key == Qt.Key_BracketRight:
+                self.widgets.fontsize.stepBy(1)
+                return
+        
+        QTextEdit.keyPressEvent(self.widgets.input,event)    
     
     def sendMsg(self, txt):
-        chat = False
-        if self.type == CHAT:
-            chat = True
+        chat = True if self.type == CHAT else False
         self.account.sendmsg(self.target, str(txt), chat=chat)
         
     def gotMsg(self, msg_obj):
         #get time..
-        msg_str = ""
-        msg_str += "(%s) " % (msg_obj.timeFmt,) if self.widgets.actionTimestamps.isChecked() else ""
-        msg_str += "<font size='2' color='mediumblue'><b>%s</b></font>: " % (msg_obj.who,)
-        msg_str += msg_obj.txt
-        self.widgets.convtext.append(msg_str)
-        #TODO: make special formatting for the message... give the name a different color and perhaps a
-        #hyperlink
+        if msg_obj.who in self.ignore_list:
+            return
         
+        msg_str = "<a href='YOBOT_INTERNAL/%s'>" % (msg_obj.who)
+        msg_str += "(%s) " % (msg_obj.timeFmt,) if self.widgets.actionTimestamps.isChecked() else ""
+        msg_str += "<font color='mediumblue'><b>%s</b></font></a>: " % (msg_obj.who,)
+        formatted = process_input(msg_obj.txt)
+        formatted = insert_smileys(formatted, self.account.improto, ":smileys/smileys", 24, 24)
+        log_debug(formatted)
+        msg_str += formatted
+                
+        self.widgets.convtext.append(msg_str)
+    
     def userJoined(self, user):
         if self.users.get(user): return
         u = QListWidgetItem()
         u.setText(user)
         self.widgets.userlist.addItem(u)
-        self.users[user] = u    
+        self.users[user] = u
     def userLeft(self, user):
         u = self.users.get(user)
         if not u: return
         self.widgets.userlist.removeItemWidget(u)
-    
-    def userClick(self, item):
-        user = str(item.text())
-        self.respawn(self.acct_obj, user)
-    
-    def leaveRoom(self):
-        self.account.leaveRoom(self.target)
+        self.users.pop(u,"")
         
-    def respawn(self, acct_obj, user, type=IM, popup=True):
-        "to be attached to YobotGui's _openChat()"
-        pass
-    
+    def leaveRoom(self):
+        self.account.leaveRoom(self.target)    
 
 class NotificationBox(object):
     def __init__(self, qdockwidget, qstackedwidget):
@@ -565,16 +687,10 @@ class NotificationBox(object):
         
         #get an icon:
         acct = ycreqobj.acct
-        icon = None
-        if not ycreqobj.isError:
-            icon = QPixmap(":/icons/icons/help-about.png")
-        else:
-            icon = QPixmap(":/icons/res/16x16/status/dialog-error.png")
-            
-        if icon:
-            notice_widget.iconlabel.setPixmap(icon)
-        else:
-            notice_widget.iconlabel.hide()
+        icon = icon = (QPixmap(":/icons/icons/help-about.png")
+                       if not ycreqobj.isError else
+                       QPixmap(":/icons/res/16x16/status/dialog-error.png"))
+        notice_widget.iconlabel.setPixmap(icon)
         #get options..
         def _cbwrap(cb):
             #closes the notification after an action has been sent
@@ -611,8 +727,13 @@ class NotificationBox(object):
             notice_widget.accticon.setPixmap(accticon.pixmap(24, 24))
         notice_widget.account.setText(acct.name)
         #FIXME: make nice fields for title, primary, and secondary
-        txt = "::".join([ycreqobj.title, ycreqobj.primary, ycreqobj.secondary])
-        notice_widget.message.setPlainText(txt)
+        txt=("<center><b>"+ycreqobj.title+"</b><br>"+
+             "<i>"+ycreqobj.primary+
+             "</i></center>"+ycreqobj.secondary)
+        notice_widget.message.append(txt)
+        log_debug(txt)
+        #txt = "::".join([ycreqobj.primary, ycreqobj.secondary])
+        #notice_widget.message.append(txt)
         notice_widget.message.setBackgroundRole(QPalette.Window)
         sb = notice_widget.message.verticalScrollBar()
         sb.setMaximumWidth(12)
@@ -677,12 +798,31 @@ class YobotGui(object):
     def _buddyClick(self, index):
         obj = index.internalPointer()
         if not hasattr(obj, "account"): #account
-            log_debug( "not processing account ops")
+            log_debug( "not processing account ops on row %d column %d" % (index.row(), index.column()))
             return
         log_debug( obj)
         acct = obj.account
         target = obj.name
         self._openChat(acct, target, IM)
+        
+    def _buddyContextMenu(self, point):
+        index = self.mw_widgets.blist.indexAt(point)
+        if index.parent().isValid():
+            buddy = index.internalPointer()
+            signal_connect(self.mw_widgets.actionSendMessage, SIGNAL("activated()"),
+                           lambda: self._openChat(buddy.account, buddy.name, IM))
+            def _delconfirm(user):
+                msgbox = QMessageBox()
+                msgbox.setText(("Are you sure you wish to remove %s from"
+                                " your buddy list?" % user))
+                msgbox.setStandardButtons(QMessageBox.Yes|QMessageBox.No)
+                ret = msgbox.exec_()
+                if ret == QMessageBox.Yes:
+                    buddy.account.delUser(user)
+            signal_connect(self.mw_widgets.actionDelete, SIGNAL("activated()"),
+                           lambda: _delconfirm(buddy.name))
+            
+            self.buddyContextMenu_w.exec_(self.mw_widgets.blist.mapToGlobal(point))
         
     def _openChat(self, acct, target, type, popup = False):
         #find an old window...
@@ -711,9 +851,19 @@ class YobotGui(object):
     def _joinreq(self, acct, room, type=CHAT):
         self._openChat(acct, room, CHAT)
         acct.joinchat(room)
+        
+    def _mwCloseEvent(self, event):
+        QMainWindow.closeEvent(self.mw, event)
+        self.client.uiClosed()
+        
+    def _disconnect(self, fromServer):
+        dlg = DisconnectDialog(self.datamodel, server=fromServer)
+        dlg.show()
+        
     def _gui_init(self):
         #make the widgets..
         self.mw = QMainWindow()
+        self.mw.closeEvent = self._mwCloseEvent
         self.mw.setWindowIcon(QIcon(":/yobot_icons/icons/custom/yobot_24_h"))
         self.mw_widgets = main_auto.Ui_MainWindow()        
         w = self.mw_widgets
@@ -726,8 +876,17 @@ class YobotGui(object):
         mkProtocolComboBox(w.w_improto)
         w.blist.show()
         w.blist.setModel(self.datamodel)
+        
+        self.datamodel.blist = w.blist
         d = BuddyItemDelegate(w.blist)
-        w.blist.setItemDelegate(d)
+        #w.blist.setItemDelegate(d)
+        self.buddyContextMenu_w = QMenu()
+        for a in ("actionAppearHiddenToContact",
+                  "actionSendMessage",
+                  "actionDelete"):
+            self.buddyContextMenu_w.addAction(getattr(w, a))
+        w.blist.setContextMenuPolicy(Qt.CustomContextMenu)
+        signal_connect(w.blist, SIGNAL("customContextMenuRequested(QPoint)"), self._buddyContextMenu)
         
         self.notifications = NotificationBox(w.noticebox, w.notices)
         #connect signals...
@@ -743,6 +902,13 @@ class YobotGui(object):
         signal_connect(w.actionJoin_Room, SIGNAL("activated()"), lambda: self._sendjoin(CHAT))
         signal_connect(w.actionAddUser, SIGNAL("activated()"),
                        lambda: UserAddDialog(self.datamodel, parent=self.mw).show())
+        signal_connect(w.actionDisconnect_Account_Client, SIGNAL("activated()"),
+                       lambda: DisconnectDialog(
+                        self.datamodel, parent=self.mw, server=False).show())
+        signal_connect(w.actionDisconnect_Account_Server, SIGNAL("activated()"),
+                       lambda: DisconnectDialog(
+                        self.datamodel, parent=self.mw, server=True).show())
+        
 
     #########################   PUBLIC      ###################################
     def gui_init(self):
@@ -761,10 +927,20 @@ class YobotGui(object):
         The account object will be added to the account list, along with a node
         for the menus/buddy lists...
         """
+        if not getattr(self, "modeltest", False):
+            self.modeltest = ModelTest(self.datamodel, self.mw)
+
         self.mw_widgets.statusbar.showMessage("Connected: "+ acct_obj.user)
         self.mw_widgets.conninput.hide()
         self.mw_widgets.blist.show()
-        self.mw_widgets.blist.setExpanded(self.datamodel.index(acct_obj.index, 0),True)
+        #index = self.datamodel.index(acct_obj.index, 0)
+        #if not index.isValid():
+        #    log_err("index invalid")
+        #log_warn("index debug: row %d column %d, PARENT VALID: %s, HAS CHILDREN: %s" %
+        #         (index.row(), index.column(), str(index.parent().isValid()), str(self.datamodel.hasChildren(index))))
+        #self.mw_widgets.blist.setExpanded(index.parent(), True)
+        #self.mw_widgets.blist.setExpanded(index,True)
+
         
     def gotMessage(self, acct_obj, msg_obj):
         log_debug( msg_obj)
@@ -795,6 +971,7 @@ class YobotGui(object):
         self.notifications.delItem(acct, refid)
     def connectionFailed(self, acct, txt):
         m = SimpleNotice(acct, txt)
+        m.title = "Connection Failed!"
         m.isError = True
         self.notifications.addItem(m)
         

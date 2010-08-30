@@ -133,11 +133,11 @@ void yobot_user_authorize(PurpleAccount *account, const char *user, gboolean acc
 	}
 	authrequest *ar = g_hash_table_lookup(priv->buddy_requests, user);
 	if(!ar) {
-		printf("%s: can't find add request for user %s\n", __func__, user);
-		printf("current entries...\n");
+		yobot_log_warn("can't find add request for user %s", user);
+		yobot_log_debug("current entries..");
 		GList *keys;
 		for (keys = g_hash_table_get_keys(priv->buddy_requests); keys; keys = keys->next) {
-			printf("KEY %s\n", (char*)keys->data);
+			yobot_log_debug("KEY %s", (char*)keys->data);
 		}
 		return;
 	}
@@ -167,16 +167,16 @@ static void *request_authorize(PurpleAccount *account, const char *remote_user, 
 
 	account_uidata *priv = account->ui_data;
 	if(!priv){
-		printf("%s: couldn't get hash table!\n", __func__);
+		yobot_log_warn("couldn't get hash table!");
 	}
 	char *tmp = malloc(strlen(remote_user)+1);
 	strcpy(tmp, remote_user);
 
 	g_hash_table_insert(priv->buddy_requests, (gpointer)tmp, ar);
-	printf("remote_user: %s\n", remote_user);
+	yobot_log_debug("remote_user: %s", remote_user);
 	GList *keys = g_hash_table_get_keys(priv->buddy_requests);
 	for (; keys; keys = keys->next) {
-		yobot_log_debug("key: %s\n",(char*)keys->data);
+		yobot_log_debug("key: %s",(char*)keys->data);
 	}
 
 	/*send out an event*/

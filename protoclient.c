@@ -519,13 +519,13 @@ void *yobot_proto_segment_encode(yobot_proto_model_internal *model, void *output
 
 #ifdef USE_TPL
 #define funky_macro_errhandler(stype) \
-	printf("%s: BAILING!\n", __func__); \
+	yobotproto_log_crit("BAILING!"); \
 	tpl_free(tn); \
 	free_yobot##stype##_internal(ret); \
 	return 0;
 #else
 #define funky_macro_errhandler(stype) \
-	printf("%s: BAILING!\n", __func__); \
+	yobotproto_log_crit("BAILING!"); \
 	yobot_proto_free_yobot##stype##_internal(ret); \
 	return 0;
 #endif

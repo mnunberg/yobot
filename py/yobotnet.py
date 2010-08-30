@@ -5,6 +5,7 @@ import yobotproto
 import yobotclass
 import random
 import sys
+from hashlib import sha1
 from Queue import Queue
 
 from twisted.application import service
@@ -102,6 +103,15 @@ class YobotSegment(object):
     def __str__(self):
         return str(self.base) if self.base else "<Unknown Segment>"
     
+
+def getNameAndData(obj):
+    """
+    Parse certain events to extract the name and data portion -> (name, data)"""
+    name, data = obj.evt.txt.split(str(yobotproto.YOBOT_TEXT_DELIM), 1)
+    name = name.replace('\0', '')
+    return (name, data)
+
+
 #############################   PROTOCOLS   ##########################
 class YobotNode(Int16StringReceiver):
     """
@@ -177,12 +187,14 @@ class YobotServer(YobotNode):
     def __init__(self):
         self._initvars()
         #keep an account reference for when
-        accounts = set()
+        self.accounts = set()
+        self.iconHash = set()
     def connectionLost(self, reason):
         """
         Does unregistration of the client
         """
         self.factory.unregisterClient(self)
+    
 
 class YobotClient(YobotNode):
     def __init__(self):
@@ -253,7 +265,7 @@ class YobotServiceBase(service.Service):
     def unhandled(self, obj, proto):
         log_warn("UNHANDLED", obj)
         return NotImplemented
-    
+
     dispatch = mkDispatcher("handlers", "struct_type")
     
     for i in ("evt","msg","mkacct","cmd"):
@@ -437,10 +449,9 @@ class YobotClientService(YobotServiceBase):
         acct = self.accounts.getAccount(obj.evt.objid)
         if not acct:
             log_warn( "Couldn't find account!")
-        log_debug( acct)
+        log_debug(acct)
         
-        name, data = obj.evt.txt.split(str(yobotproto.YOBOT_TEXT_DELIM), 1)
-        name = name.replace('\0', '')
+        name, data = getNameAndData(obj)
         
         if name == "*":
             name = None
@@ -451,9 +462,7 @@ class YobotClientService(YobotServiceBase):
             
     def chatUserEvent(self, obj, proto):
         evt = obj.evt
-        joined = True
-        if evt.event == yobotproto.YOBOT_EVENT_ROOM_USER_LEFT:
-            joined = False
+        joined = False if evt.event == yobotproto.YOBOT_EVENT_ROOM_USER_LEFT else True
             
         room, user = evt.txt.split(yobotproto.YOBOT_TEXT_DELIM, 1)
         log_info("room:", room, "user:", user)
@@ -470,6 +479,7 @@ class YobotClientService(YobotServiceBase):
         log_info( obj.evt)        
 
 ############################   UI REQUESTS API    #############################
+
     def sendSegment(self, seg):
         "need wrapper because runtime yobot_server is initially null"
         self.yobot_server.sendSegment(seg)
@@ -481,7 +491,7 @@ class YobotClientService(YobotServiceBase):
         self.pending_accounts.put(acct)
         self.yobot_server.sendCommand(yobotproto.YOBOT_CMD_ACCT_ID_REQUEST,0)
         log_debug( "send account connect command for account %s" % (acct, ))
-    
+        
     def addreqAuthorize(self, acct, buddy):
         self.yobot_server.sendCommand(yobotproto.YOBOT_CMD_USER_AUTHORIZE_ADD_ACCEPT, acct.id,
                                       txt = buddy)
@@ -494,36 +504,42 @@ class YobotClientService(YobotServiceBase):
         self.yobot_server.sendSegment(msg)
     def joinRoom(self, acct, room_name):
         self.yobot_server.sendCommand(yobotproto.YOBOT_CMD_ROOM_JOIN, acct.id,
-                                      txt=room_name)
+                                      txt = room_name)
     def leaveRoom(self, acct, room_name):
         self.yobot_server.sendCommand(yobotproto.YOBOT_CMD_ROOM_LEAVE, acct.id,
-                                      txt=room_name)
+                                      txt = room_name)
     def addUser(self, acct, user_name):
         self.yobot_server.sendCommand(yobotproto.YOBOT_CMD_USER_ADD, acct.id,
-                                      txt=user_name)
+                                      txt = user_name)
+    def delUser(self, acct, user_name):
+        self.yobot_server.sendCommand(yobotproto.YOBOT_CMD_USER_REMOVE, acct.id,
+                                      txt = user_name)
     def ignoreUser(self, acct, user_name):
         self.yobot_server.sendCommand(yobotproto.YOBOT_CMD_USER_IGNORE, acct.id,
-                                      txt=user_name)
+                                      txt = user_name)
     def fetchBuddies(self, acct):
         self.yobot_server.sendCommand(yobotproto.YOBOT_CMD_FETCH_BUDDIES, acct.id)
     def fetchRoomUsers(self, acct, room):
         self.yobot_server.sendCommand(yobotproto.YOBOT_CMD_ROOM_FETCH_USERS, acct.id,
-                                      txt=room)
+                                      txt = room)
     def fetchBuddyIcons(self, acct):
         self.yobot_server.sendCommand(yobotproto.YOBOT_CMD_FETCH_BUDDY_ICONS, acct.id)
         
     def getBacklog(self, acct, user, count):
         txt = user + yobotproto.YOBOT_TEXT_DELIM + str(count)
         self.yobot_server.sendCommand(yobotproto.YOBOT_CMD_REQUEST_BACKLOG, acct.id,
-                                      txt=txt)
+                                      txt = txt)
     def disconnectAccount(self, acct, server=False):
         if server:
             cmd = yobotproto.YOBOT_CMD_ACCT_REMOVE
         else:
             cmd = yobotproto.YOBOT_CMD_CLIENT_RMACCT
         self.yobot_server.sendCommand(cmd, acct.id)
-        
-        
+    
+    def disconnectAll(self):
+        #implied, from server...
+        for a in self.accounts:
+            self.disconnectAccount(a, True)
 ###############################    PROTO FACTORY     ###########################
     def getYobotClientFactory(self):
         f = ClientFactory()
@@ -578,13 +594,8 @@ class YobotServerService(YobotServiceBase):
         #get account info:
         acct, _ = self.accounts.byId(msg.acctid)
         
-        self.logger.logMsg(msgtype,
-                           yobotops.imprototostr(acct.improto),
-                           acct.user,
-                           msg.name,
-                           msg.txt,
-                           who,
-                           msg.time,)
+        self.logger.logMsg(msgtype, yobotops.imprototostr(acct.improto),
+                           acct.user, msg.name, msg.txt, who, msg.time,)
     
     def logRetriever(self, obj, proto):
         "A backlog request handler"
@@ -606,10 +617,7 @@ class YobotServerService(YobotServiceBase):
         ym.commflags = (type|yobotproto.YOBOT_BACKLOG)
         
         for msg in msgs:
-            timestamp, who, body = msg
-            ym.txt = body
-            ym.who = who
-            ym.time = timestamp
+            ym.time, ym.who, ym.txt = msg
             proto.sendSegment(ym)
     ########################    REGISTRATION    ############################
     def doRegister(self, proto, obj):
@@ -825,7 +833,7 @@ class YobotServerService(YobotServiceBase):
             yobotproto.YOBOT_EVENT_CONNECTED : "purple_handle_acct_connection",
             yobotproto.YOBOT_EVENT_LOGIN_ERR : "purple_handle_acct_connection",
             
-            yobotproto.YOBOT_EVENT_BUDDY_GOT_ICON : "relay_event",
+            yobotproto.YOBOT_EVENT_BUDDY_GOT_ICON : "update_icon",
             yobotproto.YOBOT_EVENT_ROOM_USER_JOIN: "relay_event",
             yobotproto.YOBOT_EVENT_CONNECTING: "relay_event",
             yobotproto.YOBOT_EVENT_USER_ADDREQ: "relay_event",
@@ -849,7 +857,21 @@ class YobotServerService(YobotServiceBase):
                 log_info( "Purple is ", self.prpl_server, "REGISTERED!")
     
     
-    
+    def update_icon(self, obj, proto):
+        _, data = getNameAndData(obj)
+        cksum = sha1(data).digest()
+        try:
+            _, protos = self.accounts.byId(obj.evt.objid)
+        except Exception, e:
+            log_err(e)
+            return
+        for p in protos:
+            if not cksum in p.iconHash:
+                p.iconHash.add(cksum)
+                p.sendPrefixed(obj.raw)
+            else:
+                log_debug("icon already in cache")
+            
     def _relay_segment(self, obj, acctid):
         try:
             _, protos = self.accounts.byId(acctid)
@@ -870,22 +892,17 @@ class YobotServerService(YobotServiceBase):
     def purple_handle_acct_connection(self, obj, proto):
         """This will handle account events coming from purple.."""
         evt = obj.evt
-        log_info( evt)
+        log_info(evt)
         acct_id = evt.objid
         if evt.event in (yobotproto.YOBOT_EVENT_AUTH_FAIL,
                          yobotproto.YOBOT_EVENT_LOGIN_ERR,
                          yobotproto.YOBOT_EVENT_DISCONNECTED):
             #find account and trigger its errback:
-            acct = None
             try:
                 acct, _ = self.accounts.byId(acct_id)
             except TypeError:
                 log_err("account does not exist (anymore)")
-                return
-            if not acct:
-                log_warn("Account does not exist, not doing anything")
-                return
-            
+                return            
             try:
                 acct.timeoutCb.cancel()
             except Exception, e:
@@ -894,10 +911,13 @@ class YobotServerService(YobotServiceBase):
             #relay the segment now because the client/account lookup will be
             #broken after the account has been deleted:
             self._relay_segment(obj, acct_id)
-            if not evt.event == yobotproto.YOBOT_EVENT_DISCONNECTED:
-                acct.connectedCb.errback(AccountRemoved("Login Failed"))
-            else:
-                acct.connectedCb.errback(AccountRemoved("Disconnected"))
+            try:
+                if not evt.event == yobotproto.YOBOT_EVENT_DISCONNECTED:
+                    acct.connectedCb.errback(AccountRemoved("Login Failed"))
+                else:
+                    acct.connectedCb.errback(AccountRemoved("Disconnected"))
+            except defer.AlreadyCalledError, e:
+                log_err(e)
             return
         
         elif evt.event == yobotproto.YOBOT_EVENT_CONNECTED:
@@ -908,7 +928,6 @@ class YobotServerService(YobotServiceBase):
             acct.timeoutCb.cancel()
             acct.connectedCb.callback(None)
             log_info( "ACCOUNT %d connected!" % acct_id)
-                
         else:
             log_info( evt)
         self._relay_segment(obj, acct_id)

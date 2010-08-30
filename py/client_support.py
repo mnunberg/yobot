@@ -36,6 +36,9 @@ class YCRequest(object):
         self.secondary = xmlstring.attrib.get("secondary", "")
         for opt in xmlstring.iterchildren():
             optname = opt.attrib.get("text")
+            if optname.startswith("_"):
+                self.default_option = len(self.options) #current index
+                optname = optname.strip("_")
             optret = opt.attrib.get("return")
             typehint = opt.attrib.get("typehint", "")
             optcb = lambda optret=optret: self.callback(optret)
@@ -61,7 +64,7 @@ class BuddyAuthorize(YCRequest):
         self.acct = acct
         self.svc = svc
         self.title = "Authorization Request"
-        self.message = "Allow %s to add you to his/her list?" % (buddy,)
+        self.primary = "Allow %s to add you to his/her list?" % (buddy,)
         self.name = buddy
         self.options.append(("Accept",
                             lambda: self.respond(auth=True),
@@ -79,6 +82,7 @@ class BuddyAuthorize(YCRequest):
 
 class SimpleNotice(YCRequest):
     def __init__(self, account, txt, refid=0):
+        log_debug(txt)
         self.refid = refid
         self._initvars()
         self.acct = account
@@ -88,8 +92,10 @@ class SimpleNotice(YCRequest):
         self._prettyformat(txt)
         
     def _prettyformat(self, txt):
-        xmlstring = lxml.html.fromstring(txt)
-        if not len(xmlstring):
+        xmlstring = None
+        if txt.strip().startswith("<"):
+            xmlstring = lxml.html.fromstring(txt)
+        else:
             self.primary = txt
             return
         self.title = xmlstring.attrib.get("title", "")
@@ -133,6 +139,8 @@ class ModelBase(object):
     def endRemove(self):
         "Override this"
     
+    def firstChildInserted(self, index):
+        "override this"
     def beginChildAdd(self, parent_index, child_index):
         "hack, override this"
     def beginChildRemove(self, parent_index, child_index):
@@ -145,6 +153,7 @@ class ModelBase(object):
             log_warn( "item exists")
             return
         self.beginAdd(len(self._t))
+        log_debug("passing %d" % len(self._t))
         l = list(self._t)
         l.append(item)
         self._t = tuple(l)
@@ -205,7 +214,6 @@ class YBuddylist(ModelBase):
     def __init__(self, account):
         self._initvars()
         self.account = account
-        
     def add(self, buddy):
         self._addItem(buddy, buddy.name)
     def remove(self, buddy):
@@ -250,6 +258,10 @@ class YCAccount(YobotAccount):
     
     def addUser(self, name):
         self.svc.addUser(self, name)
+        
+    def delUser(self, name,):
+        self.svc.delUser(self, name)
+        self.blist.remove(self.blist.get(name))
         
     def getBacklog(self, name, count):
         self.svc.getBacklog(self, name, count)
@@ -315,6 +327,10 @@ class YCAccount(YobotAccount):
         else:
             buddy = YBuddy(self.blist, name)
             self.blist.add(buddy)
+            log_warn("len is", len(self.blist))
+            if len(self.blist) == 1: #new buddy just added
+                log_debug("calling firstChildInserted")
+                self.svc.accounts.firstChildInserted(self.index)
         return buddy
 
         
@@ -332,7 +348,7 @@ class YCAccount(YobotAccount):
         buddy.status_message = text if text else buddystatustostr(status)
         log_info("status message", buddy.status_message)
         self.notifier.dataChanged(self.index, buddy.index)
-    
+        #hack, but maybe needed:
     def gotBuddyIcon(self, name, icon_data):
         log_debug("got buddy icon for", name)
         buddy = self._getBuddy(name)
@@ -355,7 +371,7 @@ class YCAccount(YobotAccount):
     #################### TREE STUFF ############################
     @property
     def parent(self):
-        return -1
+        return None
     @property
     def childCount(self):
         return len(self.blist)

@@ -21,7 +21,7 @@
 typedef struct {
 	GHashTable *callbacks; /*hash tables indexed by options..
 	special values for ok/cancel/input*/
-	const gpointer *user_data;
+	const void *user_data;
 	PurpleRequestType reqtype;
 } genericrequest;
 
