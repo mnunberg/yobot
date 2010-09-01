@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'main_auto.ui'
 #
-# Created: Fri Aug 27 22:16:23 2010
+# Created: Tue Aug 31 22:33:08 2010
 #      by: PyQt4 UI code generator 4.7.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -128,7 +128,6 @@ class Ui_MainWindow(object):
         self.blist = QtGui.QTreeView(self.centralwidget)
         self.blist.setAutoScrollMargin(28)
         self.blist.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
-        self.blist.setAlternatingRowColors(True)
         self.blist.setIconSize(QtCore.QSize(28, 20))
         self.blist.setVerticalScrollMode(QtGui.QAbstractItemView.ScrollPerPixel)
         self.blist.setIndentation(10)
@@ -160,7 +159,6 @@ class Ui_MainWindow(object):
         self.toolBar.setFloatable(False)
         self.toolBar.setObjectName("toolBar")
         MainWindow.addToolBar(QtCore.Qt.ToolBarArea(QtCore.Qt.TopToolBarArea), self.toolBar)
-        MainWindow.insertToolBarBreak(self.toolBar)
         self.noticebox = QtGui.QDockWidget(MainWindow)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Expanding)
         sizePolicy.setHorizontalStretch(0)
@@ -255,6 +253,29 @@ class Ui_MainWindow(object):
         self.actionDelete = QtGui.QAction(MainWindow)
         self.actionDelete.setIcon(icon8)
         self.actionDelete.setObjectName("actionDelete")
+        self.actionStatusAway = QtGui.QAction(MainWindow)
+        icon11 = QtGui.QIcon()
+        icon11.addPixmap(QtGui.QPixmap(":/icons/icons/user-away.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.actionStatusAway.setIcon(icon11)
+        self.actionStatusAway.setObjectName("actionStatusAway")
+        self.actionStatusAvailable = QtGui.QAction(MainWindow)
+        icon12 = QtGui.QIcon()
+        icon12.addPixmap(QtGui.QPixmap(":/icons/icons/user-online.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.actionStatusAvailable.setIcon(icon12)
+        self.actionStatusAvailable.setObjectName("actionStatusAvailable")
+        self.actionStatusInvisible = QtGui.QAction(MainWindow)
+        self.actionStatusInvisible.setIcon(icon6)
+        self.actionStatusInvisible.setObjectName("actionStatusInvisible")
+        self.actionStatusBusy = QtGui.QAction(MainWindow)
+        icon13 = QtGui.QIcon()
+        icon13.addPixmap(QtGui.QPixmap(":/icons/icons/user-busy.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.actionStatusBusy.setIcon(icon13)
+        self.actionStatusBusy.setObjectName("actionStatusBusy")
+        self.actionStatusCustom = QtGui.QAction(MainWindow)
+        icon14 = QtGui.QIcon()
+        icon14.addPixmap(QtGui.QPixmap(":/icons/icons/extended-away.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.actionStatusCustom.setIcon(icon14)
+        self.actionStatusCustom.setObjectName("actionStatusCustom")
         self.menu.addAction(self.actionNewconn)
         self.menu.addSeparator()
         self.menu.addAction(self.actionDisconnect_Account_Client)
@@ -329,6 +350,11 @@ class Ui_MainWindow(object):
         self.actionAppearHiddenToContact.setText(QtGui.QApplication.translate("MainWindow", "Appear Invisible To Contact", None, QtGui.QApplication.UnicodeUTF8))
         self.actionSendMessage.setText(QtGui.QApplication.translate("MainWindow", "Send Message", None, QtGui.QApplication.UnicodeUTF8))
         self.actionDelete.setText(QtGui.QApplication.translate("MainWindow", "Delete", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionStatusAway.setText(QtGui.QApplication.translate("MainWindow", "Away", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionStatusAvailable.setText(QtGui.QApplication.translate("MainWindow", "Available", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionStatusInvisible.setText(QtGui.QApplication.translate("MainWindow", "Invisible", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionStatusBusy.setText(QtGui.QApplication.translate("MainWindow", "Busy", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionStatusCustom.setText(QtGui.QApplication.translate("MainWindow", "Custom..", None, QtGui.QApplication.UnicodeUTF8))
 
 import resources_rc
 

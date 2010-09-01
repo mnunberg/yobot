@@ -1,19 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from xml.sax.handler import ContentHandler
-from xml.sax import make_parser, parseString
-from lxml.html import fromstring, tostring, Element
 from HTMLParser import HTMLParser
-import lxml.html
 import re
 import sys
 import smiley
-from htmlentitydefs import name2codepoint
-from cgi import escape as html_escape
-
-def htmlentitydecode(s):
-    return re.sub('&(%s);' % '|'.join(name2codepoint), 
-            lambda m: unichr(name2codepoint[m.group(1)]), s)
 
 re_int = re.compile("\d+")
 
@@ -132,13 +122,10 @@ class OutgoingParser(HTMLParser):
         self.result = ""
         self.end_tags = []
         self.cts = False
+
 class IncomingParser(HTMLParser):
     result = ""
     end_tags = []
-    #def startDocument(self):
-    #    self.end_tags = []
-    #    self.result += "<font>"
-    #    self.end_tags.append("</font>")
     def handle_starttag(self, name, attrs):
         d = {}
         for k, v in attrs:
@@ -169,7 +156,6 @@ class IncomingParser(HTMLParser):
                     attrs["style"] = tmp
                 else:
                     attrs["style"] = "font-size:%dpt;" % (int(absz),)
-                #attrs.pop("absz")            
                 attrs.pop("size", "")
         restore(name)
     
@@ -190,12 +176,8 @@ class IncomingParser(HTMLParser):
 _outgoing_parser = OutgoingParser()
 _incoming_parser = IncomingParser()
 
-_lxmlParser = lxml.html.HTMLParser(encoding="utf-8")
-
 def simplify_css(txt):
     _outgoing_parser.reset()
-    #body = fromstring(txt, parser=_lxmlParser)
-    #body = tostring(body.body)
     _outgoing_parser.feed(txt)
     return re.sub("\n","",_outgoing_parser.result)
 

@@ -1,5 +1,7 @@
 <RCC>
   <qresource prefix="icons">
+    <file>icons/text-x-log.png</file>
+    <file>icons/clock.png</file>
     <file>res/16x16/actions/dialog-cancel.png</file>
     <file>icons/chat.png</file>
     <file>icons/aim.png</file>

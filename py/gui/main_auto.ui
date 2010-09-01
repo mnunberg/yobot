@@ -229,9 +229,6 @@
       <property name="editTriggers">
        <set>QAbstractItemView::NoEditTriggers</set>
       </property>
-      <property name="alternatingRowColors">
-       <bool>true</bool>
-      </property>
       <property name="iconSize">
        <size>
         <width>28</width>
@@ -329,7 +326,7 @@
     <enum>TopToolBarArea</enum>
    </attribute>
    <attribute name="toolBarBreak">
-    <bool>true</bool>
+    <bool>false</bool>
    </attribute>
    <addaction name="actionNewconn"/>
    <addaction name="actionGo_Invisible"/>
@@ -566,6 +563,51 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="text">
     <string>Delete</string>
+   </property>
+  </action>
+  <action name="actionStatusAway">
+   <property name="icon">
+    <iconset resource="../../../yobot/py/gui/resources.qrc">
+     <normaloff>:/icons/icons/user-away.png</normaloff>:/icons/icons/user-away.png</iconset>
+   </property>
+   <property name="text">
+    <string>Away</string>
+   </property>
+  </action>
+  <action name="actionStatusAvailable">
+   <property name="icon">
+    <iconset resource="../../../yobot/py/gui/resources.qrc">
+     <normaloff>:/icons/icons/user-online.png</normaloff>:/icons/icons/user-online.png</iconset>
+   </property>
+   <property name="text">
+    <string>Available</string>
+   </property>
+  </action>
+  <action name="actionStatusInvisible">
+   <property name="icon">
+    <iconset resource="../../../yobot/py/gui/resources.qrc">
+     <normaloff>:/icons/icons/user-invisible.png</normaloff>:/icons/icons/user-invisible.png</iconset>
+   </property>
+   <property name="text">
+    <string>Invisible</string>
+   </property>
+  </action>
+  <action name="actionStatusBusy">
+   <property name="icon">
+    <iconset resource="../../../yobot/py/gui/resources.qrc">
+     <normaloff>:/icons/icons/user-busy.png</normaloff>:/icons/icons/user-busy.png</iconset>
+   </property>
+   <property name="text">
+    <string>Busy</string>
+   </property>
+  </action>
+  <action name="actionStatusCustom">
+   <property name="icon">
+    <iconset resource="../../../yobot/py/gui/resources.qrc">
+     <normaloff>:/icons/icons/extended-away.png</normaloff>:/icons/icons/extended-away.png</iconset>
+   </property>
+   <property name="text">
+    <string>Custom..</string>
    </property>
   </action>
  </widget>

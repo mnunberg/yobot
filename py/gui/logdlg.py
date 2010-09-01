@@ -1,0 +1,111 @@
+# -*- coding: utf-8 -*-
+
+# Form implementation generated from reading ui file 'logdlg.ui'
+#
+# Created: Tue Aug 31 21:01:20 2010
+#      by: PyQt4 UI code generator 4.7.3
+#
+# WARNING! All changes made in this file will be lost!
+
+from PyQt4 import QtCore, QtGui
+
+class Ui_Dialog(object):
+    def setupUi(self, Dialog):
+        Dialog.setObjectName("Dialog")
+        Dialog.resize(309, 219)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(Dialog.sizePolicy().hasHeightForWidth())
+        Dialog.setSizePolicy(sizePolicy)
+        Dialog.setMaximumSize(QtCore.QSize(16777215, 300))
+        self.gridLayout = QtGui.QGridLayout(Dialog)
+        self.gridLayout.setSpacing(12)
+        self.gridLayout.setObjectName("gridLayout")
+        self.name = QtGui.QLineEdit(Dialog)
+        self.name.setObjectName("name")
+        self.gridLayout.addWidget(self.name, 0, 1, 1, 1)
+        self.pattern_type = QtGui.QComboBox(Dialog)
+        font = QtGui.QFont()
+        font.setPointSize(10)
+        font.setWeight(50)
+        font.setBold(False)
+        self.pattern_type.setFont(font)
+        self.pattern_type.setObjectName("pattern_type")
+        self.pattern_type.addItem("")
+        self.pattern_type.addItem("")
+        self.gridLayout.addWidget(self.pattern_type, 1, 0, 1, 1)
+        self.pattern = QtGui.QLineEdit(Dialog)
+        self.pattern.setObjectName("pattern")
+        self.gridLayout.addWidget(self.pattern, 1, 1, 1, 1)
+        self.date_rangetype = QtGui.QComboBox(Dialog)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.date_rangetype.sizePolicy().hasHeightForWidth())
+        self.date_rangetype.setSizePolicy(sizePolicy)
+        font = QtGui.QFont()
+        font.setPointSize(10)
+        font.setWeight(50)
+        font.setBold(False)
+        self.date_rangetype.setFont(font)
+        self.date_rangetype.setObjectName("date_rangetype")
+        self.date_rangetype.addItem("")
+        self.date_rangetype.addItem("")
+        self.date_rangetype.addItem("")
+        self.gridLayout.addWidget(self.date_rangetype, 2, 0, 1, 1)
+        self.date1 = QtGui.QDateTimeEdit(Dialog)
+        self.date1.setObjectName("date1")
+        self.gridLayout.addWidget(self.date1, 2, 1, 1, 1)
+        self.date2 = QtGui.QDateTimeEdit(Dialog)
+        self.date2.setObjectName("date2")
+        self.gridLayout.addWidget(self.date2, 3, 1, 1, 1)
+        self.buttonBox = QtGui.QDialogButtonBox(Dialog)
+        self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok)
+        self.buttonBox.setObjectName("buttonBox")
+        self.gridLayout.addWidget(self.buttonBox, 5, 1, 1, 1)
+        self.label = QtGui.QLabel(Dialog)
+        font = QtGui.QFont()
+        font.setPointSize(10)
+        font.setWeight(50)
+        font.setBold(False)
+        self.label.setFont(font)
+        self.label.setObjectName("label")
+        self.gridLayout.addWidget(self.label, 0, 0, 1, 1)
+        self.date2_label = QtGui.QLabel(Dialog)
+        font = QtGui.QFont()
+        font.setPointSize(10)
+        font.setWeight(50)
+        font.setBold(False)
+        self.date2_label.setFont(font)
+        self.date2_label.setObjectName("date2_label")
+        self.gridLayout.addWidget(self.date2_label, 3, 0, 1, 1)
+        spacerItem = QtGui.QSpacerItem(0, 0, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
+        self.gridLayout.addItem(spacerItem, 4, 1, 1, 1)
+
+        self.retranslateUi(Dialog)
+        QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL("accepted()"), Dialog.accept)
+        QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL("rejected()"), Dialog.reject)
+        QtCore.QMetaObject.connectSlotsByName(Dialog)
+
+    def retranslateUi(self, Dialog):
+        Dialog.setWindowTitle(QtGui.QApplication.translate("Dialog", "Dialog", None, QtGui.QApplication.UnicodeUTF8))
+        self.pattern_type.setItemText(0, QtGui.QApplication.translate("Dialog", "Containing", None, QtGui.QApplication.UnicodeUTF8))
+        self.pattern_type.setItemText(1, QtGui.QApplication.translate("Dialog", "Regex", None, QtGui.QApplication.UnicodeUTF8))
+        self.date_rangetype.setItemText(0, QtGui.QApplication.translate("Dialog", "Before", None, QtGui.QApplication.UnicodeUTF8))
+        self.date_rangetype.setItemText(1, QtGui.QApplication.translate("Dialog", "After", None, QtGui.QApplication.UnicodeUTF8))
+        self.date_rangetype.setItemText(2, QtGui.QApplication.translate("Dialog", "Between", None, QtGui.QApplication.UnicodeUTF8))
+        self.label.setText(QtGui.QApplication.translate("Dialog", "Name", None, QtGui.QApplication.UnicodeUTF8))
+        self.date2_label.setText(QtGui.QApplication.translate("Dialog", "AND", None, QtGui.QApplication.UnicodeUTF8))
+
+
+if __name__ == "__main__":
+    import sys
+    app = QtGui.QApplication(sys.argv)
+    Dialog = QtGui.QDialog()
+    ui = Ui_Dialog()
+    ui.setupUi(Dialog)
+    Dialog.show()
+    sys.exit(app.exec_())
+

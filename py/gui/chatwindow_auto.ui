@@ -42,126 +42,18 @@
        <property name="lineWidth">
         <number>0</number>
        </property>
-       <layout class="QGridLayout" name="gridLayout" rowstretch="0" columnstretch="0">
-        <property name="sizeConstraint">
-         <enum>QLayout::SetDefaultConstraint</enum>
-        </property>
+       <layout class="QGridLayout" name="gridLayout">
         <property name="margin">
          <number>0</number>
         </property>
+        <property name="spacing">
+         <number>0</number>
+        </property>
         <item row="0" column="0">
-         <widget class="QSplitter" name="splitter">
+         <widget class="QSplitter" name="splitter_3">
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
           </property>
-          <property name="handleWidth">
-           <number>6</number>
-          </property>
-          <widget class="QListWidget" name="userlist">
-           <property name="enabled">
-            <bool>true</bool>
-           </property>
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-             <horstretch>1</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="font">
-            <font>
-             <pointsize>9</pointsize>
-             <weight>75</weight>
-             <italic>false</italic>
-             <bold>true</bold>
-             <strikeout>false</strikeout>
-             <kerning>true</kerning>
-            </font>
-           </property>
-           <property name="horizontalScrollBarPolicy">
-            <enum>Qt::ScrollBarAlwaysOff</enum>
-           </property>
-           <property name="spacing">
-            <number>2</number>
-           </property>
-           <property name="sortingEnabled">
-            <bool>true</bool>
-           </property>
-           <item>
-            <property name="text">
-             <string>New Item</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>New Item</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>New Item</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>New Item</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>New Item</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>New Item</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>New Item</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>New Item</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>New Item</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>New Item</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>New Item</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>New Item</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>New Item</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>asdfasdfa</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>sssssssssssssssssssssssssssssssssssssssssssssssssssssssss</string>
-            </property>
-           </item>
-          </widget>
           <widget class="QTextBrowser" name="convtext">
            <property name="enabled">
             <bool>true</bool>
@@ -191,6 +83,242 @@ p, li { white-space: pre-wrap; }
            <property name="openLinks">
             <bool>false</bool>
            </property>
+          </widget>
+          <widget class="QSplitter" name="userlists">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+             <horstretch>1</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <widget class="QListWidget" name="userlist">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+              <horstretch>1</horstretch>
+              <verstretch>100</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="font">
+             <font>
+              <pointsize>9</pointsize>
+              <weight>75</weight>
+              <italic>false</italic>
+              <bold>true</bold>
+              <strikeout>false</strikeout>
+              <kerning>true</kerning>
+             </font>
+            </property>
+            <property name="horizontalScrollBarPolicy">
+             <enum>Qt::ScrollBarAlwaysOff</enum>
+            </property>
+            <property name="alternatingRowColors">
+             <bool>true</bool>
+            </property>
+            <property name="spacing">
+             <number>2</number>
+            </property>
+            <property name="sortingEnabled">
+             <bool>true</bool>
+            </property>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>asdfasdfa</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>sssssssssssssssssssssssssssssssssssssssssssssssssssssssss</string>
+             </property>
+            </item>
+           </widget>
+           <widget class="QListWidget" name="ignorelist">
+            <property name="enabled">
+             <bool>true</bool>
+            </property>
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+              <horstretch>1</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="font">
+             <font>
+              <pointsize>8</pointsize>
+              <weight>50</weight>
+              <italic>false</italic>
+              <bold>false</bold>
+              <strikeout>false</strikeout>
+              <kerning>true</kerning>
+             </font>
+            </property>
+            <property name="styleSheet">
+             <string notr="true"/>
+            </property>
+            <property name="horizontalScrollBarPolicy">
+             <enum>Qt::ScrollBarAlwaysOff</enum>
+            </property>
+            <property name="alternatingRowColors">
+             <bool>false</bool>
+            </property>
+            <property name="spacing">
+             <number>-2</number>
+            </property>
+            <property name="viewMode">
+             <enum>QListView::ListMode</enum>
+            </property>
+            <property name="wordWrap">
+             <bool>false</bool>
+            </property>
+            <property name="sortingEnabled">
+             <bool>true</bool>
+            </property>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>New Item</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>asdfasdfa</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>sssssssssssssssssssssssssssssssssssssssssssssssssssssssss</string>
+             </property>
+            </item>
+           </widget>
           </widget>
          </widget>
         </item>
@@ -541,6 +669,7 @@ p, li { white-space: pre-wrap; }
     </property>
     <addaction name="actionShow_Formatting_Toolbox"/>
     <addaction name="actionShow_User_List"/>
+    <addaction name="actionShow_Ignore_List"/>
     <addaction name="actionTimestamps"/>
    </widget>
    <widget class="QMenu" name="menuActions">
@@ -549,14 +678,8 @@ p, li { white-space: pre-wrap; }
     </property>
     <addaction name="actionShow_Backlog"/>
     <addaction name="actionLeave"/>
-   </widget>
-   <widget class="QMenu" name="menuFile">
-    <property name="title">
-     <string>File</string>
-    </property>
     <addaction name="actionClose"/>
    </widget>
-   <addaction name="menuFile"/>
    <addaction name="menuActions"/>
    <addaction name="menuView"/>
   </widget>
@@ -566,6 +689,10 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="checked">
     <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/icons/icons/format-text-subscript.png</normaloff>:/icons/icons/format-text-subscript.png</iconset>
    </property>
    <property name="text">
     <string>Formatting Toolbox</string>
@@ -581,16 +708,28 @@ p, li { white-space: pre-wrap; }
    <property name="checked">
     <bool>true</bool>
    </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/icons/icons/format-list-unordered.png</normaloff>:/icons/icons/format-list-unordered.png</iconset>
+   </property>
    <property name="text">
     <string>User List</string>
    </property>
   </action>
   <action name="actionShow_Backlog">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/icons/icons/text-x-log.png</normaloff>:/icons/icons/text-x-log.png</iconset>
+   </property>
    <property name="text">
     <string>Show Backlog</string>
    </property>
   </action>
   <action name="actionClose">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/icons/icons/application-exit.png</normaloff>:/icons/icons/application-exit.png</iconset>
+   </property>
    <property name="text">
     <string>Close</string>
    </property>
@@ -599,6 +738,10 @@ p, li { white-space: pre-wrap; }
    </property>
   </action>
   <action name="actionLeave">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/icons/icons/log-out.png</normaloff>:/icons/icons/log-out.png</iconset>
+   </property>
    <property name="text">
     <string>Leave</string>
    </property>
@@ -607,8 +750,24 @@ p, li { white-space: pre-wrap; }
    <property name="checkable">
     <bool>true</bool>
    </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/icons/icons/clock.png</normaloff>:/icons/icons/clock.png</iconset>
+   </property>
    <property name="text">
     <string>Timestamps</string>
+   </property>
+  </action>
+  <action name="actionShow_Ignore_List">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/icons/res/16x16/actions/dialog-cancel.png</normaloff>:/icons/res/16x16/actions/dialog-cancel.png</iconset>
+   </property>
+   <property name="text">
+    <string>Ignore List</string>
    </property>
   </action>
  </widget>
@@ -651,7 +810,7 @@ p, li { white-space: pre-wrap; }
   <connection>
    <sender>actionShow_User_List</sender>
    <signal>toggled(bool)</signal>
-   <receiver>userlist</receiver>
+   <receiver>userlists</receiver>
    <slot>setVisible(bool)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -659,8 +818,8 @@ p, li { white-space: pre-wrap; }
      <y>-1</y>
     </hint>
     <hint type="destinationlabel">
-     <x>136</x>
-     <y>338</y>
+     <x>507</x>
+     <y>312</y>
     </hint>
    </hints>
   </connection>
@@ -709,6 +868,38 @@ p, li { white-space: pre-wrap; }
     <hint type="destinationlabel">
      <x>283</x>
      <y>360</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>userlist</sender>
+   <signal>itemDoubleClicked(QListWidgetItem*)</signal>
+   <receiver>input</receiver>
+   <slot>selectAll()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>50</x>
+     <y>312</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>283</x>
+     <y>668</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actionShow_Ignore_List</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>ignorelist</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>507</x>
+     <y>481</y>
     </hint>
    </hints>
   </connection>
