@@ -43,7 +43,6 @@ static void create_conversation(PurpleConversation *conv) {
 
 static void write_chat(PurpleConversation *conv, const char *who,
 		const char *message, PurpleMessageFlags flags, time_t mtime) {
-	puts(__func__);
 	yobot_log_debug("<%s> %s", who, message);
 	struct yobot_msginfo info;
 	memset(&info, 0, sizeof(info));

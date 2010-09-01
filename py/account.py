@@ -4,6 +4,7 @@ from twisted.internet import reactor, defer
 from twisted.python.failure import Failure
 from debuglog import log_debug, log_err, log_warn, log_crit, log_info
 
+from time import time
 import random
 import yobotproto
 
@@ -21,7 +22,10 @@ class YAccountWrapper(object):
     def _initvars(self):
         super(YAccountWrapper, self).__setattr__("timeoutCb", None)
         super(YAccountWrapper, self).__setattr__("connectedCb", None)
-        super(YAccountWrapper, self).__setattr__("nconnections", 0)
+        super(YAccountWrapper, self).__setattr__("authenticated_clients", set())
+        #for "offline" messages
+        super(YAccountWrapper, self).__setattr__("lastClientDisconnected", 0)
+
     def __init__(self, yobotaccount_instance):
         super(YAccountWrapper, self).__setattr__("_wrapped", yobotaccount_instance)
         self._initvars()
@@ -158,19 +162,28 @@ class AccountManager(object):
         except KeyError, e:
             self._connections[connection] = set()
             self._connections[connection].add(acct.id)
-        acct.nconnections += 1
-        
+                
+    def addAuthenticatedConnection(self, account, connection):
+        account.authenticated_clients.add(connection)
+
     def delConnection(self, connection, id=None, userproto=(None,None)):
         """Removes a connection from the account's data list"""
         #FIXME: accept iterables for id and userproto
         ((acct, st), lookup_table) = self._getacct(id, userproto)
-        acct.nconnections -= 1
         try:
             st.remove(connection)
         except KeyError, e:
             log_warn( e)
             return
         
+        try:
+            if connection in acct.authenticated_clients and len(acct.authenticated_clients) == 1:
+                #we're removing the last connection
+                acct.lastClientDisconnected = time()
+            acct.authenticated_clients.remove(connection)
+        except KeyError:
+            log_info("seems connection %s was not authenticated" % (str(connection),))
+            
         self._update_both(acct, st, lookup_table)
         
         try:
@@ -181,8 +194,7 @@ class AccountManager(object):
     
     def getConnectionData(self, connection):
         return self._connections.get(connection, None)
-        
-
+    
     def reserveId(self,bits):
         if bits > 31:
             return None
@@ -199,6 +211,7 @@ class AccountManager(object):
             return
         if tmp != RESERVED_ID:
             raise KeyError, "This key is already in use!"
+        self._ids.pop(id)
         
 class AccountRemoved(Exception): pass
 class AccountRequestHandler(object):
@@ -274,6 +287,7 @@ class AccountRequestHandler(object):
         self.acct_mgr.addConnection(self.proto, id=existing_acct.id)
         #remove the ID that we got from the list...
         self.acct_mgr.unreserveId(self.newacct.id)
+        self.acct_mgr.addAuthenticatedConnection(existing_acct, self.proto)
         
     def handle_authwait(acct_data):
         #here we relay on the callback timers in the acct object, added in
@@ -287,10 +301,12 @@ class AccountRequestHandler(object):
         def pending_failed(cbresult):
             #the acount we were waiting on didn't authorize, which means that
             #our new account might indeed work, try again
-            self.handle_mkacct(self.obj, self.proto)
+            
+            #we would remove the account here, but the errback should remove the account too..
+            self._tryagain = AccountRequestHandler(self.seg, self.proto, self.prpl, self.acct_mgr)
         
         pending_acct.connectedCb.addErrback(pending_failed)
-        pending_acct.connectedCb.addCallback(pending_succeeded)                
+        pending_acct.connectedCb.addCallback(pending_succeeded)           
         
     def rm_account(self, cbresult):
         log_debug( "rm_account...")

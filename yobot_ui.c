@@ -20,8 +20,8 @@
 
 #define conv_send(conv,msg) \
 	if (purple_conversation_get_type(conv) == PURPLE_CONV_TYPE_CHAT) { \
-		purple_conv_chat_send(conv->u.chat,msg); puts("purple_conv_chat_send called"); } \
-	else { purple_conv_im_send(conv->u.im,msg); puts("purple_conv_im_send called"); }
+		purple_conv_chat_send(conv->u.chat,msg); } \
+	else { purple_conv_im_send(conv->u.im,msg); }
 
 #include "contrib/tpl.h"
 
@@ -114,6 +114,8 @@ int *yobot_purple_account_refcount_register(PurpleAccount *acct) {
 
 }
 
+
+/**************************** MISC. FUNCTIONS ********************************/
 static void join_chat(char *room_name, PurpleConnection *gc) {
 	/*check if chat already exists...*/
 	if(purple_find_conversation_with_account(PURPLE_CONV_TYPE_CHAT, room_name, gc->account)) {
@@ -149,7 +151,48 @@ static void join_chat(char *room_name, PurpleConnection *gc) {
 	serv_join_chat(gc, components);
 }
 
-
+static void set_status(const char *status_string, PurpleAccount *account) {
+	yobot_log_debug("begin");
+	char *message_begin;
+	unsigned long status = strtoul(status_string, &message_begin, 10);
+	if (status == ULONG_MAX) {
+		yobot_log_warn("Oops.. strtoul returned ULONG_MAX");
+		return;
+	}
+	/*check if we have a status message. generally this should mean that
+	 * (delim_char_ptr - start +1) should be longer than strlen(status_string)
+	 */
+	if (status >= PURPLE_STATUS_NUM_PRIMITIVES) {
+		yobot_log_warn("got unknown status %d", status);
+		return;
+	}
+	const char *id = purple_primitive_get_id_from_type(status);
+	if(!id) {
+		yobot_log_warn("couldn't get id");
+		return;
+	}
+	if (*(message_begin + sizeof(YOBOT_TEXT_DELIM)-1) != '\0') {
+		/*check to see if this status type supports the "message" attribute */
+		const PurpleStatusType *stype_tmp = purple_status_type_find_with_id(
+				account->status_types, id);
+		if (stype_tmp) {
+			const PurpleStatusAttr *message_attr = purple_status_type_get_attr(stype_tmp, "message");
+			if (message_attr) {
+				purple_account_set_status(account, id, TRUE, "message",
+						message_begin + strlen(YOBOT_TEXT_DELIM), NULL);
+				yobot_log_debug("setting status with message");
+				return;
+			} else {
+				yobot_log_warn("'message' attribute not supported");
+			}
+		} else {
+			yobot_log_warn("not setting status message.. stype is %p, id is %s", stype_tmp, id);
+		}
+	}
+	purple_account_set_status(account, id, TRUE, NULL);
+	yobot_log_debug("account status changed");
+}
+/****************************** LISTENER/HANDLER FUNCTIONS *******************/
 static void init_listener(gboolean first_time)
 {
 	yobot_proto_segfrombuf(yobot_log_params.prefix);
@@ -297,7 +340,9 @@ static void yobot_listener(gpointer _null, gint fd, PurpleInputCondition cond)
 }
 
 static void cmd_handler(yobot_protoclient_segment *seg) {
-	/*Some stuff almost everything uses*/
+	/*Some stuff almost everything uses. This is a catch-all for commands issues by
+	 * the agent and/or client. Simple stuff is handled in this body, while more
+	 * complicated functions are dispatched*/
 	yobotcmd cmd;
 	yobotcmd_internal *yci = seg->cmdi;
 	cmd = *(yci->cmd);
@@ -429,8 +474,10 @@ static void cmd_handler(yobot_protoclient_segment *seg) {
 		assert (cmd.len == 0);
 		if(!account) {
 			yobot_log_warn("account %d is NULL, not removing", cmd.acct_id);
+			break;
 		}
 		purple_accounts_remove(account); /*remove ID too*/
+		purple_account_disconnect(account);
 		account_uidata *priv = account->ui_data;
 		priv->id = 0;
 		yobot_purple_account_refcount_decrease(account);
@@ -551,6 +598,10 @@ static void cmd_handler(yobot_protoclient_segment *seg) {
 	case YOBOT_CMD_PURPLE_REQUEST_GENERIC_RESPONSE: {
 		yobot_log_info("YOBOT_CMD_PURPLE_REQUEST_GENERIC_RESPONSE");
 		yobot_request_handle_response(account, yci->data, comm->reference);
+		break;
+	}
+	case YOBOT_CMD_STATUS_CHANGE: {
+		set_status(yci->data, account);
 		break;
 	}
 	default:

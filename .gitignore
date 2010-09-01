@@ -8,7 +8,9 @@
 *.a
 *.zip
 *.exe
+*.sqlite
 
 tools/*
 yobot
 proto_test
+core

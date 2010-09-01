@@ -22,24 +22,26 @@ class NotConnected(Exception): pass
 class NotInRoom(Exception): pass
 
 class YobotBase(object):
+    """Base class for all units of communication and interaction"""
     def _initvars(self):
         self.attr = "Hello"
         self.struct_type = None
         self.commflags = 0
         self.reference = 0
-        
     def __new__(cls,*args,**kwargs):
         obj = kwargs.get("cast", None)
         if obj and isinstance(obj, cls):
             return obj
         else:
             return super(YobotBase,cls).__new__(cls)
-        
     def encode(self):
+        """To be sent to the server -- serializes the data"""
         return NotImplemented
     
     
 class YobotCommand(YobotBase):
+    """A command. Use this, along with a related YOBOT_CMD command. Some commands
+    expect some data, while others don't"""
     def _initvars(self):
         super(YobotCommand, self)._initvars()
         self.cmd = None
@@ -91,6 +93,12 @@ class YobotCommand(YobotBase):
         return ptr
     
 class YobotEvent(YobotBase):
+    """An event.. if you are writing a client-side application, you should never
+    need to create an instance of an event, however reading it will be frequent.
+    Like commands, events sometimes come with data after them.
+    In practice: objid is always an account ID (except when dealing with registration
+    of the client itself), severity isn't used by anything, and objtype is almost always
+    an account"""
     def _initvars(self):
         super(YobotEvent, self)._initvars()
         self.event = None
@@ -140,6 +148,14 @@ class YobotEvent(YobotBase):
 class YobotMessage(YobotBase):
     """
     Class used for both incoming and outgoing messages
+    prplmesgflags are special flags to be set by purple. You should not set them for
+    outgoing messages. Try using the yprotoflags along wiht yobot constants instead.
+    The name field is the name of the conversation. In a one-on-one chat, this is
+    the name of the other buddy, and in a chatroom, this is the name of the room.
+    The who field describes who has sent the message, and is always a username
+    (unless it's a system message).
+    Time is a unix timestamp as a 32 bit integer
+    There are some convenience functions below.
     """
     def _initvars(self):
         super(YobotMessage, self)._initvars()
@@ -163,9 +179,9 @@ class YobotMessage(YobotBase):
         self.who = ymi.who if ymi.who else ""
     
     def __str__(self):
-        retstr = ("FLAGS: " +
-                  yobotops.prplmsgtostr(self.prplmsgflags) + " " +
-                  yobotops.msgtostr(self.yprotoflags) + "\n")
+        retstr = ("FLAGS:" +
+                  yobotops.prplmsgtostr(self.prplmsgflags) +
+                  yobotops.msgtostr(self.yprotoflags) + " ")
         
         #figure out the timestamp, if there is one:
         retstr += "[%s] " % (self.timeFmt,)
@@ -173,7 +189,7 @@ class YobotMessage(YobotBase):
         if self.isServerMessage:
             retstr += "<SERVER MESSAGE>: "
         else:
-            retstr += self.name + ": " + str(self.who) + ": "
+            retstr += "%s <%s>: " % (self.name, str(self.who))
         
         retstr += self.txt
         return str(retstr)
@@ -235,16 +251,16 @@ def attr_getter(attr):
     return get_any
 
 class YobotAccount(YobotBase):
+    """This is the bare-bones account class, and contains only information on the
+    accounts login name (acct.user), protocol (acct.improto), and its assigned id
+    (acct.acctid) -- and password.
+    There are more extended subclasses in account.YAccountWrapper and client_support.YCAccount"""
     def _initvars(self):
         super(YobotAccount, self)._initvars()
         self._improto = None
         self._user = None
         self._passw = None
         self._id = None
-        self._logged_in = False
-        self._registered = False
-        self._yobot = None
-        self._rooms = set()
 
     def __init__(self, mkaccti=None, user=None, passw=None, id=None, improto=None):
         self._initvars()
@@ -262,7 +278,7 @@ class YobotAccount(YobotBase):
         if not yobotops.imprototostr(self._improto):
             raise IMUnsupportedProtocol(self._improto)        
 
-    for a in ("improto", "user", "passw", "id", "logged_in", "registered", "rooms"):
+    for a in ("improto", "user", "passw", "id"):
         exec("%s=property(fget=attr_getter('_%s'))" % (a,a))
         
     def encode(self):
@@ -281,3 +297,7 @@ class YobotAccount(YobotBase):
     
     def __str__(self):
         return "Account: name=%s protocol=%s" % (self.user,yobotops.imprototostr(self.improto))
+        
+    @property
+    def name(self):
+        return self._user

@@ -82,6 +82,9 @@ class BuddyAuthorize(YCRequest):
 
 class SimpleNotice(YCRequest):
     def __init__(self, account, txt, refid=0):
+        if not txt:
+            log_warn("no text")
+            txt = ""
         log_debug(txt)
         self.refid = refid
         self._initvars()
@@ -132,20 +135,36 @@ class ModelBase(object):
     
     def beginAdd(self, index):
         "Override this"
+        log_err("override me")
+        raise Exception()
     def endAdd(self):
         "Override this"
+        log_err("Override me!")
+        raise Exception()
     def beginRemove(self, index):
         "Override this"
+        log_err("override me")
+        raise Exception()
+        
     def endRemove(self):
-        "Override this"
-    
+        print "endRemove"
+        log_err("override me")
+        raise Exception()
     def firstChildInserted(self, index):
         "override this"
+        log_err("override me")
+        raise Exception()
     def beginChildAdd(self, parent_index, child_index):
         "hack, override this"
+        log_err("override me")
+        raise Exception()
     def beginChildRemove(self, parent_index, child_index):
         "hack, override this"
-    def dataChanged(self, parent_index=None, child_index = None):
+        log_err("Override me")
+        raise Exception()
+    def dataChanged(self, parent_index, child_index):
+        log_err("override me")
+        raise Exception()
         "hack, override this"
         
     def _addItem(self, item, key):
@@ -153,7 +172,7 @@ class ModelBase(object):
             log_warn( "item exists")
             return
         self.beginAdd(len(self._t))
-        log_debug("passing %d" % len(self._t))
+        #log_debug("passing %d" % len(self._t))
         l = list(self._t)
         l.append(item)
         self._t = tuple(l)
@@ -244,6 +263,8 @@ class YCAccount(YobotAccount):
         self.blist = YBuddylist(self)
         self.blist.beginChildAdd = self.notifier.beginChildAdd
         self.blist.beginChildRemove = self.notifier.beginChildRemove
+        self.blist.endAdd = self.notifier.endAdd
+        self.blist.endRemove = self.notifier.endRemove
         
         self._user = user
         self._passw = passw 
@@ -304,7 +325,9 @@ class YCAccount(YobotAccount):
         msg.time = time()
         msg.name = to
         self.svc.sendMsg(msg)
-        
+    
+    def getOfflines(self):
+        self.svc.getOfflines(self)
     
     def gotmsg(self, msg):
         """This should be overridden by the GUI"""
@@ -327,7 +350,7 @@ class YCAccount(YobotAccount):
         else:
             buddy = YBuddy(self.blist, name)
             self.blist.add(buddy)
-            log_warn("len is", len(self.blist))
+            #log_warn("len is", len(self.blist))
             if len(self.blist) == 1: #new buddy just added
                 log_debug("calling firstChildInserted")
                 self.svc.accounts.firstChildInserted(self.index)
@@ -338,7 +361,7 @@ class YCAccount(YobotAccount):
         if not name: #self:
             self.status = status
             self.status_message = text
-            self.notifier.dataChanged(self.index)
+            self.notifier.dataChanged(self.index, -1)
             return
         
         log_info( "adding buddy %s with status %d" % (name, status))
@@ -354,16 +377,20 @@ class YCAccount(YobotAccount):
         buddy = self._getBuddy(name)
         buddy.icon = icon_data
         self.notifier.dataChanged(self.index, buddy.index)
-        
+    def statusChange(self, status_int, status_message = ""):
+        if status_int > yobotproto.PURPLE_STATUS_NUM_PRIMITIVES:
+            log_err("requested status that doesn't exist")
+            return
+        self.svc.statusChange(self, status_int, status_message)
     #status getters and setters:
     def _status_set(self, status):
         self._status = status
-        self.notifier.dataChanged(self.index)
+        self.notifier.dataChanged(self.index, -1)
     def _status_get(self):
         return self._status
     def _status_message_set(self, smessage):
         self._status_message_set = smessage
-        self.notifier.dataChanged(self.index)
+        self.notifier.dataChanged(self.index, -1)
     def _status_message_get(self):
         return self._status_message
     status = property(fget=_status_get, fset=_status_set)

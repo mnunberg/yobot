@@ -18,7 +18,7 @@ from msglogger import MessageLogger, CONV_TYPE_CHAT, CONV_TYPE_IM
 from client_support import ModelBase, BuddyAuthorize, YCRequest, SimpleNotice
 from debuglog import log_debug, log_err, log_warn, log_crit, log_info
 import debuglog
-
+import time
 
 
 if __name__ == "__main__":
@@ -327,6 +327,7 @@ class YobotClientService(YobotServiceBase):
             yobotproto.YOBOT_EVENT_USER_ADDREQ: "handle_request",
             yobotproto.YOBOT_EVENT_PURPLE_REQUEST_GENERIC: "handle_request",
             yobotproto.YOBOT_EVENT_PURPLE_NOTICE_GENERIC: "handle_request",
+            yobotproto.YOBOT_EVENT_AGENT_NOTICE_GENERIC: "handle_request", 
             yobotproto.YOBOT_EVENT_ROOM_JOINED: "roomJoined",
             yobotproto.YOBOT_EVENT_ROOM_USER_JOIN: "chatUserEvent",
             yobotproto.YOBOT_EVENT_ROOM_USER_LEFT: "chatUserEvent"
@@ -386,7 +387,8 @@ class YobotClientService(YobotServiceBase):
             req = YCRequest(self, obj.evt, acct)
             log_warn(req)
             self.uihooks.gotRequest(req)
-        elif evt.event == yobotproto.YOBOT_EVENT_PURPLE_NOTICE_GENERIC:
+        elif evt.event in (yobotproto.YOBOT_EVENT_PURPLE_NOTICE_GENERIC,
+                           yobotproto.YOBOT_EVENT_AGENT_NOTICE_GENERIC):
             #get the text..
             req = SimpleNotice(acct, obj.evt.txt, obj.evt.reference)
             self.uihooks.gotRequest(req)
@@ -397,7 +399,7 @@ class YobotClientService(YobotServiceBase):
             self.uihooks.delRequest(acct, refid)
             
     dispatchEvent = mkDispatcher("evthandlers", "evt.event")
-        
+    
     def clientRegistered(self, obj, proto):
         log_info( "client registered")
         self.uihooks.clientRegistered()
@@ -434,7 +436,7 @@ class YobotClientService(YobotServiceBase):
         if not acct:
             return None
         if obj.evt.event != yobotproto.YOBOT_EVENT_ACCT_REMOVED:
-            self.uihooks.accountConnectionFailed(acct, obj.evt.txt)
+            self.uihooks.accountConnectionFailed(acct, obj.evt.txt if obj.evt.txt else "Connection Removed")
         else:
             self.uihooks.accountConnectionRemoved(acct)
             
@@ -476,8 +478,11 @@ class YobotClientService(YobotServiceBase):
         else:
             self.uihooks.chatUserLeft(acct, room, user)
             
-        log_info( obj.evt)        
-
+        log_info( obj.evt)
+        
+    def genericEvent(self, obj, proto):
+        acct = self.accounts.getAccount(obj.evt.objid)
+        self.uihooks.genericNotice(acct, obj.evt.txt if obj.evt.txt else "")
 ############################   UI REQUESTS API    #############################
 
     def sendSegment(self, seg):
@@ -524,11 +529,17 @@ class YobotClientService(YobotServiceBase):
                                       txt = room)
     def fetchBuddyIcons(self, acct):
         self.yobot_server.sendCommand(yobotproto.YOBOT_CMD_FETCH_BUDDY_ICONS, acct.id)
-        
+    
+    def getOfflines(self, acct):
+        self.yobot_server.sendCommand(yobotproto.YOBOT_CMD_FETCH_OFFLINE_MSGS, acct.id)
+    
     def getBacklog(self, acct, user, count):
         txt = user + yobotproto.YOBOT_TEXT_DELIM + str(count)
         self.yobot_server.sendCommand(yobotproto.YOBOT_CMD_REQUEST_BACKLOG, acct.id,
                                       txt = txt)
+    def statusChange(self, acct, status_int, status_message):
+        self.yobot_server.sendCommand(yobotproto.YOBOT_CMD_STATUS_CHANGE, acct.id,
+                                      txt = str(status_int) + yobotproto.YOBOT_TEXT_DELIM + status_message)
     def disconnectAccount(self, acct, server=False):
         if server:
             cmd = yobotproto.YOBOT_CMD_ACCT_REMOVE
@@ -577,7 +588,6 @@ class YobotServerService(YobotServiceBase):
     """
     
     def logHelper(self, obj):
-        """For inbound messages"""
         msg = obj.msg
         who, txt = (msg.who, msg.txt)
         txt = txt if txt else ""
@@ -592,33 +602,48 @@ class YobotServerService(YobotServiceBase):
             return #system message, don't need to log it...
         
         #get account info:
+        #FIXME: hack.. might want to see what purple does with its usersplit thingy
         acct, _ = self.accounts.byId(msg.acctid)
-        
-        self.logger.logMsg(msgtype, yobotops.imprototostr(acct.improto),
-                           acct.user, msg.name, msg.txt, who, msg.time,)
+        if acct.improto == yobotproto.YOBOT_JABBER:
+            name = msg.name.split("/", 1)[0]
+        else:
+            name = msg.name
+
+        self.logger.logMsg(msgtype, acct.user, yobotops.imprototostr(acct.improto),
+                           name, msg.txt, who, msg.time)
     
+    def relayOfflines(self, obj, proto):
+        acct, _ = self.accounts.byId(obj.cmd.acctid)
+        if not acct:
+            log_err("account is none")
+            return
+        if not acct.lastClientDisconnected:
+            log_info("not relaying offlines while other clients are still connected")
+            return
+        for msg in self.logger.getMsgs(acct.name, yobotops.imprototostr(acct.improto),
+                                     timerange = (acct.lastClientDisconnected, time.time()),
+                                     count=0):
+            msg.acctid = obj.cmd.acctid
+            msg.yprotoflags |= (yobotproto.YOBOT_BACKLOG|yobotproto.YOBOT_OFFLINE_MSG)
+            proto.sendSegment(msg)
+            print msg
+        self.logger.dump()
+            
+        log_warn("done")
+        log_info(acct.lastClientDisconnected)
+        acct.lastClientDisconnected = 0
+            
+        
     def logRetriever(self, obj, proto):
         "A backlog request handler"
         #lookup account name..
         acct, _ = self.accounts.byId(obj.cmd.acctid)
         other_user, count = obj.cmd.data.split(str(yobotproto.YOBOT_TEXT_DELIM))
         count = int(count)
-        type, msgs = self.logger.getMsgs(acct.user, other_user, count)
-        if not type:
-            return
-        if type == msglogger.CONV_TYPE_IM:
-            type = yobotproto.YOBOT_MSG_TYPE_IM
-        elif type == msglogger.CONV_TYPE_CHAT:
-            type = yobotproto.YOBOT_MSG_TYPE_CHAT
-        
-        ym = yobotclass.YobotMessage()
-        ym.acctid = obj.cmd.acctid
-        ym.name = other_user
-        ym.commflags = (type|yobotproto.YOBOT_BACKLOG)
-        
-        for msg in msgs:
-            ym.time, ym.who, ym.txt = msg
-            proto.sendSegment(ym)
+        for msg in self.logger.getMsgs(acct.name, yobotops.imprototostr(acct.improto), other_user, count=count):
+            msg.yprotoflags |= yobotproto.YOBOT_BACKLOG
+            msg.acctid = obj.cmd.acctid
+            proto.sendSegment(msg)
     ########################    REGISTRATION    ############################
     def doRegister(self, proto, obj):
         """
@@ -750,7 +775,7 @@ class YobotServerService(YobotServiceBase):
         self.prpl_server.sendPrefixed(obj.raw)
         
         #now log the message:
-        self.logHelper(obj)
+        #self.logHelper(obj)
         
     def handle_mkacct(self, obj, proto):
         AccountRequestHandler(obj, proto, self.prpl_server, self.accounts)
@@ -798,15 +823,19 @@ class YobotServerService(YobotServiceBase):
             try:
                 _, protos = self.accounts.byId(obj.cmd.acctid)
                 for p in protos:
-                    addr = ":".join(proto.transport.getPeer())
+                    addr = ":".join([str(c) for c in proto.transport.getPeer()])
                     p.sendAccountEvent(yobotproto.YOBOT_EVENT_AGENT_NOTICE_GENERIC,
                                        obj.cmd.acctid,
                                        txt=("Disconnect requested by client %d [%s]" %
                                             (proto.cid, addr)))
             except Exception, e:
                 log_err(e)
+                raise
             self.prpl_server.sendPrefixed(obj.raw)
-                
+        elif command == yobotproto.YOBOT_CMD_FETCH_OFFLINE_MSGS:
+            #fetch messages from log
+            self.relayOfflines(obj, proto)
+           
         else:
             #relay to purple....
             self.prpl_server.sendPrefixed(obj.raw)
@@ -877,12 +906,13 @@ class YobotServerService(YobotServiceBase):
             _, protos = self.accounts.byId(acctid)
         except Exception, e:
             log_err(e)
-            raise
+            return
         for p in protos:
             p.sendPrefixed(obj.raw)
     
     def purple_handle_msg(self, obj, proto):
         log_debug( obj.msg)
+        self.logHelper(obj)
         #relay the message to all connected clients...
         self._relay_segment(obj, obj.cmd.acctid)
             
@@ -921,15 +951,20 @@ class YobotServerService(YobotServiceBase):
             return
         
         elif evt.event == yobotproto.YOBOT_EVENT_CONNECTED:
-            acct, _ = self.accounts.byId(acct_id)
+            acct, protos = self.accounts.byId(acct_id)
             if not acct:
                 raise KeyError(
                     "account %d was connected but was not found in the accounts list" % (acct_id,))
             acct.timeoutCb.cancel()
             acct.connectedCb.callback(None)
+            acct.loggedin = True
+            
+            #Assume that all connections remaining in the list have already been authenticated
+            for p in protos:
+                self.accounts.addAuthenticatedConnection(acct, p)
             log_info( "ACCOUNT %d connected!" % acct_id)
         else:
-            log_info( evt)
+            log_info(evt)
         self._relay_segment(obj, acct_id)
         
         

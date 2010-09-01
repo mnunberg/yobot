@@ -35,6 +35,20 @@ typedef enum
 	PURPLE_MESSAGE_INVISIBLE   = 0x8000  /**< Message should not be displayed */
 } PurpleMessageFlags;
 
+typedef enum
+{
+	PURPLE_STATUS_UNSET = 0,
+	PURPLE_STATUS_OFFLINE,
+	PURPLE_STATUS_AVAILABLE,
+	PURPLE_STATUS_UNAVAILABLE,
+	PURPLE_STATUS_INVISIBLE,
+	PURPLE_STATUS_AWAY,
+	PURPLE_STATUS_EXTENDED_AWAY,
+	PURPLE_STATUS_MOBILE,
+	PURPLE_STATUS_TUNE,
+	PURPLE_STATUS_MOOD,
+	PURPLE_STATUS_NUM_PRIMITIVES
+} PurpleStatusPrimitive;
 #endif
 
 //#define YOBOT_MAX_COMMSIZE 0x0fffff /*1MB*/
@@ -77,6 +91,8 @@ typedef enum {
 
 	YOBOT_CMD_REQUEST_BACKLOG,
 	YOBOT_CMD_PURPLE_REQUEST_GENERIC_RESPONSE,
+
+	YOBOT_CMD_FETCH_OFFLINE_MSGS,
 } yobot_proto_cmd;
 
 typedef enum {
@@ -189,6 +205,7 @@ typedef enum {
 	YOBOT_RESPONSE_END  = 	1 << 5,
 	YOBOT_BACKLOG = 		1 << 6,
 	YOBOT_DATA_IS_BINARY = 	1 << 7,
+	YOBOT_OFFLINE_MSG = 	1 << 8,
 
 } yobot_proto_flags;
 
