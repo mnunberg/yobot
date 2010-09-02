@@ -73,6 +73,7 @@ struct yobot_mkacctinfo {
 	uint32_t reference;
 	const char *user;
 	const char *password;
+	const char *attr_xml;
 	uint32_t acctid;
 	yobot_proto_improto improto;
 };

@@ -250,13 +250,15 @@ void *yobot_protoclient_mkacct_encode(struct yobot_mkacctinfo info,
 	cmd.acct_id = acctrq.id = id;
 	cmd.len = 0;
 
-	acctrq.namelen = (int)strlen(user) + 1;
-	acctrq.passlen = (int)strlen(passw) + 1;
+	acctrq.namelen = (ybnamelen_t)strlen(user) + 1;
+	acctrq.passlen = (ybpasslen_t)strlen(passw) + 1;
+	acctrq.paramlen = (info.attr_xml) ? (ybparamlen_t)strlen(info.attr_xml) +1 : 0;
 	acctrq.improto = proto;
 	acctrq.id = id;
 
 	arq_data.pass = passw;
 	arq_data.user = user;
+	arq_data.attr_xml = info.attr_xml;
 
 	model.commdata_u.cmddata_u.acctreqpayload = &arq_data;
 	model.comm = &comm;
@@ -449,10 +451,11 @@ void *yobot_proto_segment_encode(yobot_proto_model_internal *model, void *output
 			yobotmkacct *acct_req = model->commtype_u.cmd_s.type.accreq;
 			const char *user = model->commdata_u.cmddata_u.acctreqpayload->user;
 			const char *pass = model->commdata_u.cmddata_u.acctreqpayload->pass;
+			const char *attr_xml = model->commdata_u.cmddata_u.acctreqpayload->attr_xml;
 			assert(user); assert(pass);
-			acct_req->namelen = strlen(user) + 1;
-			acct_req->passlen = strlen(pass) + 1;
-			bufsz += (acct_req->namelen + acct_req->passlen);
+//			acct_req->namelen = strlen(user) + 1;
+//			acct_req->passlen = strlen(pass) + 1;
+			bufsz += (acct_req->namelen + acct_req->passlen + acct_req->paramlen);
 			assert(bufsz < YOBOT_MAX_COMMSIZE);
 			yobotproto_log_debug("USER:%s PASS:%s \n", user, pass);
 
@@ -462,6 +465,8 @@ void *yobot_proto_segment_encode(yobot_proto_model_internal *model, void *output
 			bufp += acct_req->namelen;
 			memcpy(bufp, pass, acct_req->passlen);
 			bufp += acct_req->passlen;
+			memcpy(bufp, attr_xml, acct_req->paramlen);
+			bufp += acct_req->paramlen;
 		}
 		else if((simple_data = model->commtype_u.cmd_s.type.simple_cmdpayload) != NULL) {
 			cmd->len = strlen(simple_data) + 1;
@@ -569,11 +574,13 @@ static yobotmkacct_internal *mkacct_decode(struct segment_r *seginfo)
 	ret->yomkacct = malloc(sizeof(yobotmkacct));
 	ret->user = NULL;
 	ret->pass = NULL;
+	ret->attr_xml = NULL;
 
 	funky_macro_get_valstruct(mkacct,ret->yomkacct);
 
 	funky_macro_copy_and_advance_buf(ret->user,ret->yomkacct->namelen);
 	funky_macro_copy_and_advance_buf(ret->pass,ret->yomkacct->passlen);
+	funky_macro_copy_and_advance_buf(ret->attr_xml, ret->yomkacct->paramlen);
 
 	return ret;
 
@@ -711,6 +718,7 @@ static void free_yobotmkacct_internal(yobotmkacct_internal *ymkaccti) {
 	free(ymkaccti->yomkacct);
 	free((void*)ymkaccti->user);
 	free((void*)ymkaccti->pass);
+	free((void*)ymkaccti->attr_xml);
 	free(ymkaccti);
 }
 

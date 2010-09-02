@@ -35,7 +35,8 @@ class UIClient(object):
     
     def test_acct(self, ):
         log_info("creating new test account")
-        new_account = YCAccount(self.svc, "meh@10.0.0.99/", "1", yobotproto.YOBOT_JABBER)
+        new_account = YCAccount(self.svc, "meh@10.0.0.99/", "1", yobotproto.YOBOT_JABBER,
+            proxy_host="localhost", proxy_port="3128", proxy_type="http")
         new_account.connect()
     def gotmsg(self, acct, msg):
         self.uihooks.gotMessage(acct, msg)
@@ -70,10 +71,10 @@ class UIClient(object):
         log_warn( "ACCOUNT REMOVED!")
         
     #####   GUI HOOKS    #####
-    def connect(self, user, passw, improto):
+    def connect(self, user, passw, improto, **proxy_params):
         user = str(user)
         passw = str(passw)
-        new_account = YCAccount(self.svc, user, passw, improto)
+        new_account = YCAccount(self.svc, user, passw, improto, **proxy_params)
         new_account.connect()
     
     def uiClosed(self):

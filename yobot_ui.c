@@ -116,6 +116,9 @@ int *yobot_purple_account_refcount_register(PurpleAccount *acct) {
 
 
 /**************************** MISC. FUNCTIONS ********************************/
+/*these aren't big enought to warrant their own file, but are a tad to complex to
+ * include inside cmd_handler
+ */
 static void join_chat(char *room_name, PurpleConnection *gc) {
 	/*check if chat already exists...*/
 	if(purple_find_conversation_with_account(PURPLE_CONV_TYPE_CHAT, room_name, gc->account)) {
@@ -191,6 +194,117 @@ static void set_status(const char *status_string, PurpleAccount *account) {
 	}
 	purple_account_set_status(account, id, TRUE, NULL);
 	yobot_log_debug("account status changed");
+}
+
+static void parse_attrs_xml(GMarkupParseContext *context,
+		const gchar *element_name, const gchar **attribute_names,
+		const gchar **attribute_values, gpointer user_data, GError **error) {
+	PurpleProxyInfo **proxy_info_ptr = user_data;
+	for (; *attribute_names && *attribute_values; attribute_names++, attribute_values++) {
+			/****************************** PROXY *********************************/
+		if (strcasecmp(*attribute_names, "proxy_type") == 0 && *proxy_info_ptr) {
+			unsigned int type = strtoul(*attribute_values, NULL, 10);
+			if (type == UINT_MAX) {
+				yobot_log_warn("proxy_type returned UINT_MAX");
+				*proxy_info_ptr = NULL;
+			} else if (PURPLE_PROXY_USE_GLOBAL > type && type < PURPLE_PROXY_USE_ENVVAR) {
+				(*proxy_info_ptr)->type = type;
+			} else {
+				yobot_log_warn("unknown proxy type %d", type);
+				*proxy_info_ptr = NULL;
+			}
+		} else if (strcasecmp(*attribute_names, "proxy_host") == 0 && *proxy_info_ptr) {
+			if (**attribute_values) {
+				(*proxy_info_ptr)->host = g_strdup(*attribute_values);
+			} else {
+				yobot_log_warn("server is NULL");
+				*proxy_info_ptr = NULL;
+			}
+		} else if (strcasecmp(*attribute_names, "proxy_port") == 0 && *proxy_info_ptr) {
+			unsigned int port = strtoul(*attribute_values, NULL, 10);
+			if (port == UINT_MAX) {
+				yobot_log_warn("proxy_port specified, but got NULL");
+				*proxy_info_ptr = NULL;
+			} else {
+				(*proxy_info_ptr)->port = (int) port;
+			}
+		} else if (strcasecmp(*attribute_names, "proxy_username") == 0 && *proxy_info_ptr) {
+			if (**attribute_values) {
+				(*proxy_info_ptr)->username = g_strdup(*attribute_values);
+			} else {
+				yobot_log_warn("username attr specified but no username provided");
+				*proxy_info_ptr = NULL;
+			}
+		} else if (strcasecmp(*attribute_names, "proxy_password") == 0 && *proxy_info_ptr) {
+			if (**attribute_values) {
+				(*proxy_info_ptr)->password = g_strdup(*attribute_values);
+			} else {
+				yobot_log_warn("password attr specified but no password provided");
+				*proxy_info_ptr = NULL;
+			}
+		} else {
+			yobot_log_warn("unknown attribute \"%s\"", *attribute_names);
+		}
+	}
+}
+static void mkacct(const yobotmkacct_internal *arq) {
+	yobot_log_info("new user: %s, proto %s",
+			arq->user, yobot_proto_get_prpl_id(arq->yomkacct->improto));
+
+	yobot_log_debug("calling purple_acount_new");
+	PurpleAccount *acct = purple_account_new(arq->user,
+			yobot_proto_get_prpl_id(arq->yomkacct->improto));
+	yobot_purple_account_refcount_register(acct);
+	yobot_purple_account_refcount_increase(acct);
+	yobot_purple_account_context_set(acct);
+	purple_account_set_password(acct, arq->pass);
+	if(arq->attr_xml) {
+		PurpleProxyInfo *proxy_info = g_new0(PurpleProxyInfo, 1);
+		PurpleProxyInfo *pinfo_ptr = proxy_info;
+		GMarkupParser parser;
+		memset(&parser, 0, sizeof(GMarkupParser));
+		parser.start_element = parse_attrs_xml;
+		GMarkupParseContext *context = g_markup_parse_context_new(
+				&parser, 0, &pinfo_ptr, NULL);
+		GError *parse_error;
+		memset(&parse_error, 0, sizeof(parse_error));
+		g_markup_parse_context_parse(context, arq->attr_xml,
+				arq->yomkacct->paramlen-1, &parse_error);
+		if(parse_error) {
+			yobot_log_warn(parse_error->message);
+		}
+		g_markup_parse_context_end_parse(context, &parse_error);
+		while(pinfo_ptr) {
+			if(proxy_info->port && !proxy_info->host) {
+				yobot_log_warn("port specified for proxy but no host");
+				pinfo_ptr = NULL;
+				break;
+			}
+			if(proxy_info->password && !proxy_info->username) {
+				yobot_log_warn("password specified but no user");
+				free(proxy_info->password);
+				proxy_info->password = NULL;
+			}
+			break;
+		}
+		if (pinfo_ptr) {
+			yobot_log_info("using proxy of type %d: %s:%d", proxy_info->type, proxy_info->host, proxy_info->port);
+			purple_account_set_proxy_info(acct, proxy_info);
+		} else {
+			free(proxy_info->host);
+			free(proxy_info->password);
+			free(proxy_info->username);
+			free(proxy_info);
+		}
+	} else {
+		yobot_log_debug("attr_xml null?: %p", arq->attr_xml);
+	}
+	yobot_log_debug("done.. now setting up account ui data");
+	account_uidata *tmp = malloc(sizeof(account_uidata));
+	tmp->id = arq->yomkacct->id;
+	acct->ui_data = tmp;
+	purple_accounts_add(acct);
+	yobot_log_debug("added account");
 }
 /****************************** LISTENER/HANDLER FUNCTIONS *******************/
 static void init_listener(gboolean first_time)
@@ -438,34 +552,14 @@ static void cmd_handler(yobot_protoclient_segment *seg) {
 
 	case YOBOT_CMD_ACCT_NEW: {
 		yobot_log_info("YOBOT_CMD_ACCT_NEW");
-		const char *name, *pass;
 		yobotmkacct_internal *ymkaccti = seg->mkaccti;
-		name = ymkaccti->user;
-		pass = ymkaccti->pass;
-		yobot_log_info("new user: %s, proto %s",
-				name, yobot_proto_get_prpl_id(ymkaccti->yomkacct->improto));
-		yobot_log_debug("calling purple_acount_new");
-
-		PurpleAccount *acct = purple_account_new(name,
-				yobot_proto_get_prpl_id(ymkaccti->yomkacct->improto));
-		yobot_purple_account_refcount_register(acct);
-		yobot_purple_account_refcount_increase(acct);
-		yobot_purple_account_context_set(acct);
-		yobot_log_debug("done.. now setting up account ui data");
-		purple_account_set_password(acct, pass);
-		account_uidata *tmp = malloc(sizeof(account_uidata));
-		tmp->id = cmd.acct_id;
-		acct->ui_data = tmp;
-		purple_accounts_add(acct);
-		yobot_log_debug("added account");
+		mkacct(ymkaccti);
 		break;
 	}
-
 	case YOBOT_CMD_ACCT_ENABLE: {
 		yobot_log_info("YOBOT_CMD_ACCT_ENABLE");
 		assert (cmd.len == 0);
 		purple_account_set_enabled(account,"user",TRUE);
-//		purple_account_connect(account);
 		yobot_log_debug("account connecting...");
 		break;
 	}

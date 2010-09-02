@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="icons">
+    <file>icons/stock_proxy.svg</file>
     <file>icons/text-x-log.png</file>
     <file>icons/clock.png</file>
     <file>res/16x16/actions/dialog-cancel.png</file>

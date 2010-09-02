@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>276</width>
-    <height>528</height>
+    <height>568</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -80,6 +80,9 @@
          <property name="text">
           <string>Username</string>
          </property>
+         <property name="buddy">
+          <cstring>w_username</cstring>
+         </property>
         </widget>
        </item>
        <item row="1" column="1" colspan="2">
@@ -111,6 +114,9 @@
          </property>
          <property name="text">
           <string>Password</string>
+         </property>
+         <property name="buddy">
+          <cstring>w_password</cstring>
          </property>
         </widget>
        </item>
@@ -150,6 +156,9 @@
          <property name="text">
           <string>Protocol</string>
          </property>
+         <property name="buddy">
+          <cstring>w_improto</cstring>
+         </property>
         </widget>
        </item>
        <item row="3" column="1" colspan="2">
@@ -162,7 +171,206 @@
          </property>
         </widget>
        </item>
-       <item row="4" column="2">
+       <item row="4" column="0" colspan="3">
+        <widget class="QToolButton" name="show_proxy_prefs">
+         <property name="font">
+          <font>
+           <pointsize>10</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Use Proxy ...</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../../../yobot/py/gui/resources.qrc">
+           <normaloff>:/icons/icons/stock_proxy.svg</normaloff>:/icons/icons/stock_proxy.svg</iconset>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>16</width>
+           <height>16</height>
+          </size>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="toolButtonStyle">
+          <enum>Qt::ToolButtonTextBesideIcon</enum>
+         </property>
+         <property name="autoRaise">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="5" column="0" colspan="3">
+        <widget class="QFrame" name="proxy_params">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="frameShape">
+          <enum>QFrame::Box</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Sunken</enum>
+         </property>
+         <property name="lineWidth">
+          <number>2</number>
+         </property>
+         <layout class="QGridLayout" name="gridLayout_4">
+          <property name="margin">
+           <number>5</number>
+          </property>
+          <item row="7" column="0">
+           <widget class="QLabel" name="label_2">
+            <property name="font">
+             <font>
+              <weight>75</weight>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>Password</string>
+            </property>
+            <property name="buddy">
+             <cstring>proxy_password</cstring>
+            </property>
+           </widget>
+          </item>
+          <item row="7" column="2" colspan="3">
+           <widget class="QLineEdit" name="proxy_password">
+            <property name="echoMode">
+             <enum>QLineEdit::Password</enum>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="0">
+           <widget class="QRadioButton" name="proxy_type_socks4">
+            <property name="font">
+             <font>
+              <weight>75</weight>
+              <italic>false</italic>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>SOCKS4</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="2">
+           <widget class="QRadioButton" name="proxy_type_socks5">
+            <property name="font">
+             <font>
+              <weight>75</weight>
+              <italic>false</italic>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>SOCKS5</string>
+            </property>
+            <property name="checked">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="3">
+           <widget class="QRadioButton" name="proxy_type_http">
+            <property name="font">
+             <font>
+              <weight>75</weight>
+              <italic>false</italic>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>HTTP</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="label_3">
+            <property name="font">
+             <font>
+              <weight>75</weight>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>Port</string>
+            </property>
+            <property name="buddy">
+             <cstring>proxy_port</cstring>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="2" colspan="3">
+           <widget class="QLineEdit" name="proxy_port"/>
+          </item>
+          <item row="2" column="2" colspan="3">
+           <widget class="QLineEdit" name="proxy_host"/>
+          </item>
+          <item row="6" column="2" colspan="3">
+           <widget class="QLineEdit" name="proxy_username"/>
+          </item>
+          <item row="6" column="0">
+           <widget class="QLabel" name="label">
+            <property name="font">
+             <font>
+              <weight>75</weight>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>Username</string>
+            </property>
+            <property name="buddy">
+             <cstring>proxy_username</cstring>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="label_4">
+            <property name="font">
+             <font>
+              <weight>75</weight>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>Address</string>
+            </property>
+            <property name="buddy">
+             <cstring>proxy_host</cstring>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item row="7" column="1">
+        <widget class="QPushButton" name="conn_close">
+         <property name="font">
+          <font>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Close</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../../../yobot/py/gui/resources.qrc">
+           <normaloff>:/icons/icons/dialog-close.png</normaloff>:/icons/icons/dialog-close.png</iconset>
+         </property>
+        </widget>
+       </item>
+       <item row="7" column="2">
         <widget class="QPushButton" name="w_connect">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -185,23 +393,6 @@
          </property>
         </widget>
        </item>
-       <item row="4" column="1">
-        <widget class="QPushButton" name="conn_close">
-         <property name="font">
-          <font>
-           <weight>75</weight>
-           <bold>true</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>Close</string>
-         </property>
-         <property name="icon">
-          <iconset resource="../../../yobot/py/gui/resources.qrc">
-           <normaloff>:/icons/icons/dialog-close.png</normaloff>:/icons/icons/dialog-close.png</iconset>
-         </property>
-        </widget>
-       </item>
       </layout>
      </widget>
     </item>
@@ -221,7 +412,7 @@
       </property>
      </spacer>
     </item>
-    <item row="2" column="0">
+    <item row="3" column="0">
      <widget class="QTreeView" name="blist">
       <property name="autoScrollMargin">
        <number>28</number>
@@ -611,6 +802,22 @@ p, li { white-space: pre-wrap; }
    </property>
   </action>
  </widget>
+ <tabstops>
+  <tabstop>w_username</tabstop>
+  <tabstop>w_password</tabstop>
+  <tabstop>w_improto</tabstop>
+  <tabstop>show_proxy_prefs</tabstop>
+  <tabstop>proxy_type_socks4</tabstop>
+  <tabstop>proxy_type_socks5</tabstop>
+  <tabstop>proxy_type_http</tabstop>
+  <tabstop>proxy_host</tabstop>
+  <tabstop>proxy_port</tabstop>
+  <tabstop>proxy_username</tabstop>
+  <tabstop>proxy_password</tabstop>
+  <tabstop>conn_close</tabstop>
+  <tabstop>w_connect</tabstop>
+  <tabstop>blist</tabstop>
+ </tabstops>
  <resources>
   <include location="../../../yobot/py/gui/resources.qrc"/>
  </resources>
@@ -638,12 +845,28 @@ p, li { white-space: pre-wrap; }
    <slot>hide()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>125</x>
-     <y>180</y>
+     <x>165</x>
+     <y>397</y>
     </hint>
     <hint type="destinationlabel">
      <x>138</x>
      <y>131</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>show_proxy_prefs</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>proxy_params</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>76</x>
+     <y>177</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>135</x>
+     <y>249</y>
     </hint>
    </hints>
   </connection>

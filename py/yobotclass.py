@@ -257,24 +257,37 @@ class YobotAccount(YobotBase):
     There are more extended subclasses in account.YAccountWrapper and client_support.YCAccount"""
     def _initvars(self):
         super(YobotAccount, self)._initvars()
+        log_err("")
         self._improto = None
         self._user = None
         self._passw = None
         self._id = None
-
-    def __init__(self, mkaccti=None, user=None, passw=None, id=None, improto=None):
+        self._proxy_host = None
+        self._proxy_type = None
+        self._proxy_username = None
+        self._proxy_password = None
+        self._proxy_port = None
+        
+    def __init__(self, mkaccti=None, user=None, passw=None, id=None, improto=None,
+                 proxy_host = None, proxy_port = None, proxy_username = None,
+                 proxy_password = None, proxy_type = None):
         self._initvars()
         if mkaccti is not None:
             self._improto = mkaccti.yomkacct.improto
             self._user = mkaccti.user
             self._passw = mkaccti._pass
             self._id = mkaccti.yomkacct.id
+            #no need for anything here to parse proxy information..
         else:
             self._improto = improto
             self._user = user
             self._passw = passw
             self._id = id
-            
+            self._proxy_host = proxy_host
+            self._proxy_username = proxy_username
+            self._proxy_password = proxy_password
+            self._proxy_port = proxy_port
+            self._proxy_type = proxy_type
         if not yobotops.imprototostr(self._improto):
             raise IMUnsupportedProtocol(self._improto)        
 
@@ -289,6 +302,28 @@ class YobotAccount(YobotBase):
         info.password = self.passw
         info.acctid = self.id
         info.improto = self.improto
+        if self._proxy_host:
+            proxy_info_xml = "<foo><proxy_info proxy_host='%s' " % (self._proxy_host)
+            if self._proxy_port:
+                proxy_info_xml += "proxy_port='%s' " % (str(self._proxy_port))
+            if self._proxy_username:
+                proxy_info_xml += "proxy_username='%s' " % (self._proxy_username)
+                if self._proxy_password:
+                    proxy_info_xml += "proxy_password='%s' " % (self._proxy_password)
+            
+            if self._proxy_type in ("socks4", "socks5", "http"):
+                proxy_info_xml += "proxy_type='%d' " % (
+                    getattr(yobotproto, "PURPLE_PROXY_" + self._proxy_type.upper()))
+            else:
+                log_warn("unknown proxy type", self._proxy_type)
+                proxy_info_xml = ""
+            
+            if proxy_info_xml:
+                proxy_info_xml += "/></foo>"
+            info.attr_xml = proxy_info_xml
+            log_debug(proxy_info_xml)
+        else:
+            log_err("proxy info is null?")
         ptr = yobot_protoclient_mkacct_encode(info, None, YOBOT_PROTOCLIENT_TO_BUF)
         return ptr
     

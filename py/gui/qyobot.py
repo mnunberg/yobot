@@ -31,7 +31,7 @@ from PyQt4.QtGui import (QComboBox, QMainWindow, QStandardItemModel, QStandardIt
                          QListWidget, QListWidgetItem, QStyledItemDelegate,
                          QStyleOptionViewItem, QRegion, QWidget, QBrush, QStyle,
                          QPen, QPushButton, QStyleOption, QMenu, QAction, QCursor,
-                         QTreeView, QLineEdit)
+                         QTreeView, QLineEdit, QButtonGroup)
 
 from PyQt4.QtCore import (QPoint, QSize, QModelIndex, Qt, QObject, SIGNAL, QVariant,
                           QAbstractItemModel, QRect, QRectF, QPointF)
@@ -944,12 +944,21 @@ class YobotGui(object):
             msg.setWindowTitle("Missing Input!")
             msg.exec_()
             return
-        
         improto_list = self.mw_widgets.w_improto
-        improto = improto_list.model().index(improto_list.currentIndex(), 0,QModelIndex()).data(Qt.UserRole).toPyObject()
-        log_debug( improto)
+        improto = improto_list.model().index(improto_list.currentIndex(),
+                                             0,QModelIndex()).data(Qt.UserRole).toPyObject()
+        
+        w = self.mw_widgets
+        _d_proxy_params = {"proxy_host" : None, "proxy_port": None, "proxy_type" : None,
+                           "proxy_username" : None, "proxy_password" : None}
+        _d_proxy_params["proxy_host"] = str(w.proxy_host.text())
+        if _d_proxy_params["proxy_host"]:
+            _d_proxy_params["proxy_port"] = str(w.proxy_port.text())
+            _d_proxy_params["proxy_type"] = str(w.proxy_params.proxy_type_group.checkedButton().text()).lower()
+            _d_proxy_params["proxy_username"] = str(w.proxy_username.text())
+            _d_proxy_params["proxy_password"] = str(w.proxy_password.text())
         try:
-            self.client.connect(user, passw, improto)
+            self.client.connect(user, passw, improto, **_d_proxy_params)
         except AttributeError, e:
             log_warn( e)
         self.mw_widgets.statusbar.showMessage("connecting " + user)
@@ -1050,6 +1059,10 @@ class YobotGui(object):
         w.setupUi(self.mw)
         w.blist.hide()
         w.conninput.show()
+        w.proxy_params.hide()
+        w.proxy_params.proxy_type_group = QButtonGroup(w.proxy_params)
+        for i in ("http", "socks4", "socks5"):
+            w.proxy_params.proxy_type_group.addButton(getattr(w, "proxy_type_" + i))
 
         #add the model for the protocol and buddy lists
         mkProtocolComboBox(w.w_improto)

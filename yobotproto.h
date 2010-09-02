@@ -49,6 +49,17 @@ typedef enum
 	PURPLE_STATUS_MOOD,
 	PURPLE_STATUS_NUM_PRIMITIVES
 } PurpleStatusPrimitive;
+typedef enum
+{
+	PURPLE_PROXY_USE_GLOBAL = -1,  /**< Use the global proxy information. */
+	PURPLE_PROXY_NONE = 0,         /**< No proxy.                         */
+	PURPLE_PROXY_HTTP,             /**< HTTP proxy.                       */
+	PURPLE_PROXY_SOCKS4,           /**< SOCKS 4 proxy.                    */
+	PURPLE_PROXY_SOCKS5,           /**< SOCKS 5 proxy.                    */
+	PURPLE_PROXY_USE_ENVVAR        /**< Use environmental settings.       */
+
+} PurpleProxyType;
+
 #endif
 
 //#define YOBOT_MAX_COMMSIZE 0x0fffff /*1MB*/
@@ -254,6 +265,8 @@ typedef uint8_t ybnamelen_t;
 #define _TPL_YBNAMELEN_T "c"
 typedef uint8_t ybpasslen_t;
 #define _TPL_YBPASSLEN_T "c"
+typedef uint16_t ybparamlen_t;
+#define _TPL_YBPARAMLEN_T "v"
 
 /*all communication uses this struct*/
 /*uint16_t segment_len*/
@@ -299,8 +312,9 @@ typedef struct {
 	ybacctid_t id;
 	ybnamelen_t namelen;
 	ybpasslen_t passlen;
+	ybparamlen_t paramlen;
 } yobotmkacct;
-#define yobot_proto_tpl_mkacct_layout _TPL_ENUM_T _TPL_YBACCTID_T _TPL_YBNAMELEN_T _TPL_YBPASSLEN_T
+#define yobot_proto_tpl_mkacct_layout _TPL_ENUM_T _TPL_YBACCTID_T _TPL_YBNAMELEN_T _TPL_YBPASSLEN_T _TPL_YBPARAMLEN_T
 //"iucc"
 #define yobot_proto_tpl_mkacct "S(" yobot_proto_tpl_mkacct_layout ")"
 
@@ -334,6 +348,7 @@ typedef struct {
 	yobotmkacct *yomkacct;
 	const	char *user;
 	const char *pass;
+	const char *attr_xml;
 } yobotmkacct_internal;
 #define yobot_proto_tpl_mkaccti "S($(" \
 		yobot_proto_tpl_mkacct_layout ")" \

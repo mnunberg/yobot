@@ -11,6 +11,7 @@
 #include "yobot_log.h"
 #include "win32/yobot_win32.h"
 #include <errno.h>
+#include <stdbool.h>
 
 #ifdef _WIN32
 #include "win32/win32dep.h"
@@ -201,9 +202,13 @@ static void init_libpurple(debug)
 	}
 	purple_set_blist(purple_blist_new());
 	purple_blist_load();
-//	purple_prefs_load();
+	purple_prefs_load();
 //	purple_plugins_load_saved(PLUGIN_SAVE_PREF);
-	purple_pounces_load();
+//	purple_pounces_load();
+	/*some settings for our application*/
+	purple_prefs_set_bool("/purple/away/away_when_idle", false);
+	purple_prefs_set_string("/purple/away/idle_reporting", "system");
+
 }
 
 

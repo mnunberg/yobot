@@ -248,15 +248,17 @@ class YBuddylist(ModelBase):
     
 class YCAccount(YobotAccount):    
     def _initvars(self):
-        super(YobotAccount, self)._initvars()
+        super(YCAccount, self)._initvars()
+        log_err("")
         self.blist = None
         self.index = 0
         self._status = None
         self._status_message = None
         self.icon = None
 
-    def __init__(self, svc, user, passw, improto):
+    def __init__(self, svc, user, passw, improto, **proxy_params):
         self._initvars()
+        YobotAccount.__init__(self, user=user, passw=passw, improto=improto, **proxy_params)
         "Needs service to interface with the outside world"
         self.svc = svc
         self.notifier = svc.accounts
@@ -265,10 +267,9 @@ class YCAccount(YobotAccount):
         self.blist.beginChildRemove = self.notifier.beginChildRemove
         self.blist.endAdd = self.notifier.endAdd
         self.blist.endRemove = self.notifier.endRemove
-        
         self._user = user
         self._passw = passw 
-        self._improto = improto      
+        self._improto = improto
     def __eq__(self, other):
         return (self.improto == other.improto and
                 self.user == other.user )
