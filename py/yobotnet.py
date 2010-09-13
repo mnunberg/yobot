@@ -15,10 +15,13 @@ from twisted.internet import defer
 
 from account import AccountManager, AccountRequestHandler, AccountRemoved
 from msglogger import MessageLogger, CONV_TYPE_CHAT, CONV_TYPE_IM
+import msglogger
 from client_support import ModelBase, BuddyAuthorize, YCRequest, SimpleNotice
 from debuglog import log_debug, log_err, log_warn, log_crit, log_info
 import debuglog
 import time
+
+import yobot_interfaces
 
 
 if __name__ == "__main__":
@@ -44,18 +47,10 @@ class YobotSegment(object):
     functions"""
     def __init__(self, msg):
         """takes a raw string and convers it to a python YobotSegment"""
-        self.struct_type = None
-        self.commflags = 0
-        self.cmd = None
-        self.msg = None
-        self.evt = None
-        self.acct = None
-        self.base = None
+        for a in ("cmd", "msg", "evt", "acct", "base"):
+            setattr(self, a, None)
         #something will 'stamp' our segment with the CID on which it was received
-        self.cid = 0
-        self.raw = None
-        self.reference = 0
-
+        self.cid = 0        
         self.raw = msg
         
         decoded_segment = self._decode_segment(msg)
@@ -277,6 +272,14 @@ class ClientAccountStore(ModelBase):
     def __init__(self, svc):
         self._initvars()
         self.svc = svc
+        #register ourselves only a single time:
+        store = yobot_interfaces.component_registry.get_component("account-store")
+        if not store:
+            yobot_interfaces.component_registry.register_component("account-store", self)
+            log_err("registered")
+        else:
+            return store
+        
     """This is intended for fast access but really slow modification"""
     def addAccount(self, acctid, acct):
         self._addItem(acct, acctid)
@@ -292,8 +295,10 @@ class ClientAccountStore(ModelBase):
         return acct
     def getAccount(self, acctid):
         return self._getItem(acctid)
-    
-    
+
+###############################################################################
+############################## CLIENT SERVICE #################################
+###############################################################################
 class YobotClientService(YobotServiceBase):
     """This deals with the client side of things. The account objects used here
     are a subclass of YobotAccount, and if you not the code here, we *Never* use
@@ -562,6 +567,10 @@ class YobotClientService(YobotServiceBase):
         #...
         return f
     
+###############################################################################
+############################ AGENT SERVICE ####################################
+###############################################################################
+
 class YobotServerService(YobotServiceBase):
     def _initvars(self):
         YobotServiceBase._initvars(self)
@@ -608,9 +617,12 @@ class YobotServerService(YobotServiceBase):
             name = msg.name.split("/", 1)[0]
         else:
             name = msg.name
-
-        self.logger.logMsg(msgtype, acct.user, yobotops.imprototostr(acct.improto),
-                           name, msg.txt, who, msg.time)
+        
+        try:
+            self.logger.logMsg(msgtype, acct.user, yobotops.imprototostr(acct.improto),
+                               name, msg.txt, who, msg.time)
+        except msglogger.IntegrityError, e:
+            log_err(e)
     
     def relayOfflines(self, obj, proto):
         acct, _ = self.accounts.byId(obj.cmd.acctid)
@@ -1017,11 +1029,9 @@ class YobotServerService(YobotServiceBase):
 
 ############## TESTING ################
 if __name__ == "__main__":
-    CLIENT, SERVER = [1,2]
     if sys.argv[1] == "-s":
         debuglog.init("Agent", title_color="cyan")
         yobotproto.yobot_proto_setlogger("Agent")
-        mode = SERVER
         svc = YobotServerService()
         reactor.connectTCP("localhost", 7771, svc.getYobotPurpleFactory())
         reactor.listenTCP(7770, svc.getYobotServerFactory())

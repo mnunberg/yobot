@@ -2,12 +2,9 @@
 @set pidginroot=C:\Program Files\Pidgin
 @set sleep=%yobotroot%\tools\_sleep.exe
 @set PATH=%PATH%;%pidginroot%;%pidginroot%\Plugins;%yobotroot%;%yobotroot%\contrib
-@set LOGFILE=Z:\WinLog
-REM CD %PIDGINROOT%
-start "Purple" cmd /t:75 /c "%yobotroot%\yobot.exe 0 > %LOGFILE% 2>&1"
-REM %yobotroot%\tools\_sleep.exe 1000
+@set LOGPATH=Z:\
+start "Purple" cmd /c "%yobotroot%\yobot.exe 0 > %LOGPATH%\purple.log% 2>&1"
 %sleep% 1000
-start "Yobot Agent" cmd /c python %yobotroot%\py\yobotnet.py -s
+start "Yobot Agent" cmd /c "C:\python26\python.exe %yobotroot%\py\yobotnet.py -s > %LOGPATH%\agent.log  2>&1"
 %sleep% 1000
-REM %yobotroot%\tools\_sleep.exe 1000
-start "QYobot" cmd /c python %yobotroot%\py\client.py
+start "QYobot" cmd /c "C:\python26\python.exe %yobotroot%\py\client.py > %LOGPATH%\client.log 2>&1"

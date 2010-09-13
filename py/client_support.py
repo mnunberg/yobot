@@ -5,6 +5,7 @@ from yobotops import buddystatustostr
 from time import time
 from debuglog import log_debug, log_err, log_warn, log_crit, log_info
 import lxml.html
+import yobot_interfaces
 
 class YCRequest(object):
     def _initvars(self):
@@ -118,6 +119,7 @@ class SimpleNotice(YCRequest):
         
         
 class ModelBase(object):
+    yobot_interfaces.implements(yobot_interfaces.IMVCTree)
     def _initvars(self):
         self._t = {}
         self._d = {}
@@ -132,6 +134,8 @@ class ModelBase(object):
         return item in self._t
     def __len__(self):
         return len(self._t)
+    def __nonzero__(self):
+        return True
     
     def beginAdd(self, index):
         "Override this"
@@ -198,6 +202,7 @@ class ModelBase(object):
 
 
 class YBuddy(object):
+    yobot_interfaces.implements(yobot_interfaces.IMVCNode)
     def _initvars(self):
         self.status = None
         self.status_message = None
@@ -245,11 +250,11 @@ class YBuddylist(ModelBase):
         self.beginChildRemove(self.account.index, index)
     
     
-    
-class YCAccount(YobotAccount):    
+class YCAccount(YobotAccount):
+    yobot_interfaces.implements(yobot_interfaces.IAccountOperations,
+                                yobot_interfaces.IMVCNode)
     def _initvars(self):
         super(YCAccount, self)._initvars()
-        log_err("")
         self.blist = None
         self.index = 0
         self._status = None
@@ -310,10 +315,6 @@ class YCAccount(YobotAccount):
     def fetchRoomUsers(self, room):
         self.svc.fetchRoomUsers(self, room)
         
-    def sendchat(self,room,txt):
-        assert room in rooms
-        self.sendmsg(room.name, txt, chat=True)
-    
     def sendmsg(self, to, txt, chat=False):
         msg = YobotMessage()
         if chat:

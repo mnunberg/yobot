@@ -1,5 +1,12 @@
 <RCC>
   <qresource prefix="icons">
+    <file>res/16x16/actions/media-playback-start.png</file>
+    <file>res/16x16/actions/media-playback-stop.png</file>
+    <file>res/16x16/actions/media-skip-forward.png</file>
+    <file>res/16x16/actions/media-skip-backward.png</file>
+    <file>res/16x16/actions/media-playback-pause.png</file>
+    <file>res/16x16/actions/media-playback-start.png</file>
+    <file>res/16x16/places/server-database.png</file>
     <file>icons/stock_proxy.svg</file>
     <file>icons/text-x-log.png</file>
     <file>icons/clock.png</file>

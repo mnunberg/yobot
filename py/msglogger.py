@@ -7,6 +7,8 @@ import sqlite3
 from yobotclass import YobotMessage
 import yobotproto
 from debuglog import log_warn, log_err, log_debug, log_crit, log_info
+from sqlite3.dbapi2 import IntegrityError
+
 class MessageLogger(object):
     #for some reason this really DOES improve performance!
     _acctcache = {} #[account_name, proto_name] -> account_id_internal

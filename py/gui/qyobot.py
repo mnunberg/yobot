@@ -18,7 +18,9 @@ import lxml.html
 import status_dialog
 from html_fmt import simplify_css, process_input, insert_smileys
 import smileys_rc
-from modeltest import ModelTest
+
+import yobot_interfaces
+#from modeltest import ModelTest
 
 import traceback
 
@@ -38,98 +40,18 @@ from PyQt4.QtCore import (QPoint, QSize, QModelIndex, Qt, QObject, SIGNAL, QVari
 
 signal_connect = QObject.connect
 
+app = QtGui.QApplication(sys.argv)
+from contrib import qt4reactor
+qt4reactor.install()
+
+
+from gui_util import (getIcon, getProtoStatusIcon, mkProtocolComboBox,
+                      STATUS_ICON_MAPS, STATUS_TYPE_MAPS, signal_connect,
+                      IMPROTOS_BY_CONSTANT, ConnectionWidget, AccountModel, ROLE_SMALL_BUDDY_TEXT,
+                      ROLE_ACCT_OBJ)
 CHAT, IM = (1,2)
-INDEX_ACCT, INDEX_BUDDY = (1,2)
-PROTO_INT, PROTO_NAME = (1,2)
 NOTICE, ERROR, DIALOG = (1,2,3)
-ROLE_ACCT_OBJ = Qt.UserRole + 2
-ROLE_SMALL_BUDDY_TEXT = Qt.UserRole + 3
 
-status_icon_cache = {}
-IMPROTOS_BY_NAME={}
-IMPROTOS_BY_CONSTANT={}
-STATUS_ICON_MAPS = {}
-#make a mapping between yobot protocol constants and human names:
-
-for proto_name, proto_constant in (
-    ("Yahoo", yobotproto.YOBOT_YAHOO),
-    ("AIM", yobotproto.YOBOT_AIM),
-    ("MSN", yobotproto.YOBOT_MSN),
-    ("Google-Talk", yobotproto.YOBOT_GTALK),
-    ("Jabber", yobotproto.YOBOT_JABBER),
-    ):
-    IMPROTOS_BY_CONSTANT[proto_constant] = proto_name
-    IMPROTOS_BY_NAME[proto_name] = proto_constant
-
-STATUS_ICON_MAPS = {
-    yobotproto.YOBOT_EVENT_BUDDY_ONLINE: "user-online",
-    yobotproto.YOBOT_EVENT_BUDDY_OFFLINE: "user-offline",
-    yobotproto.YOBOT_EVENT_BUDDY_AWAY: "user-away",
-    yobotproto.YOBOT_EVENT_BUDDY_BUSY: "user-busy",
-    yobotproto.YOBOT_EVENT_BUDDY_INVISIBLE: "user-invisible",
-    yobotproto.YOBOT_EVENT_BUDDY_IDLE: "user-away",
-    yobotproto.YOBOT_EVENT_BUDDY_BRB: "user-away",
-}
-
-STATUS_TYPE_MAPS = {
-    "Away" : yobotproto.PURPLE_STATUS_AWAY,
-    "Available" : yobotproto.PURPLE_STATUS_AVAILABLE,
-    "Invisible" : yobotproto.PURPLE_STATUS_INVISIBLE,
-}
-
-def proto_name_int(proto, type):
-    """-> (proto_name, proto_int)"""
-    proto_name = None
-    proto_int = None
-    if type == PROTO_INT:
-        proto_int = proto
-        proto_name = IMPROTOS_BY_CONSTANT[proto_int]
-    else:
-        proto_name = proto
-        proto_int = IMPROTOS_BY_NAME[proto_name]
-        
-    return (proto_name, proto_int)
-
-def getIcon(name):
-    return QtGui.QIcon.fromTheme(name, QIcon(":/icons/icons/"+name.lower()))
-
-
-def getProtoStatusIcon(name, proto_int=None):
-    """Creates a nice little overlay of the status and the protocol icon.
-    Returns QIcon"""
-    status_icon = getIcon(name)
-    if not proto_int:
-        return status_icon
-    else:
-        ret = status_icon_cache.get((name, proto_int), None)
-        if ret:
-            return ret
-        proto_name, _ = proto_name_int(proto_int, PROTO_INT)
-        status_pixmap = status_icon.pixmap(QSize(16,16))
-        proto_pixmap = getIcon(proto_name).pixmap(QSize(16,16))
-        combined_pixmap = QImage(28,20, QImage.Format_ARGB32_Premultiplied)
-
-        painter = QPainter(combined_pixmap)
-        
-        painter.setCompositionMode(painter.CompositionMode_Source)
-        painter.fillRect(combined_pixmap.rect(), Qt.transparent)
-        
-        painter.setCompositionMode(painter.CompositionMode_Source)
-        painter.drawPixmap(QPoint(0,0), status_pixmap)
-        
-        painter.setCompositionMode(painter.CompositionMode_SourceOver)
-        painter.drawPixmap(QPoint(12,4), proto_pixmap)
-        
-        painter.end()
-        #add cache
-        status_icon_cache[(name, proto_int)] = QIcon(QPixmap.fromImage(combined_pixmap))
-        return status_icon_cache[(name, proto_int)]
-        
-def mkProtocolComboBox(cbox):
-    """Stores human readable improto names along with their yobt constants"""
-    for proto_constant, proto_name in IMPROTOS_BY_CONSTANT.items():
-        icon = getProtoStatusIcon(proto_name)
-        cbox.addItem(icon, proto_name, proto_constant)
 
 class BuddyItemDelegate(QStyledItemDelegate):
     largeEntryIcon = (32, 32)
@@ -272,219 +194,7 @@ class BuddyItemDelegate(QStyledItemDelegate):
             return
         
         self._paintDirect(painter, option, index)
-        
-class AccountModel(QAbstractItemModel):
-    def __init__(self, backend):
-        """The backend should be iterable and indexable. The backend itself
-        must contain list of blist objects which should also be iterable and indexable.
-        Additionally, each item should have a status, status_message, and name attribute
-        """
-        self.IDSTR="hi"
-        super(AccountModel, self).__init__()
-        self.backend = backend
-        
-        self.acctRoot = backend
-        self.blist = None
-        
-        #tie up some functions..
-        self.backend.beginAdd = self.beginAccountAdd
-        self.backend.beginRemove = self.beginAccountRemove
-        self.backend.beginChildAdd = self.beginBuddyAdd
-        self.backend.beginChildRemove = self.beginBuddyRemove
-        
-        self.backend.endAdd = self.endInsertRows
-        self.backend.endRemove = self.endRemoveRows
-        self.backend.dataChanged = self.statusChange
-        self.backend.firstChildInserted = self._firstChange
-        log_debug( "AccountModel: init done")
-        def _logchanged(childindex, parentindex):
-            log_err("called")
-        #signal_connect(self, SIGNAL("dataChanged(QModelIndex, QModelIndex)"), _logchanged)
-    
-    def flags(self, index):
-        return (Qt.ItemIsSelectable|Qt.ItemIsEnabled|Qt.ItemIsEditable)
-    
-    def _firstChange(self, index):
-        if self.blist:
-            self.blist.setExpanded(self.index(index, 0), True)
-            
-    def index(self, row, column = 0, parent = QModelIndex()):
-        #if not self.hasIndex(row, column, parent):
-        #    return QModelIndex()
-        if column != 0 or row <0:
-            return QModelIndex()
-        
-        parent_item = parent.internalPointer()
-        #log_err(parent_item)
-        
-        if not parent_item:
-            #top level account..
-            try:
-                acct_obj = self.backend[int(row)]
-                ret = self.createIndex(row, 0, acct_obj)
-                return ret
-            except (IndexError, KeyError), e:
-                log_err(e)
-                return QModelIndex()
-                
-        #if we got here.. we have a buddy item...
-        assert(parent_item.parent is None)
-        try:
-            buddy = parent_item.blist[row]
-            return self.createIndex(row, column, buddy)
-        except (IndexError, KeyError), e:
-            parent_chain = ""
-            _p = parent
-            while _p.isValid():
-                parent_chain += "-> %d %d" % (_p.row(), _p.column())
-                _p = _p.parent()
-            log_err("Error", e, row, column, "parents", parent_chain)
-            return QModelIndex()
-            
-    def parent(self, index):
-        obj = index.internalPointer()
-        if not obj:
-            return QModelIndex() #no data, nothing valid
-        if not index.isValid(): #or obj.parent == -1
-            return QModelIndex()
-            
-        if not obj.parent:
-            return QModelIndex()
-        #except (ValueError, AttributeError), e:
-        #    log_warn(e)
-        #    raise
-        #    pass
-        #    #return QModelIndex()
-        
-        #return index of the buddy.. this is tough..
-        #log_err("got second level item", obj)
-        ret = self.createIndex(obj.parent.index, 0, obj.parent)
-        #log_err("returning index with data", obj.parent)
-        return ret
-            
-    def rowCount(self, index = QModelIndex()):
-        #if index.column() > 0:
-        #    log_debug("returning 0 for column > 0")
-        #    return 0
-        if not index.isValid():
-            ret = len(self.backend)
-        else:
-            ret = index.internalPointer().childCount
-        return ret
-        
-    def columnCount(self, index = QModelIndex()):
-        if index.isValid():
-            if index.internalPointer().childCount:
-                return 1
-            else:
-                return 0
-        return 1
-    
-            
-    def data(self, index, role = Qt.DisplayRole):
-        if not index.isValid():
-            #log_err("returning QVariant()")
-            return QVariant()
-        
-        #type = INDEX_BUDDY if index.parent().isValid() else INDEX_ACCT
-        
-        item = index.internalPointer()
-        type = INDEX_BUDDY if item.parent else INDEX_ACCT
-        
-        if role == Qt.DisplayRole:
-            return_text = item.name
-            #log_err("returning",return_text)
-            return QVariant(return_text)
-            
-        elif role == Qt.FontRole:
-            font = QFont()
-            if type == INDEX_ACCT:
-                font.setWeight(QFont.Bold)
-            return font
-        
-        elif role == ROLE_SMALL_BUDDY_TEXT:
-            #ret = " ".join([str(i) for i in (
-            #    item.status_message, index.row(),index.column(), index.parent().isValid())])
-            return QVariant(item.status_message)
-        
-        elif role == Qt.DecorationRole:
-            #get font stuff.. map the status to the right icon.. etc.
-            try:
-                improto = item.improto if type == INDEX_ACCT else item.account.improto
-            except (AttributeError), e:
-                log_err("INDEX_ACCT" if type==INDEX_ACCT else "INDEX_BUDDY")
-                log_err(e)
-                log_err("item", index.internalPointer(), "parent", index.parent().internalPointer())
-                raise
-            #see if we have a status icon available...
-            status_name = STATUS_ICON_MAPS.get(item.status, None)
-            if not status_name:
-                return QVariant(getProtoStatusIcon(IMPROTOS_BY_CONSTANT[improto]))
-            else:
-                return QVariant(getProtoStatusIcon(status_name, proto_int = improto))
-        return QVariant()
-
-    #ugly hacks    
-    def endInsertRows(self):
-        #log_err("done")
-        QAbstractItemModel.endInsertRows(self)
-        self.model_dump()
-    
-    def endRemoveRows(self):
-        #log_err("done")
-        QAbstractItemModel.endRemoveRows(self)
-        self.model_dump()
-        
-    def beginAccountAdd(self, index_no):
-        #log_err("inserting account wiht index %d" % (index_no,))
-        self.beginInsertRows(QModelIndex(), index_no, index_no)
-        
-    def beginAccountRemove(self, index_no):
-        #log_err("removing account at index", index_no)
-        self.beginRemoveRows(QModelIndex(), index_no, index_no)
-        
-    def beginBuddyAdd(self, parent_index, child_index):
-        #get parent index first..
-        iindex = parent_index
-        parent_index = self.index(parent_index, 0)
-        #log_err("inserting buddy [%d] with parent index %d VALID: %s PARENT VALID: %s" %
-        #        (child_index, iindex, parent_index.isValid(), parent_index.parent().isValid()))
-        self.beginInsertRows(parent_index, child_index, child_index)
-    def beginBuddyRemove(self, parent_index, child_index):
-        parent_index = self.index(parent_index, 0)
-        self.beginRemoveRows(parent_index, child_index, child_index)
-    def statusChange(self, parent_index, child_index):
-        #log_err(parent_index, child_index)
-        if not child_index:
-            #account status:
-            index = self.index(parent_index, 0)
-            self.emit(SIGNAL("dataChanged(QModelIndex, QModelIndex)"), index, index)
-        else:
-            #buddy.. find parent node...
-            parent_index = self.index(parent_index, 0)
-            child_index = self.index(child_index, 0, parent_index)
-            self.emit(SIGNAL("dataChanged(QModelIndex, QModelIndex)"), child_index, child_index)
-        self.model_dump()
-    
-    def model_dump(self):
-        return
-        for a in self.backend:
-            log_warn(a)
-            for b in a.blist:
-                log_warn("\t", b)
-        log_err("now recursing")
-        rows = self.rowCount()
-        log_err("rows: ", rows)
-        if rows > 0:
-            for r in xrange(0, rows):
-                acct_index = self.index(r)
-                log_warn("Account", acct_index.internalPointer().name)
-                c_rows = self.rowCount(acct_index)
-                if c_rows > 0:
-                    for cr in xrange(0, c_rows):
-                        c_index = self.index(cr, 0, acct_index)
-                        log_warn("\tBuddy", c_index.internalPointer().name)
-                        
+                                
 class AccountInputDialog(QDialog):
     def __init__(self, model, parent=None, type=None):
         QDialog.__init__(self, parent)
@@ -583,9 +293,8 @@ class ChatWindow(QMainWindow):
         self._init_menu()
     def _init_input(self):
         #bold
-        def setbold(weight):
-            self.widgets.input.setFontWeight(75 if weight else 50)
-        signal_connect(self.widgets.bold, SIGNAL("toggled(bool)"),setbold)
+        signal_connect(self.widgets.bold, SIGNAL("toggled(bool)"),
+                       lambda bold: self.widgets.input.setFontWeight(75 if bold else 50))
         
         #color handling
         def choosecolor():
@@ -673,12 +382,11 @@ class ChatWindow(QMainWindow):
             self.widgets.input.clear()
             return
         if key == Qt.Key_Backspace:
-            log_debug("backspace")
+            #log_debug("backspace")
             self.widgets.input.textCursor().deletePreviousChar()
-                #log_debug("at beginning")
             return
         if modifiers & Qt.CTRL:
-            print "control"
+            #print "control"
             if key == Qt.Key_BracketLeft:
                 self.widgets.fontsize.stepBy(-1)
                 return
@@ -833,14 +541,11 @@ class NotificationBox(object):
         if accticon:
             notice_widget.accticon.setPixmap(accticon.pixmap(24, 24))
         notice_widget.account.setText(acct.name)
-        #FIXME: make nice fields for title, primary, and secondary
         txt=("<center><b>"+ycreqobj.title+"</b><br>"+
              "<i>"+ycreqobj.primary+
              "</i></center>"+ycreqobj.secondary)
         notice_widget.message.append(txt)
         log_debug(txt)
-        #txt = "::".join([ycreqobj.primary, ycreqobj.secondary])
-        #notice_widget.message.append(txt)
         notice_widget.message.setBackgroundRole(QPalette.Window)
         sb = notice_widget.message.verticalScrollBar()
         sb.setMaximumWidth(12)
@@ -914,49 +619,35 @@ class LogBrowser(QMainWindow):
         self.newmsgfactory(info.acct_obj, info.name, initial_text = info.txt)
             
 class YobotGui(object):
+    yobot_interfaces.implements(yobot_interfaces.IYobotUIPlugin)
     chats = {} #chats[account,target]->ChatWindow instance
-    def __init__(self, client):
-        "Client should have a ... shit.."
+    def __init__(self):
+        #first get some components.. we need the account store at least
+        account_manager = yobot_interfaces.component_registry.get_component("account-store")
+        if not account_manager:
+            raise Exception("couldn't get account store")
+        client = yobot_interfaces.component_registry.get_component("client-operations")
+        if not client:
+            raise Exception("Couldn't find client operations component")
+            
         self.client = client
         log_debug( "__init__ done")
-        self.target_account = None
-    def init_backend(self, backend):
-        self.datamodel = AccountModel(backend)
+        self.datamodel = AccountModel(account_manager)
+        self.gui_init()
+        self.mw.show()
+        yobot_interfaces.component_registry.register_component("gui-main", self)
     ######################      PRIVATE HELPERS     ###########################
 
     def _showConnectionDialog(self):
-        if self.mw_widgets.conninput.isVisible():
+        if self.conninput.isVisible():
             return
-        self.mw_widgets.w_username.setText("")
-        self.mw_widgets.w_password.setText("")
-        self.mw_widgets.conninput.show()
+        self.conninput.reset()
+        self.conninput.show()
         
     def _disconnectAccount(self, acct, server=False):
         acct.disconnect(server)
     
-    def _requestConnection(self):
-        user, passw = (self.mw_widgets.w_username.text(),
-                                    self.mw_widgets.w_password.text())
-        if not user or not passw:
-            msg = QMessageBox()
-            msg.setIcon(msg.Critical)
-            msg.setText("Username or password is empty!")
-            msg.setWindowTitle("Missing Input!")
-            msg.exec_()
-            return
-        improto_list = self.mw_widgets.w_improto
-        improto = improto_list.model().index(improto_list.currentIndex(),
-                                             0,QModelIndex()).data(Qt.UserRole).toPyObject()
-        
-        w = self.mw_widgets
-        _d_proxy_params = {"proxy_host" : None, "proxy_port": None, "proxy_type" : None,
-                           "proxy_username" : None, "proxy_password" : None}
-        _d_proxy_params["proxy_host"] = str(w.proxy_host.text())
-        if _d_proxy_params["proxy_host"]:
-            _d_proxy_params["proxy_port"] = str(w.proxy_port.text())
-            _d_proxy_params["proxy_type"] = str(w.proxy_params.proxy_type_group.checkedButton().text()).lower()
-            _d_proxy_params["proxy_username"] = str(w.proxy_username.text())
-            _d_proxy_params["proxy_password"] = str(w.proxy_password.text())
+    def _requestConnection(self, user, passw, improto, **_d_proxy_params):
         try:
             self.client.connect(user, passw, improto, **_d_proxy_params)
         except AttributeError, e:
@@ -1058,14 +749,9 @@ class YobotGui(object):
         
         w.setupUi(self.mw)
         w.blist.hide()
-        w.conninput.show()
-        w.proxy_params.hide()
-        w.proxy_params.proxy_type_group = QButtonGroup(w.proxy_params)
-        for i in ("http", "socks4", "socks5"):
-            w.proxy_params.proxy_type_group.addButton(getattr(w, "proxy_type_" + i))
-
-        #add the model for the protocol and buddy lists
-        mkProtocolComboBox(w.w_improto)
+        self.conninput = ConnectionWidget(connect_cb = self._requestConnection)
+        w.mainLayout.addWidget(self.conninput, 0, 0)
+        self.conninput.show()
         w.blist.show()
         w.blist.setModel(self.datamodel)
         
@@ -1103,9 +789,6 @@ class YobotGui(object):
         signal_connect(w.blist, SIGNAL("doubleClicked(QModelIndex)"),
                self._buddyClick)
         
-        signal_connect(w.w_connect, SIGNAL("clicked()"), self._requestConnection)
-        signal_connect(w.w_username, SIGNAL("returnPressed()"), self._requestConnection)
-        signal_connect(w.w_password, SIGNAL("returnPressed()"), self._requestConnection)
         signal_connect(w.actionNewconn, SIGNAL("activated()"), self._showConnectionDialog)
         signal_connect(w.actionAbout, SIGNAL("activated()"), self._showAbout)
         signal_connect(w.actionSend_IM, SIGNAL("activated()"), lambda: self._sendjoin(IM))
@@ -1119,9 +802,6 @@ class YobotGui(object):
                        lambda: DisconnectDialog(
                         self.datamodel, parent=self.mw, server=True).show())
         
-        #self.testview = QTreeView()
-        #self.testview.setModel(self.datamodel)
-        #self.testview.show()
         self.logbrowser = None
 
     #########################   PUBLIC      ###################################
@@ -1141,17 +821,16 @@ class YobotGui(object):
         The account object will be added to the account list, along with a node
         for the menus/buddy lists...
         """
-        if not getattr(self, "modeltest", False):
-            self.modeltest = ModelTest(self.datamodel, self.mw)
-
+        
         self.mw_widgets.statusbar.showMessage("Connected: "+ acct_obj.user)
-        self.mw_widgets.conninput.hide()
+        self.conninput.hide()
         self.mw_widgets.blist.show()
         #fetch offline messages
+        acct_obj.fetchBuddies()
         acct_obj.getOfflines()
         
     def gotMessage(self, acct_obj, msg_obj):
-        log_debug(msg_obj)
+        #log_debug(msg_obj)
         #FIXME: hack..
         name = msg_obj.name
         if acct_obj.improto == yobotproto.YOBOT_JABBER:
@@ -1190,9 +869,11 @@ class YobotGui(object):
         m.title = "Connection Failed!"
         m.isError = True
         self.notifications.addItem(m)
-        
+    def roomJoined(self, acct, room):
+        acct.fetchRoomUsers(room)
+    
+    accountConnectionFailed = connectionFailed        
     genericNotice = gotRequest
-        
         
 if __name__ == "__main__":
     gui = YobotGui(None)

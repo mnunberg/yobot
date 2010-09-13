@@ -257,7 +257,6 @@ class YobotAccount(YobotBase):
     There are more extended subclasses in account.YAccountWrapper and client_support.YCAccount"""
     def _initvars(self):
         super(YobotAccount, self)._initvars()
-        log_err("")
         self._improto = None
         self._user = None
         self._passw = None

@@ -200,9 +200,9 @@ static void parse_attrs_xml(GMarkupParseContext *context,
 		const gchar *element_name, const gchar **attribute_names,
 		const gchar **attribute_values, gpointer user_data, GError **error) {
 	PurpleProxyInfo **proxy_info_ptr = user_data;
-	for (; *attribute_names && *attribute_values; attribute_names++, attribute_values++) {
+	for (; *attribute_names && *attribute_values && *proxy_info_ptr; attribute_names++, attribute_values++) {
 			/****************************** PROXY *********************************/
-		if (strcasecmp(*attribute_names, "proxy_type") == 0 && *proxy_info_ptr) {
+		if (strcasecmp(*attribute_names, "proxy_type") == 0) {
 			unsigned int type = strtoul(*attribute_values, NULL, 10);
 			if (type == UINT_MAX) {
 				yobot_log_warn("proxy_type returned UINT_MAX");
@@ -213,14 +213,14 @@ static void parse_attrs_xml(GMarkupParseContext *context,
 				yobot_log_warn("unknown proxy type %d", type);
 				*proxy_info_ptr = NULL;
 			}
-		} else if (strcasecmp(*attribute_names, "proxy_host") == 0 && *proxy_info_ptr) {
+		} else if (strcasecmp(*attribute_names, "proxy_host") == 0) {
 			if (**attribute_values) {
 				(*proxy_info_ptr)->host = g_strdup(*attribute_values);
 			} else {
 				yobot_log_warn("server is NULL");
 				*proxy_info_ptr = NULL;
 			}
-		} else if (strcasecmp(*attribute_names, "proxy_port") == 0 && *proxy_info_ptr) {
+		} else if (strcasecmp(*attribute_names, "proxy_port") == 0) {
 			unsigned int port = strtoul(*attribute_values, NULL, 10);
 			if (port == UINT_MAX) {
 				yobot_log_warn("proxy_port specified, but got NULL");
@@ -228,14 +228,14 @@ static void parse_attrs_xml(GMarkupParseContext *context,
 			} else {
 				(*proxy_info_ptr)->port = (int) port;
 			}
-		} else if (strcasecmp(*attribute_names, "proxy_username") == 0 && *proxy_info_ptr) {
+		} else if (strcasecmp(*attribute_names, "proxy_username") == 0) {
 			if (**attribute_values) {
 				(*proxy_info_ptr)->username = g_strdup(*attribute_values);
 			} else {
 				yobot_log_warn("username attr specified but no username provided");
 				*proxy_info_ptr = NULL;
 			}
-		} else if (strcasecmp(*attribute_names, "proxy_password") == 0 && *proxy_info_ptr) {
+		} else if (strcasecmp(*attribute_names, "proxy_password") == 0) {
 			if (**attribute_values) {
 				(*proxy_info_ptr)->password = g_strdup(*attribute_values);
 			} else {
@@ -259,7 +259,7 @@ static void mkacct(const yobotmkacct_internal *arq) {
 	yobot_purple_account_context_set(acct);
 	purple_account_set_password(acct, arq->pass);
 	if(arq->attr_xml) {
-		PurpleProxyInfo *proxy_info = g_new0(PurpleProxyInfo, 1);
+		PurpleProxyInfo *proxy_info = purple_proxy_info_new();
 		PurpleProxyInfo *pinfo_ptr = proxy_info;
 		GMarkupParser parser;
 		memset(&parser, 0, sizeof(GMarkupParser));
@@ -291,10 +291,7 @@ static void mkacct(const yobotmkacct_internal *arq) {
 			yobot_log_info("using proxy of type %d: %s:%d", proxy_info->type, proxy_info->host, proxy_info->port);
 			purple_account_set_proxy_info(acct, proxy_info);
 		} else {
-			free(proxy_info->host);
-			free(proxy_info->password);
-			free(proxy_info->username);
-			free(proxy_info);
+			purple_proxy_info_destroy(proxy_info);
 		}
 	} else {
 		yobot_log_debug("attr_xml null?: %p", arq->attr_xml);
