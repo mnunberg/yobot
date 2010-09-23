@@ -2,10 +2,11 @@
 import sys
 sys.path.append("../")
 import yobot_interfaces
-import yobotclass
 import yobotproto
-from gui import gui_util, triviaopts
-from gui.gui_util import signal_connect
+from client_support import YCAccount, SimpleNotice
+from gui import gui_util
+from gui.gui_util import signal_connect, ConnectionWidget
+import PyQt4
 from PyQt4.QtGui import (QComboBox, QMainWindow, QStandardItemModel, QStandardItem,
                          QIcon, QPixmap, QImage, QPainter, QDialog, QMessageBox,
                          QApplication, QFont, QTextEdit, QColorDialog, QPalette,
@@ -13,10 +14,15 @@ from PyQt4.QtGui import (QComboBox, QMainWindow, QStandardItemModel, QStandardIt
                          QStyleOptionViewItem, QRegion, QWidget, QBrush, QStyle,
                          QPen, QPushButton, QStyleOption, QMenu, QAction, QCursor,
                          QTreeView, QLineEdit, QButtonGroup, QFileDialog, QErrorMessage,
-                         QFontDialog, QColor)
+                         QFontDialog, QColor, QDockWidget, QSizePolicy,
+                         qDrawBorderPixmap, qDrawShadeLine, qDrawShadePanel, QStackedWidget,
+                         QGridLayout, QLayout, QFrame,
+                         QGraphicsDropShadowEffect, QSpacerItem)
+
 
 from PyQt4.QtCore import (QPoint, QSize, QModelIndex, Qt, QObject, SIGNAL, QVariant,
-                          QAbstractItemModel, QRect, QRectF, QPointF)
+                          QAbstractItemModel, QRect, QRectF, QPointF, QT_VERSION)
+
 
 from debuglog import log_debug, log_info, log_err, log_crit, log_warn
 import sqlite3.dbapi2 as sqlite3
@@ -28,10 +34,17 @@ from collections import defaultdict
 import random
 from gui.html_fmt import point_to_html
 import os.path
+import yobotops
+from cgi import escape as html_escape
+
+import datetime
 
 
+import gui_new
 #trivia types
 TYPE_ANAGRAMS, TYPE_TRIVIA, TYPE_BOTH = range(1, 4)
+
+TRIVIA_ROOT = "/home/mordy/src/purple/py/triviabot"
 
 article_start_re = re.compile("^(the|a) ")
 
@@ -45,73 +58,108 @@ def get_categories_list(dbname):
 
 def scramble_word(word):
     return "".join(random.sample(word, len(word)))
-    
 
-class TriviaGui(QMainWindow):
+class TriviaGui(gui_new.TGui):
     def __init__(self, parent=None):
-        QMainWindow.__init__(self, parent)
-        self.widgets = triviaopts.Ui_trivia_mw()
-        self.widgets.setupUi(self)
-        self.model = yobot_interfaces.component_registry.get_component("account-model")
-        if not self.model:
-            #create it ourselves
-            self.model = gui_util.AccountModel(None)
-        else:
-            self.widgets.menuFile.clear()
-            
+        gui_new.TGui.__init__(self, parent)
+        self.widgets = self
         w = self.widgets
-    
+        self.model = yobot_interfaces.component_registry.get_component("account-model")
+        self.client_ops = yobot_interfaces.component_registry.get_component("client-operations")
+        assert self.client_ops
+        
+        def _handle_connect(username, password, improto, **proxy_params):
+            self.client_ops.connect(username, password, improto, **proxy_params)
+        
+        def offset_pos_fn():
+            return QPoint(0, self.menubar.height())
+        self.connwidget = gui_util.OverlayConnectionWidget(offset_pos_fn, _handle_connect, self)
+        signal_connect(w.actionConnect, SIGNAL("toggled(bool)"), self.connwidget.setVisible)
+        signal_connect(self.connwidget.widgets.conn_close, SIGNAL("clicked()"),
+                       lambda: w.actionConnect.setChecked(False))
+        if not self.model:
+            w.actionConnect.setChecked(True)
+            self.model = gui_util.AccountModel(None)
+            self.menubar.show()
+        else:
+            self.connwidget.hide()
+
+        
+        #notification widgets:
+        qdw = QFrame(self)
+        self.notification_shadow = QGraphicsDropShadowEffect(qdw)
+        self.notification_shadow.setBlurRadius(10.0)
+        qdw.setFrameShadow(qdw.Raised)
+        qdw.setGraphicsEffect(self.notification_shadow)
+        qdw.setFrameShape(qdw.StyledPanel)
+        qdw.setAutoFillBackground(True)
+        gui_util.set_bg_opacity(qdw, 240)
+        qsw = QStackedWidget(qdw)
+        qdw.setLayout(QGridLayout())
+        qdw.layout().setSizeConstraint(QLayout.SetMinimumSize)
+        qdw.layout().addWidget(qsw)
+
+        self._notification_dlg = qdw
+        self.qdw = qdw
+        self.qsw = qsw
+        self.notifications = gui_util.NotificationBox(qdw, qsw, noTitleBar=False)
+        #self.qdw.show()
+        
+        #resize/show events
+        def _force_bottom(event, superclass_fn):
+            log_err("")
+            superclass_fn(self.qdw, event)
+            self.qdw.move(0, self.height()-self.qdw.height())
+        self.qdw.resizeEvent = lambda e: _force_bottom(e, QWidget.resizeEvent)
+        self.qdw.showEvent = lambda e: _force_bottom(e, QWidget.showEvent)
+        
         #set up account menu
         w.account.setModel(self.model)
-        
-        #db file
-        signal_connect(w.select_questions_dbfile, SIGNAL("clicked()"), self._change_questions_dbfile)        
-        signal_connect(w.select_anagrams_dbfile, SIGNAL("clicked()"), self._change_anagrams_dbfile)
-        
-        #some sane calculations for our percentage ratios
-        signal_connect(w.percent_anagrams, SIGNAL("valueChanged(int)"),
-                                lambda i: w.percent_trivia.setValue(100-i))
-        signal_connect(w.percent_trivia, SIGNAL("valueChanged(int)"),
-                                lambda i: w.percent_anagrams.setValue(100-i))
         
         for a in ("start", "stop", "pause", "next"):
             gui_util.signal_connect(getattr(w, a), SIGNAL("clicked()"),
                                     lambda cls=self, a=a: getattr(cls, a + "_requested")())
             getattr(w, a).setEnabled(False)
         w.start.setEnabled(True)
+                
+        self.anagrams_prefix_blacklist = set()
+        self.anagrams_suffix_blacklist = set()
         
-        #show/hide various fields based on which type was selected
-        def _type_changed(text):
-            log_err("")
-            text = str(text).lower()
-            if text == "mix":
-                w.questions_opts.show()
-                w.anagrams_opts.show()
-            elif text == "anagrams":
-                w.anagrams_opts.show()
-                w.questions_opts.hide()
-            elif text == "trivia":
-                w.questions_opts.show()
-                w.anagrams_opts.hide()
-            self._enable_start()
+        #listWidgetItems
+        def _add_nfix(typestr):
+            txt = getattr(w, typestr + "_input").text()
+            if not txt:
+                return
+            txt = str(txt)
+            st = getattr(self, "anagrams_" + typestr + "_blacklist")
+            target = getattr(w, typestr + "_list")
+            if not txt in st:
+                target.addItem(txt)
+                st.add(txt)
+            getattr(w, typestr + "_input").clear()
+        def _remove_nfix(typestr):
+            target = getattr(w, typestr + "_list")
+            st = getattr(self, "anagrams_" + typestr + "_blacklist")
+            item = target.currentItem()
+            if item:
+                txt = str(item.text())
+                assert txt in st
+                target.takeItem(target.row(item))
+                st.remove(txt)
+            else:
+                log_warn("item is None")
+        for nfix in ("suffix", "prefix"):
+            signal_connect(getattr(w, nfix + "_add"), SIGNAL("clicked()"),
+                lambda typestr=nfix: _add_nfix(typestr))
+            signal_connect(getattr(w, nfix + "_del"), SIGNAL("clicked()"),
+                lambda typestr=nfix: _remove_nfix(typestr))
             
-        signal_connect(w.questions_type, SIGNAL("currentIndexChanged(QString)"), _type_changed)
-        _type_changed(w.questions_type.currentText())
+        #hide the extended options
+        w.questions_categories_params.hide()
+        w.suffix_prefix_options.hide()
         
-        #for anagrams, make sure min is never larger than max
-        def _sync_minmax_min(i):
-            if w.anagrams_letters_max.value() < i:
-                w.anagrams_letters_max.setValue(i)
-        def _sync_minmax_max(i):
-            if w.anagrams_letters_min.value() > i:
-                w.anagrams_letters_min.setValue(i)
-        signal_connect(w.anagrams_letters_min, SIGNAL("valueChanged(int)"), _sync_minmax_min)
-        signal_connect(w.anagrams_letters_max, SIGNAL("valueChanged(int)"), _sync_minmax_max)
-        
-        
-        #prefix and suffix list for anagrams: -- just hide it for now
-        w.suffix_prefix_options.setVisible(False)
-        
+        self.resize(self.minimumSizeHint())
+    
         #connect signals for enabling the start button
         signal_connect(w.account, SIGNAL("currentIndexChanged(int)"), self._enable_start)
         signal_connect(w.room, SIGNAL("activated(int)"), self._enable_start)
@@ -123,16 +171,29 @@ class TriviaGui(QMainWindow):
         signal_connect(w.questions_database, SIGNAL("textChanged(QString)"), self._enable_start)
         signal_connect(w.anagrams_database, SIGNAL("textChanged(QString)"), self._enable_start)
         
+        #category list for questions:
+        self.selected_questions_categories = set()
+        def _unselect(lwitem):
+            row = w.selected_categories.row(lwitem)
+            self.selected_questions_categories.remove(str(lwitem.text()))
+            self.widgets.selected_categories.takeItem(row)
+        def _select(lwitem):
+            category = str(lwitem.text())
+            if not category in self.selected_questions_categories:
+                log_debug("Adding", category)
+                self.selected_questions_categories.add(category)
+                w.selected_categories.addItem(category)
+        signal_connect(w.questions_categories, SIGNAL("itemDoubleClicked(QListWidgetItem*)"), _select)
+        signal_connect(w.selected_categories, SIGNAL("itemDoubleClicked(QListWidgetItem*)"), _unselect)
+        
         #formatting and color
         self.fmtstr = "%s"
-        
         self.font = None
         self.color = None
         self.font_menu = QMenu()
         self.action_change_font_style = self.font_menu.addAction(QIcon(":/icons/icons/format-text-bold.png"),"Style and Face")
         self.action_change_font_color = self.font_menu.addAction(QIcon(":/icons/icons/format-fill-color.png"),"Color")
         self.action_change_font_reset = self.font_menu.addAction(QIcon(":/icons/icons/dialog-close.png"), "Reset Formatting")
-        
         def _reset_formatting():
             self.font = None
             self.color = None
@@ -149,7 +210,18 @@ class TriviaGui(QMainWindow):
         self.anagrams_db_is_valid = False
         self.questions_db_is_valid = False
         
+        #profile stuff..
+        signal_connect(w.actionLoad, SIGNAL("activated()"), lambda: self.profile_handler(load=True))
+        signal_connect(w.actionSave, SIGNAL("activated()"), lambda: self.profile_handler(save=True))
+        signal_connect(w.actionSave_As, SIGNAL("activated()"), lambda: self.profile_handler(save_as=True))
+        self.current_profile_name = ""
+                
+        w.suffix_prefix_options.sizeHint = lambda: QSize(1,1)
+        w.questions_categories_params.sizeHint = lambda: QSize(1,1)
+                
         self.show()
+        
+
     
     def change_formatting(self, style=False, color=False):
         if color:
@@ -186,10 +258,11 @@ class TriviaGui(QMainWindow):
     
     
     def _validate_anagrams_db(self, db):
-        log_err("")
         dbconn = None
+        db = str(db)
         try:
-            dbconn = sqlite3.connect(str(db))
+            assert os.path.exists(db)
+            dbconn = sqlite3.connect(db)
             cursor = dbconn.cursor()
             cursor.execute("select word from words limit 1").fetchone()[0]
             self.anagrams_db_is_valid = True
@@ -201,10 +274,11 @@ class TriviaGui(QMainWindow):
             if dbconn:
                 dbconn.close()
     def _validate_questions_db(self, db):
-        log_err("")
         dbconn = None
+        db = str(db)
         try:
-            dbconn = sqlite3.connect(str(db))
+            assert os.path.exists(db)
+            dbconn = sqlite3.connect(db)
             cursor = dbconn.cursor()
             cursor.execute("select id, frequency, question, answer, alt_answers from questions limit 1").fetchone()[0]
             self.questions_db_is_valid = True
@@ -234,40 +308,22 @@ class TriviaGui(QMainWindow):
     
     
     def _dbs_are_valid(self):
-        log_err("")
         type = str(self.widgets.questions_type.currentText()).lower()
-        log_err(type)
         if type == "mix" and not ( self.anagrams_db_is_valid and self.questions_db_is_valid):
-            log_err("mix")
             return False
         elif type == "anagrams" and not self.anagrams_db_is_valid:
-            log_err("anagrams")
             return False
         elif type == "trivia" and not self.questions_db_is_valid:
-            log_err("trivia")
-            return False
-        
-        log_err("Returning True")
+            return False        
         return True
         
     def _enable_start(self, *args):
         w = self.widgets
-        log_err("")
         if w.account.currentText() and w.room.currentText() and self._dbs_are_valid():
             w.start.setEnabled(True)
         else:
             w.start.setEnabled(False)        
-    
-    def _change_questions_dbfile(self):
-        initial_path = os.path.dirname(str(self.widgets.questions_database.text()))
-        questions_dbfile = QFileDialog.getOpenFileName(self, "Select Trivia DB File", initial_path)
-        self.widgets.questions_database.setText(questions_dbfile)
-    
-    def _change_anagrams_dbfile(self):
-        initial_path = os.path.dirname(str(self.widgets.anagrams_database.text()))
-        anagrams_dbfile = QFileDialog.getOpenFileName(self, "Select words DB", initial_path)
-        self.widgets.anagrams_database.setText(anagrams_dbfile)
-        
+            
     #some hooks
     def questions_dbfile_changed(self, dbname):
         self.widgets.questions_categories.clear()
@@ -279,7 +335,143 @@ class TriviaGui(QMainWindow):
         for s in l:
             if s:
                 self.widgets.questions_categories.addItem(str(s))
+    @staticmethod
+    def create_profile_mappings():
+        #make a tuple.
+        #format: (cast_fn, get_fn, set_fn)
+        d = {}
+        
+        #integers
+        for a in ("post_interval", "answer_timeout", "percent_anagrams", "percent_trivia",
+                  "amount", "anagrams_letters_min", "anagrams_letters_max"):
+            d[a] = ("int", "value", "setValue")
+        
+        #strings
+        for a in ("anagrams_database", "questions_database"):
+            d[a] = ("str", "text", "setText")
+        
+        #booleans
+        for a in ("updatedb_bool", "anagrams_caps_hint", "questions_blacklist",
+                  "questions_use_categories", "anagrams_use_nfixes"):
+            d[a] = ("bool", "isChecked", "setChecked")
+        
+        #room combobox
+        d["room"] = ("str", "currentText", "addItem")
+        
+        return d
+        #for accounts, we need to do some special handling because they are
+        #referenced by index
+    
+    def save_profile(self, profile_name):
+        try:
+            f = open(profile_name, "w")
+            f.write("#Yobot Trivia Profile Settings automatically generated on %s\n" %
+                    str(datetime.datetime.now()))
+            f.write("#Configuration is case-sensitive. Use 'True' and 'False' for boolean values\n")
+            f.write("#this file is parsed directly using python's eval\n")
+            
+            d = TriviaGui.create_profile_mappings()
+            for k, v in d.items():
+                #k is the attribute
+                field = getattr(self.widgets, k)
+                cast, getter, setter = v
+                value = getattr(field, getter)() if getter else field
+                
+                if cast == "str":
+                    value = str(value)
+                #if not value and cast == "bool":
+                #    value = int(value)
+                if not value and cast == "str":
+                    value = ""
+                    
+                f.write(k + "=" + repr(value) + "\n")
+            
+            #for account..
+            acct_index = self.widgets.account.currentIndex()
+            acct_index = self.model.index(acct_index)
+            account = acct_index.internalPointer()
+            if account:
+                f.write("account_username=" + account.user + "\n")
+                f.write("account_improto=" + yobotops.imprototostr(account.improto) + "\n")
+            
+            #for complex types
+            for c in ("anagrams_suffix_blacklist", "anagrams_prefix_blacklist",
+                      "selected_questions_categories"):
+                log_info(getattr(self, c))
+                f.write(c + "=" + repr(getattr(self, c)) + "\n")
+            
+            #for font and color:
+            if self.font:
+                f.write("font=" + self.font.toString() + "\n")
+            if self.color:
+                f.write("color=" + self.color.name() + "\n")
+            #for type, just write the current type
+            f.write("questions_type=" + self.widgets.questions_type.currentText() + "\n")
+            #for the blacklists/whitelists..
+            
+            f.close()
+            return True
+        except Exception, e:
+            QErrorMessage(self).showMessage(str(e))
+            return False
 
+    def load_profile(self, profile_name):
+        d = TriviaGui.create_profile_mappings()
+        try:
+            f = open(profile_name, "r")
+            for l in f.readlines():
+                if l.strip()[0] in ("#", ";"):
+                    continue
+                k, v = [s.strip() for s in l.split("=")]
+                dkey = d.get(k, None)
+                if not dkey:
+                    #complex handling
+                    if k in ("anagrams_prefix_blacklist", "anagrams_suffix_blacklist"):
+                        tmp = k.split("_")[1]
+                        getattr(self, k).clear()
+                        getattr(self, k).update([str(s) for s in eval(v)])
+                        getattr(self.widgets, tmp + "_list").clear()
+                        getattr(self.widgets, tmp + "_list").addItems(list(getattr(self, k)))
+                    elif k == "selected_questions_categories":
+                        getattr(self, k).clear()
+                        getattr(self, k).update(eval(v))
+                        getattr(self.widgets, "selected_categories").clear()
+                        getattr(self.widgets, "selected_categories").addItems(list(getattr(self, k)))
+                    elif k == "font":
+                        self.font = QFont()
+                        self.font.fromString(v)
+                        self._gen_font_stylesheet()
+                        self._update_fmtstr()
+                    elif k == "color":
+                        self.color = QColor(v)
+                        self._gen_font_stylesheet()
+                        self._update_fmtstr()
+                    else:
+                        log_warn("unknown key", k)
+                    continue
+                cast, getter, setter = dkey
+                field = getattr(self.widgets, k)
+                #getattr(field, setter)(eval(cast)(v))
+                getattr(field, setter)(eval(v))
+            f.close()
+            return True
+        except Exception, e:
+            QErrorMessage(self).showMessage(str(e))
+            return False
+        
+    def profile_handler(self, load=False, save=False, save_as=False):
+        if load:
+            profile = QFileDialog.getOpenFileName(self, "Select Profile", TRIVIA_ROOT)
+            if profile and self.load_profile(profile):
+                self.current_profile_name = profile
+        elif save:
+            if self.current_profile_name:
+                self.save_profile(self.current_profile_name)
+        elif save_as:
+            profile = QFileDialog.getSaveFileName(self, "Save Profile", TRIVIA_ROOT)
+            if profile:
+                self.save_profile(profile)
+                
     def start_requested(self):
         log_err("implement me")
     def stop_requested(self):
@@ -288,7 +480,12 @@ class TriviaGui(QMainWindow):
         log_err("implement me")
     def next_requested(self):
         log_err("implement me")
-
+        
+    def got_notification(self, notification_object):
+        self.notifications.addItem(notifications)
+        self._notification_dlg.show()
+    def del_notification(self, notification_object):
+        self.notifications.delItem(notification_object)
 
 class _QAData(object):
     question = None
@@ -404,13 +601,14 @@ class TriviaBot(object):
             self.type = TYPE_BOTH
             
         self.current_qa_object = None
-        
         self.qa_object_questions = _QuestionData()
         self.qa_object_anagrams = _AnagramData()
         
+        self.questions_categories = set()
+        self.questions_categories_is_blacklist = False
         
-        self.anagram_suffix_exclude = []
-        self.anagram_prefix_exclude = []
+        self.anagram_suffix_exclude = set()
+        self.anagram_prefix_exclude = set()
         self.anagrams_caps_hint = False
         #start it..
         
@@ -465,12 +663,24 @@ class TriviaBot(object):
         
     def _set_anagram(self):
         log_err(self.anagrams_min, self.anagrams_max)
+        #determine whether we can use a regex here..
+        prepend = ""
+        append = ""
+        rstr = ""
+        if len(self.anagram_prefix_exclude):
+            prepend += "|".join(self.anagram_prefix_exclude)
+        if len(self.anagram_suffix_exclude):
+            append += "|".join(self.anagram_suffix_exclude)
+        if prepend or append:
+            rstr = "word NOT REGEXP '%s' AND" % (prepend + ".*" + append,)
+            
         word = self.anagrams_dbcursor.execute("""SELECT word FROM words
-                                                    WHERE LENGTH(word) >= ? AND
+                                                    WHERE %s LENGTH(word) >= ? AND
                                                     LENGTH(word) <= ?
                                                 ORDER BY random()
                                                 LIMIT 1
-                                              """, (self.anagrams_min, self.anagrams_max)).fetchone()
+                                              """ % (rstr,),
+                                              (self.anagrams_min, self.anagrams_max)).fetchone()
         if not word:
             log_err("can't get word")
             self.qa_object_anagrams.answers = []
@@ -484,12 +694,25 @@ class TriviaBot(object):
         return True
         
     def _set_question(self, category=None):
-        log_err("")        
+        log_err("")
+        rstr = ""
+        if len(self.questions_categories):
+            l = ["'" + s + "'" for s in self.questions_categories]
+            if self.questions_categories_is_blacklist:
+                rstr += "NOT "
+            category_expr = "category==" + l.pop()
+            if len(l):
+                l.insert(0, "")
+                category_expr += " or category==".join(l)
+            rstr += "(" + category_expr + ")"
+            rstr = "WHERE " + rstr
+            log_warn(rstr)
         res = self.questions_dbcursor.execute("""
                                     SELECT * FROM questions
+                                     %s
                                      ORDER BY frequency ASC, random()
                                      LIMIT 1
-                                    """).fetchone()
+                                    """ % (rstr,)).fetchone()
         if self.register_usage:
             self.questions_dbcursor.execute("""
                                   UPDATE questions
@@ -532,6 +755,8 @@ class TriviaBot(object):
             leader = sorted(self.scores.items(), key=lambda i: i[1])[0]
             name, score = leader
             ret += "%s with %0.1f points" % (name, score)
+        elif command_name == "help":
+            ret = "commands: hint scores leader"
         else:
             ret = self.help_text
         self.write_chat(ret)
@@ -563,6 +788,7 @@ class TriviaBot(object):
         
         if self.timeout_cb:
             self.client_ops.cancelCallLater(self.timeout_cb)
+            self.timeout_cb = None
         self.timeout_cb = None
         self.write_chat(
             "%s awarded %0.1f points [%0.1f total] for answer %s. "
@@ -572,6 +798,9 @@ class TriviaBot(object):
         self.current_qa_object = None
         self.next_question()
         
+    def _trivia_finished(self):
+        pass
+    
     def write_chat(self, message):
         log_err("override me!")
     
@@ -589,8 +818,10 @@ class TriviaBot(object):
     def _cleanup(self):
         if self.timeout_cb:
             self.client_ops.cancelCallLater(self.timeout_cb)
+            self.timeout_cb = None
         if self.next_cb:
             self.client_ops.cancelCallLater(self.next_cb)
+            self.next_cb = None
         self.current_qa_object = None
         self.current_question_type = None
         
@@ -618,11 +849,21 @@ class TriviaBot(object):
     def stop(self):
         self._cleanup()
         self.trivia_finished()        
+    
+    def __del__(self):
+        anagrams_dbconn = getattr(self, "anagrams_dbconn")
+        questions_dbconn = getattr(self, "questions_dbconn")
+        if anagrams_dbconn:
+            anagrams_dbconn.close()
+        if questions_dbconn:
+            questions_dbconn.close()
+        super(TriviaBot, self).__del__()
         
 class TriviaPlugin(object):
     yobot_interfaces.implements(yobot_interfaces.IYobotUIPlugin)
+    plugin_name = "triviabot"
     def __init__(self):
-        self.gui = TriviaGui()
+        self.gui = TriviaGui()        
         self.room = None
         self.pending_room = None
         self.gui.start_requested = self.start_requested
@@ -641,6 +882,8 @@ class TriviaPlugin(object):
     def accountConnected(self, acct):
         if self.triviabot: self.triviabot.stop()
     def accountConnectionFailed(self, acct, msg):
+        r = SimpleNotice(acct, msg)
+        self.gui.notifications.addItem(r)
         if self.triviabot: self.triviabot.stop()
     def accountConnectionRemoved(self, acct):
         if self.triviabot: self.triviabot.stop()
@@ -665,6 +908,11 @@ class TriviaPlugin(object):
         pass
     def chatUserLeft(self, acct, room, user):
         pass
+    def gotRequest(self, request_obj):
+        log_err("")
+        self.gui.got_notification(request_obj)
+    def delRequest(self, request_obj):
+        self.gui.del_notification(request_obj)
     
     #trivia hooks
     def start_requested(self):
@@ -698,9 +946,7 @@ class TriviaPlugin(object):
     def _start_trivia(self):
         #get parameters from the gui
         w = self.gui.widgets
-        
         _kwargs = {}
-        
         _general_opts = {}
         _general_opts["interval"] = w.post_interval.value()
         _general_opts["timeout"] = w.answer_timeout.value()
@@ -748,10 +994,26 @@ class TriviaPlugin(object):
             ("anagrams_letters_max", "anagrams_max")):
             signal_connect(getattr(w, widget), SIGNAL("valueChanged(int)"),
                            lambda i, bot_var=bot_var: setattr(self.triviabot, bot_var, i))
+            #and also set the initial value:
+            setattr(self.triviabot, bot_var, int(getattr(w, widget).value()))
+        
+        #booleans:
+        for widget, bot_var in (
+            ("anagrams_caps_hint", "anagrams_caps_hint"),
+            ("questions_use_categories", "questions_use_categories"),
+            ("anagrams_use_nfixes", "anagrams_use_nfixes")):
+            signal_connect(getattr(w, widget), SIGNAL("toggled(bool)"),
+                           lambda b, bot_var=bot_var: setattr(self.triviabot, bot_var, b))
             
-        def _setcapshint(b): self.triviabot.anagrams_caps_hint = b
-        signal_connect(w.anagrams_caps_hint, SIGNAL("toggled(bool)"), _setcapshint)
-        _setcapshint(w.anagrams_caps_hint.isChecked())
+        
+        #for various blacklists and such:
+        signal_connect(self.gui.widgets.questions_blacklist, SIGNAL("toggled(bool)"),
+                       lambda b: setattr(self.triviabot, "questions_categories_is_blacklist", b))
+        self.triviabot.questions_categories_is_blacklist = self.gui.widgets.questions_blacklist.isChecked()
+        
+        self.triviabot.anagram_suffix_exclude = self.gui.anagrams_suffix_blacklist
+        self.triviabot.anagram_prefix_exclude = self.gui.anagrams_prefix_blacklist
+        self.triviabot.questions_categories = self.gui.selected_questions_categories
         
         self.triviabot.start()
         self._set_editable_widgets(False)
@@ -766,9 +1028,11 @@ class TriviaPlugin(object):
         
     def _trivia_stopped(self):
         self._set_editable_widgets(True)
+        del self.triviabot
+        self.triviabot = None
     
     def _write_chat(self, message):
         if not self.account:
             return
-        message = self.gui.fmtstr % (message,)
+        message = self.gui.fmtstr % (html_escape(message),)
         self.account.sendmsg(self.room, message, chat=True)

@@ -1,0 +1,3 @@
+DARWIN=1
+$(shell export PKG_CONFIG_PATH+=/usr/local/lib/pkgconfig)
+include Makefile

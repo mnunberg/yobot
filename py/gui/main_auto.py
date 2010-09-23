@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'main_auto.ui'
 #
-# Created: Wed Sep  8 09:34:25 2010
+# Created: Fri Sep 17 20:49:29 2010
 #      by: PyQt4 UI code generator 4.7.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -22,6 +22,11 @@ class Ui_MainWindow(object):
         spacerItem = QtGui.QSpacerItem(20, 0, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Ignored)
         self.mainLayout.addItem(spacerItem, 0, 0, 1, 1)
         self.blist = QtGui.QTreeView(self.centralwidget)
+        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(99)
+        sizePolicy.setHeightForWidth(self.blist.sizePolicy().hasHeightForWidth())
+        self.blist.setSizePolicy(sizePolicy)
         self.blist.setAutoScrollMargin(28)
         self.blist.setEditTriggers(QtGui.QAbstractItemView.NoEditTriggers)
         self.blist.setIconSize(QtCore.QSize(28, 20))

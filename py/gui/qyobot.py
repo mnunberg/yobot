@@ -9,7 +9,7 @@ from cgi import escape as html_escape
 import main_auto
 import sendjoin_auto
 import chatwindow_auto
-import notification
+#import notification
 import logbrowser
 import logdlg
 import time
@@ -18,7 +18,7 @@ import lxml.html
 import status_dialog
 from html_fmt import simplify_css, process_input, insert_smileys
 import smileys_rc
-
+import gui_util
 import yobot_interfaces
 #from modeltest import ModelTest
 
@@ -45,7 +45,7 @@ from contrib import qt4reactor
 qt4reactor.install()
 
 
-from gui_util import (getIcon, getProtoStatusIcon, mkProtocolComboBox,
+from gui_util import (getIcon, getProtoStatusIcon, mkProtocolComboBox, NotificationBox,
                       STATUS_ICON_MAPS, STATUS_TYPE_MAPS, signal_connect,
                       IMPROTOS_BY_CONSTANT, ConnectionWidget, AccountModel, ROLE_SMALL_BUDDY_TEXT,
                       ROLE_ACCT_OBJ)
@@ -462,103 +462,6 @@ class StatusDialog(object):
             qp.setPen(self.widgets.message.palette().color(QPalette.Dark))
             qp.drawText(r, Qt.AlignCenter | Qt.AlignVCenter, "Status Message..")
             
-
-class NotificationBox(object):
-    def __init__(self, qdockwidget, qstackedwidget):
-        self.reqs = {}
-        self.qdw = qdockwidget
-        self.qsw = qstackedwidget
-        while self.qsw.count() > 0:
-            self.qsw.removeWidget(self.qsw.currentWidget())
-        self.qdw.hide()
-        self._tmp = QWidget()
-        self.qdw.setTitleBarWidget(self._tmp)
-        btn_font = QFont()
-        btn_font.setBold(True)
-        btn_font.setPointSize(8)
-        self.btn_font = btn_font
-        
-    
-    def navigate(self, next = True):
-        log_debug("")
-        currentIndex = self.qsw.currentIndex()
-        if next: #navigate to next..
-            if currentIndex-1 < self.qsw.count() and currentIndex >= 0:
-                self.qsw.setCurrentIndex(currentIndex+1)
-        else:
-            if currentIndex-1 > 0:
-                self.qsw.setCurrentIndex(currentIndex-1)
-                
-    def addItem(self, ycreqobj):
-        qw = QWidget()
-        if ycreqobj.refid:
-            self.reqs[(ycreqobj.acct, ycreqobj.refid)] = qw
-        #setup the widget
-        notice_widget = notification.Ui_Form()
-        notice_widget.setupUi(qw)
-        #notice_widget.iconlabel.hide()
-        notice_widget.discard.hide()
-        notice_widget.accept.hide()
-        
-        #get an icon:
-        acct = ycreqobj.acct
-        icon = icon = (QPixmap(":/icons/icons/help-about.png")
-                       if not ycreqobj.isError else
-                       QPixmap(":/icons/res/16x16/status/dialog-error.png"))
-        notice_widget.iconlabel.setPixmap(icon)
-        #get options..
-        def _cbwrap(cb):
-            #closes the notification after an action has been sent
-            cb()
-            self.qsw.removeWidget(qw)
-            if not self.qsw.count():
-                self.qsw.hide()
-                self.qdw.hide()
-            qw.destroy()
-
-        for o in ycreqobj.options:
-            optname, optcb, typehint = o
-            b = QPushButton()
-            b.setText(optname)
-            b.setFont(self.btn_font)
-            icon = None
-            try:
-                typehint = int(typehint)
-            except ValueError, TypeError:
-                typehint = -1
-            if typehint == yobotproto.YOBOT_ACTIONTYPE_OK:
-                icon = QIcon(":/icons/icons/help-about.png")
-            elif typehint == yobotproto.YOBOT_ACTIONTYPE_CANCEL:
-                icon = QIcon(":/icons/res/16x16/actions/dialog-close.png")
-            else:
-                icon = QIcon()
-            b.setIcon(icon)
-            
-            signal_connect(b, SIGNAL("clicked()"), lambda optcb=optcb: _cbwrap(optcb))
-            notice_widget.bbox.addWidget(b)
-            
-        accticon = getProtoStatusIcon(acct.name, acct.improto)
-        if accticon:
-            notice_widget.accticon.setPixmap(accticon.pixmap(24, 24))
-        notice_widget.account.setText(acct.name)
-        txt=("<center><b>"+ycreqobj.title+"</b><br>"+
-             "<i>"+ycreqobj.primary+
-             "</i></center>"+ycreqobj.secondary)
-        notice_widget.message.append(txt)
-        log_debug(txt)
-        notice_widget.message.setBackgroundRole(QPalette.Window)
-        sb = notice_widget.message.verticalScrollBar()
-        sb.setMaximumWidth(12)
-        
-        signal_connect(notice_widget.next, SIGNAL("clicked()"), lambda: self.navigate(next=True))
-        signal_connect(notice_widget.prev, SIGNAL("clicked()"), lambda: self.navigate(next=False))
-        
-        self.qsw.show()
-        self.qdw.show()
-        self.qsw.addWidget(qw)
-        self.qsw.setCurrentWidget(qw)
-
-
 class _LogGroup(object):
     def __init__(self, lw_item, acct_obj, name):
         self.lw_item = lw_item
@@ -620,7 +523,7 @@ class LogBrowser(QMainWindow):
             
 class YobotGui(object):
     yobot_interfaces.implements(yobot_interfaces.IYobotUIPlugin)
-    chats = {} #chats[account,target]->ChatWindow instance
+    plugin_name = "gui_main"
     def __init__(self):
         #first get some components.. we need the account store at least
         account_manager = yobot_interfaces.component_registry.get_component("account-store")
@@ -633,6 +536,7 @@ class YobotGui(object):
         self.client = client
         log_debug( "__init__ done")
         self.datamodel = AccountModel(account_manager)
+        self.chats = {} #chats[account,target]->ChatWindow instance
         self.gui_init()
         self.mw.show()
         yobot_interfaces.component_registry.register_component("gui-main", self)
@@ -751,6 +655,7 @@ class YobotGui(object):
         w.blist.hide()
         self.conninput = ConnectionWidget(connect_cb = self._requestConnection)
         w.mainLayout.addWidget(self.conninput, 0, 0)
+        #gui_util.set_bg_opacity(self.conninput, 150)
         self.conninput.show()
         w.blist.show()
         w.blist.setModel(self.datamodel)

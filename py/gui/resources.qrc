@@ -1,5 +1,9 @@
 <RCC>
   <qresource prefix="icons">
+    <file>res/16x16/actions/configure-toolbars.png</file>
+    <file>res/16x16/actions/document-open.png</file>
+    <file>res/16x16/actions/document-save-as.png</file>
+    <file>res/16x16/actions/document-save.png</file>
     <file>res/16x16/actions/media-playback-start.png</file>
     <file>res/16x16/actions/media-playback-stop.png</file>
     <file>res/16x16/actions/media-skip-forward.png</file>

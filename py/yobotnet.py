@@ -23,10 +23,7 @@ import time
 
 import yobot_interfaces
 
-
-if __name__ == "__main__":
-    log_info( "INSTALLING REACTOR...")
-    from twisted.internet import reactor
+reactor = None
 
 def get_rand(bits,st):
     if bits > 31:
@@ -1028,12 +1025,19 @@ class YobotServerService(YobotServiceBase):
         return f
 
 ############## TESTING ################
-if __name__ == "__main__":
-    if sys.argv[1] == "-s":
+def startup(args=sys.argv[1:]):
+    if args[0] == "-s":        
         debuglog.init("Agent", title_color="cyan")
+        log_info( "INSTALLING REACTOR...")
+        from twisted.internet import reactor as _reactor
+        global reactor
+        reactor = _reactor
+        
         yobotproto.yobot_proto_setlogger("Agent")
         svc = YobotServerService()
         reactor.connectTCP("localhost", 7771, svc.getYobotPurpleFactory())
         reactor.listenTCP(7770, svc.getYobotServerFactory())
-        
-    reactor.run()
+        reactor.run()
+
+if __name__ == "__main__":
+    startup()

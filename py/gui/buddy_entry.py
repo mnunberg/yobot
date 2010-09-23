@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'buddy_entry.ui'
 #
-# Created: Mon Aug 23 19:33:00 2010
+# Created: Fri Sep 17 20:49:29 2010
 #      by: PyQt4 UI code generator 4.7.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -66,4 +66,14 @@ class Ui_be(object):
         be.setWindowTitle(QtGui.QApplication.translate("be", "Form", None, QtGui.QApplication.UnicodeUTF8))
         self.status.setText(QtGui.QApplication.translate("be", "status message", None, QtGui.QApplication.UnicodeUTF8))
         self.name.setText(QtGui.QApplication.translate("be", "Buddy Name", None, QtGui.QApplication.UnicodeUTF8))
+
+
+if __name__ == "__main__":
+    import sys
+    app = QtGui.QApplication(sys.argv)
+    be = QtGui.QWidget()
+    ui = Ui_be()
+    ui.setupUi(be)
+    be.show()
+    sys.exit(app.exec_())
 

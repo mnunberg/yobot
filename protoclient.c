@@ -85,27 +85,27 @@ struct segment_r yobot_proto_segfrombuf(void *buf) {
 	 * but we should ensure that buf is not NULL and that it's at
 	 * least len+2 bytes before the end of the memory segment..
 	 */
-#ifndef WIN32
+#ifdef __linux__
 	extern char edata, end;
 	void *_end = sbrk(0);
 	if(buf+2 > _end || buf == NULL || (void*)&end > buf) {
 		yobotproto_log_err("invalid buffer! starts at %p but can only read from %p until %p",
 				buf,&edata,_end); goto err;
 		}
-#endif
+#endif /*__linux__*/
 
 	uint16_t len = ntohs(*(uint16_t*)buf);
 	if(len >= YOBOT_MAX_COMMSIZE) {
 		yobotproto_log_err("sanity check failed! len is %d",len);
 		goto err;
 	}
-#ifndef WIN32
+#ifdef __linux__
 	if(buf+len+sizeof(uint16_t) > _end) {
 		yobotproto_log_err("len is %d but only have %lu for buffer",len,
 				_end-(buf+sizeof(uint16_t)+len));
 		goto err;
 	}
-#endif
+#endif /*__linux__*/
 
 	ret.data = malloc(len);
 	memcpy(ret.data,buf+2,len);

@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+#for py2exe to work properly:
+from lxml import _elementpath as _dummy
+
 import yobot_plugins
 from twisted.internet import reactor
 from yobotclass import YobotAccount, YobotMessage
@@ -10,12 +13,13 @@ import yobot_interfaces
 from triviabot import triviabot
 from collections import defaultdict
 import debuglog
+import sys
 ID_COUNTER=1
 
 class UIClient(object):
     """These define a bunch of hooks for the server"""
     yobot_interfaces.implements(yobot_interfaces.IClientOperations)
-    def __init__(self):
+    def __init__(self, username=None, password=None, improto=None):
         """Set the service"""
         self.svc = YobotClientService(self, reactor)
         self.plugins = set()
@@ -33,7 +37,7 @@ class UIClient(object):
     def run(self):
         #self.uihooks = YobotGui(self, self.svc.accounts)
         #self.trivia = triviabot.TriviaGui()
-        for p in yobot_interfaces.component_registry.get_plugins():
+        for p in yobot_interfaces.component_registry.get_active_plugins():
             self.registerPlugin(p())
         reactor.connectTCP("localhost", 7770, self.svc.getYobotClientFactory())
         #self.registerPlugin(self.uihooks)
@@ -43,7 +47,8 @@ class UIClient(object):
         log_info( "trying to register account...")
         self.test_acct()
     
-    def test_acct(self, ):
+    def test_acct(self):
+        return
         log_info("creating new test account")
         new_account = YCAccount(self.svc, "meh@10.0.0.99/", "1", yobotproto.YOBOT_JABBER)
 #            proxy_host="localhost", proxy_port="3128", proxy_type="http")
@@ -104,8 +109,33 @@ class UIClient(object):
     def cancelCallLater(cls, handle):
         handle.cancel()
 
-if __name__ == "__main__":
+def startup(args=sys.argv):
+    import optparse
+    options = optparse.OptionParser()
+    options.add_option("-p", "--plugin", dest="selected_plugins", action="append", help="include this plugin")
+    options.add_option("-U", "--username", dest="username", help="use this IM username")
+    options.add_option("-P", "--password", dest="password", help="use this password")
+    options.add_option("-I", "--improto", dest="improto", help="use this IM protocol [see documentation for a list]")
+    options.add_option("-c", "--config", dest="config", help="configuration file")
+    options.add_option("--use-proxy", dest="use_proxy", action="store_true", help="use env proxy settings", default=False)
+    options, args = options.parse_args()
+    
+    if options.selected_plugins:
+        #generate dict:
+        name_object = {}
+        for plugin in yobot_interfaces.component_registry.get_plugins():
+            name_object[plugin.plugin_name] = plugin
+        for p in options.selected_plugins:
+            plugin_object = name_object.get(p)
+            if not plugin_object:
+                log_warn("couldn't find plugin", p)
+                continue
+            yobot_interfaces.component_registry.activate_plugin(plugin_object)
+    
     debuglog.init("Client", title_color="green")
     yobotproto.yobot_proto_setlogger("Client")
     ui = UIClient()
     ui.run()
+
+if __name__ == "__main__":
+    startup()

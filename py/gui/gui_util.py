@@ -8,10 +8,14 @@ from PyQt4.QtGui import (QComboBox, QMainWindow, QStandardItemModel, QStandardIt
                          QListWidget, QListWidgetItem, QStyledItemDelegate,
                          QStyleOptionViewItem, QRegion, QWidget, QBrush, QStyle,
                          QPen, QPushButton, QStyleOption, QMenu, QAction, QCursor,
-                         QTreeView, QLineEdit, QButtonGroup)
+                         QTreeView, QLineEdit, QButtonGroup, QGraphicsDropShadowEffect,
+                         qDrawShadePanel, QGraphicsOpacityEffect, QGraphicsEffect,
+                         QTransform, QColor,QLabel
+                         )
 
 from PyQt4.QtCore import (QPoint, QSize, QModelIndex, Qt, QObject, SIGNAL, QVariant,
-                          QAbstractItemModel, QRect, QRectF, QPointF)
+                          QAbstractItemModel, QRect, QRectF, QPointF, QTimer,
+                          QPropertyAnimation)
 
 signal_connect = QObject.connect
 
@@ -22,6 +26,8 @@ from debuglog import log_debug, log_info, log_err, log_crit, log_warn
 from cgi import escape as html_escape
 
 import connection_properties
+import notification
+
 import yobot_interfaces
 
 
@@ -60,6 +66,23 @@ STATUS_TYPE_MAPS = {
     "Invisible" : yobotproto.PURPLE_STATUS_INVISIBLE,
 }
 
+def set_bg_opacity(widget, a):
+    palette = widget.palette()
+    w_color = palette.color(QPalette.Window)
+    b_color = palette.color(QPalette.Button)
+    base_color = palette.color(QPalette.Base)
+    
+    w_color.setAlpha(a)
+    b_color.setAlpha(a)
+    base_color.setAlpha(a)
+    
+    new_palette = QPalette(b_color, w_color)
+    new_palette.setColor(QPalette.Window, w_color)
+    new_palette.setColor(QPalette.Button, b_color)
+    new_palette.setColor(QPalette.Base, base_color)
+    #palette.setColor(QPalette.Window, color)
+    widget.setPalette(new_palette)
+    
 def proto_name_int(proto, type):
     """-> (proto_name, proto_int)"""
     proto_name = None
@@ -341,12 +364,27 @@ class AccountModel(QAbstractItemModel):
                         log_warn("\tBuddy", c_index.internalPointer().name)
 
 
+
 class ConnectionWidget(QWidget):
     def __init__(self, parent = None, connect_cb = None):
         QWidget.__init__(self, parent)
         self.widgets = connection_properties.Ui_connection_widget()
         w = self.widgets
         w.setupUi(self)
+        
+        self.container_height_exclusive = self.sizeHint().height() - self.widgets.proxy_params.sizeHint().height()
+        self.combined_height = self.sizeHint().height()
+        
+        self.pp_show_animation = QPropertyAnimation(self, "size", self)
+        self.pp_show_animation.setDuration(100)
+        self.pp_show_animation.setStartValue(QSize(self.width(), self.container_height_exclusive))
+        self.pp_show_animation.setEndValue(QSize(self.width(), self.combined_height))
+        
+        self.pp_hide_animation = QPropertyAnimation(self, "size", self)
+        self.pp_hide_animation.setDuration(100)
+        self.pp_hide_animation.setStartValue(QSize(self.width(), self.combined_height))
+        self.pp_hide_animation.setEndValue(QSize(self.width(), self.container_height_exclusive))
+        
         mkProtocolComboBox(w.w_improto)
         w.proxy_params.proxy_type_group = QButtonGroup(w.proxy_params)
         for i in ("http", "socks4", "socks5"):
@@ -356,9 +394,36 @@ class ConnectionWidget(QWidget):
             signal_connect(w.w_connect, SIGNAL("clicked()"), self.submit)
             signal_connect(w.w_username, SIGNAL("returnPressed()"), self.submit)
             signal_connect(w.w_password, SIGNAL("returnPressed()"), self.submit)
+                
+        @QtCore.pyqtSlot("bool", name="setVisible")
+        def proxy_setVisible(b):
+            if b:
+                self.pp_show_animation.start()
+                QTimer.singleShot(self.pp_show_animation.duration(),
+                                  lambda: type(w.proxy_params).setVisible(w.proxy_params, True))
+            else:
+                self.pp_hide_animation.start()
+                type(w.proxy_params).setVisible(w.proxy_params, False)
+                
+        def _hideEvent(e):
+            if self.parent() and self.parent().layout():
+                self.parent().layout().activate()
+            type(w.proxy_params).hideEvent(w.proxy_params, e)
+            
+        w.proxy_params.setVisible = proxy_setVisible
+        w.proxy_params.hideEvent = _hideEvent
+        w.proxy_params.setVisible(False)
+        signal_connect(w.show_proxy_prefs, SIGNAL("toggled(bool)"), w.proxy_params.setVisible)
+        self.setAutoFillBackground(True)
+        w.proxy_params.setAutoFillBackground(False)
+                        
+    @property
+    def visible_height(self):
+        if not self.widgets.proxy_params.isVisible():
+            return self.container_height_exclusive
+        else:
+            return self.combined_height
         
-        w.proxy_params.hide()
-
     def getValues(self):
         w = self.widgets
         username = self.widgets.w_username.text()
@@ -392,4 +457,166 @@ class ConnectionWidget(QWidget):
     def reset(self):
         self.widgets.w_username.setText("")
         self.widgets.w_password.setText("")
+        
+
+class ShadowAndAlphaEffect(QGraphicsDropShadowEffect):
+    def __init__(self, blur=15.0, transparency=0.7,
+                 shadowColor = QColor(0,0,0,255), parent=None):
+        QGraphicsDropShadowEffect.__init__(self, parent)
+        self.setBlurRadius(blur)
+        #self.setColor(shadowColor)
+        self.transparency = transparency
+        
+    def draw(self, painter):
+        src_pixmap, offset = self.sourcePixmap()
+        painter.save()
+        painter.setOpacity(self.transparency)
+        painter.drawPixmap(offset, src_pixmap)
+        painter.restore()
+        
+        #now find the clipping region:
+        src_r = QRegion(self.sourceBoundingRect().toRect())
+        effect_r = QRegion(self.boundingRect().toRect())
+        
+        clip_region = effect_r.subtracted(src_r)
+        
+        painter.save()
+        painter.setClipRegion(clip_region)
+        QGraphicsDropShadowEffect.draw(self, painter)
+        painter.restore()
+
+        
+class OverlayConnectionWidget(ConnectionWidget):
+    def __init__(self, pos_fn, cb, parent=None):
+        super(type(self), self).__init__(parent, cb)
+        self.setAutoFillBackground(True)
+        self.animation = QPropertyAnimation(self, "size", self)
+        self.effect = ShadowAndAlphaEffect(blur = 15.0, transparency = 0.90, parent = self)
+        self.setGraphicsEffect(self.effect)
+        self.pos_fn = pos_fn
+        saved_size = None
+        
+    def paintEvent(self, event):
+        super(type(self), self).paintEvent(event)            
+        painter = QPainter(self)
+        qDrawShadePanel(painter, self.rect(), QPalette())
+    def showEvent(self, event):
+        log_err("hi")
+        super(type(self), self).showEvent(event)
+        if not event.spontaneous():
+            self.animation.setStartValue(QSize(self.width(), 0))
+            self.animation.setEndValue(QSize(self.width(), self.visible_height))
+            #height_offset = 0
+            #if hasattr(self.parent_, "widgets") and hasattr(self.parent_.widgets, "menubar"):
+            #    height_offset += self.parent_.widgets.menubar.height()
+            #    log_err("using offset", height_offset)
+            #self.move(0, height_offset)
+            self.move(self.pos_fn())
+            self.animation.start()
+        
+    def setVisible(self, b):
+        if not b:
+            self._animation = QPropertyAnimation(self, "size", self)
+            self._animation.setEndValue(QSize(self.width(), 0))
+            signal_connect(self._animation, SIGNAL("finished()"), lambda: super(type(self), self).setVisible(False))
+            self._animation.start()
+        else:
+            super(type(self), self).setVisible(b)        
+
+
+class NotificationBox(object):
+    def __init__(self, qdockwidget, qstackedwidget, noTitleBar=True):
+        self.reqs = {}
+        self.qdw = qdockwidget
+        self.qsw = qstackedwidget
+        while self.qsw.count() > 0:
+            self.qsw.removeWidget(self.qsw.currentWidget())
+        self.qdw.hide()
+        if noTitleBar:
+            self._tmp = QWidget()
+            self.qdw.setTitleBarWidget(self._tmp)
+        btn_font = QFont()
+        btn_font.setBold(True)
+        btn_font.setPointSize(8)
+        self.btn_font = btn_font
+        
+    def navigate(self, next = True):
+        log_debug("")
+        currentIndex = self.qsw.currentIndex()
+        if next: #navigate to next..
+            if currentIndex-1 < self.qsw.count() and currentIndex >= 0:
+                self.qsw.setCurrentIndex(currentIndex+1)
+        else:
+            if currentIndex-1 > 0:
+                self.qsw.setCurrentIndex(currentIndex-1)
     
+    def addItem(self, ycreqobj):
+        qw = QWidget()
+        if ycreqobj.refid:
+            self.reqs[(ycreqobj.acct, ycreqobj.refid)] = qw
+        #setup the widget
+        notice_widget = notification.Ui_Form()
+        notice_widget.setupUi(qw)
+        #notice_widget.iconlabel.hide()
+        notice_widget.discard.hide()
+        notice_widget.accept.hide()
+        
+        #get an icon:
+        acct = ycreqobj.acct
+        icon = icon = (QPixmap(":/icons/icons/help-about.png")
+                       if not ycreqobj.isError else
+                       QPixmap(":/icons/res/16x16/status/dialog-error.png"))
+        notice_widget.iconlabel.setPixmap(icon)
+        #get options..
+        def _cbwrap(cb):
+            #closes the notification after an action has been sent
+            cb()
+            self.qsw.removeWidget(qw)
+            if not self.qsw.count():
+                self.qsw.hide()
+                self.qdw.hide()
+            qw.destroy()
+
+        for o in ycreqobj.options:
+            optname, optcb, typehint = o
+            b = QPushButton()
+            b.setText(optname)
+            b.setFont(self.btn_font)
+            icon = None
+            try:
+                typehint = int(typehint)
+            except ValueError, TypeError:
+                typehint = -1
+            if typehint == yobotproto.YOBOT_ACTIONTYPE_OK:
+                icon = QIcon(":/icons/icons/help-about.png")
+            elif typehint == yobotproto.YOBOT_ACTIONTYPE_CANCEL:
+                icon = QIcon(":/icons/res/16x16/actions/dialog-close.png")
+            else:
+                icon = QIcon()
+            b.setIcon(icon)
+            
+            signal_connect(b, SIGNAL("clicked()"), lambda optcb=optcb: _cbwrap(optcb))
+            notice_widget.bbox.addWidget(b)
+            
+        accticon = getProtoStatusIcon(acct.name, acct.improto)
+        if accticon:
+            notice_widget.accticon.setPixmap(accticon.pixmap(24, 24))
+        notice_widget.account.setText(acct.name)
+        txt=("<center><b>"+ycreqobj.title+"</b><br>"+
+             "<i>"+ycreqobj.primary+
+             "</i></center>"+ycreqobj.secondary)
+        notice_widget.message.append(txt)
+        log_debug(txt)
+        notice_widget.message.setBackgroundRole(QPalette.Window)
+        sb = notice_widget.message.verticalScrollBar()
+        sb.setMaximumWidth(12)
+        
+        signal_connect(notice_widget.next, SIGNAL("clicked()"), lambda: self.navigate(next=True))
+        signal_connect(notice_widget.prev, SIGNAL("clicked()"), lambda: self.navigate(next=False))
+        
+        self.qsw.show()
+        self.qdw.show()
+        self.qsw.addWidget(qw)
+        self.qsw.setCurrentWidget(qw)
+    def delItem(self, item):
+        log_err("not implemented!")        

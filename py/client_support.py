@@ -140,35 +140,35 @@ class ModelBase(object):
     def beginAdd(self, index):
         "Override this"
         log_err("override me")
-        raise Exception()
+#        raise Exception()
     def endAdd(self):
         "Override this"
         log_err("Override me!")
-        raise Exception()
+#        raise Exception()
     def beginRemove(self, index):
         "Override this"
         log_err("override me")
-        raise Exception()
+#        raise Exception()
         
     def endRemove(self):
         print "endRemove"
         log_err("override me")
-        raise Exception()
+#        raise Exception()
     def firstChildInserted(self, index):
         "override this"
         log_err("override me")
-        raise Exception()
+#        raise Exception()
     def beginChildAdd(self, parent_index, child_index):
         "hack, override this"
         log_err("override me")
-        raise Exception()
+#        raise Exception()
     def beginChildRemove(self, parent_index, child_index):
         "hack, override this"
         log_err("Override me")
-        raise Exception()
+#        raise Exception()
     def dataChanged(self, parent_index, child_index):
         log_err("override me")
-        raise Exception()
+#        raise Exception()
         "hack, override this"
         
     def _addItem(self, item, key):

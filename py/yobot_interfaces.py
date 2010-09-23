@@ -6,6 +6,7 @@ from debuglog import log_debug, log_info, log_err, log_crit, log_warn
 
 class IYobotUIPlugin(Interface):
     """Interface a UI plugin must implement"""
+    plugin_name = Attribute("plugin_name", "identifier for plugin")
     def accountConnected(account_object):
         "when an account is connected"
     def accountConnectionFailed(account_object, error_message):
@@ -157,7 +158,8 @@ class IClientOperations(Interface):
 class ComponentRegistry(object):
     def __init__(self):
         self._objects = {}
-        self._plugins = []
+        self._plugins = set()
+        self._active_plugins = set()
         self.known_ids = ("gui-main", "account-store", "account-model", "client-svc",
                           "client-operations", "joined-rooms", "reactor")
     def register_component(self, id, object):
@@ -171,8 +173,18 @@ class ComponentRegistry(object):
         return self._objects.get(id, None)
     def register_plugin(self, plugin_object):
         if not plugin_object in self._plugins:
-            self._plugins.append(plugin_object)
+            self._plugins.add(plugin_object)
+    def unregister_plugin(self, plugin_object):
+        if plugin_object in self._plugins:
+            self._plugins.remove(plugin_object)
+    def activate_plugin(self, plugin_object):
+        self._active_plugins.add(plugin_object)
+    def unactivate_plugin(self, plugin_object):
+        if plugin_object in self._active_plugins:
+            self._active_plugins.remove(plugin_object)
     def get_plugins(self):
-        return self._plugins[:]
+        return tuple(self._plugins)
+    def get_active_plugins(self):
+        return tuple(self._active_plugins)
 
 component_registry = ComponentRegistry()

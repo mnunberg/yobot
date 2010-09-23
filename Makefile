@@ -28,7 +28,7 @@ else
 	LIBS=-L$(WHIER)/bin -L$(WHIER)/lib -L$(WROOT)/libpurple \
 	     -lglib-2.0 -lpurple.dll -lws2_32
 	LIBPREFIX=
-	LIBSUFFIX=dll
+	LIBSUFFIX=dll
 	PYMODULE_SUFFIX=pyd
 	EXEC=yobot.exe
 	TPL=contrib/tpl.dll.a
@@ -40,11 +40,19 @@ else
 	LOGGER_EXTRA_LIBS=
 	#first build the hack dl
 endif
+
+ifdef DARWIN
+	LIBSUFFIX=dylib
+	PYLIB=$(shell python2.6-config --ldflags)
+	OBJDIR=obj/osx
+	PYHDR=$(shell python2.6-config --cflags)
+endif
+
 PROTOCLIENT_LIB=$(LIBPREFIX)yobotprotoclient.$(LIBSUFFIX)
 MODULES+=yobot_ui yobot_uiops yobot_conversation yobot_blist yobot_log yobot_request
 OBJS+=$(addprefix $(OBJDIR)/, $(addsuffix .o, $(MODULES)))
 INCLUDES+=-I$(shell pwd)
-CFLAGS=-Wall -ggdb3 $(DEFINES) $(INCLUDES)
+CFLAGS+=-Wall -ggdb3 $(DEFINES) $(INCLUDES)
 PYMODULE=py/_yobotproto.$(PYMODULE_SUFFIX)
 PYMODULE_SRC=py/yobotproto_wrap.c
 PYMODULE_PY=py/yobotproto.py
