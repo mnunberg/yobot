@@ -1,0 +1,38 @@
+Yobot is a multi-protocol multi-user messenger relay with a plugin system.
+
+This is not an IRC bouncer, nor is it a normal instant messaging client -
+though this does include the functionality of both. If you are looking for an
+IRC bouncer, there are many out there. If you are looking for a normal, full
+featured IM client, use Pidgin
+
+The following features have been at least moderately implemented:
+
+(1): The ability to sign in from multiple locations while not being signed
+out from other locations. Some protocols (oscar/AIM and jabber) support this
+while others (such as yahoo or MSN) do not. The caveat is that you must use
+the included client (or any client which speaks the Yobot protocol, which 
+as of writing, is only the included client).
+
+(2): Centralized Logging and 'offline' messaging. Using the client, you can
+query the server for message history, and also get any messages received 
+in a period when no other client was connected
+
+(3): A plugin system: ./py/yobot_interfaces.py has interface definitions for
+writing your own plugin. The basic methods include connecting to a server,
+joining a chatroom, and receiving/sending messages.
+
+(4): A very comprehensive trivia bot which reads to an SQLite database (see
+source), and optionally writes to the database in an attempt to prevent the 
+same questions from appearing again. Also implemented is an anagrams feature
+which will scramble a list of words (also from a database). -- written in PyQt
+
+(5): A graphical client written in PyQt, supports basic html formatting, smileys,
+and buddy icons. Can also set your status for each account separately. The UI 
+was designed to be simple.
+
+Yobot does not do any IM protocol handling. If you cannot connect to your 
+account, most likely something is wrong with libpurple or the protocol
+server.
+
+Also note that this is extremely alpha quality software, many things will still
+not work
