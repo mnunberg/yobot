@@ -10,7 +10,7 @@ from PyQt4.QtGui import (QComboBox, QMainWindow, QStandardItemModel, QStandardIt
                          QPen, QPushButton, QStyleOption, QMenu, QAction, QCursor,
                          QTreeView, QLineEdit, QButtonGroup, QGraphicsDropShadowEffect,
                          qDrawShadePanel, QGraphicsOpacityEffect, QGraphicsEffect,
-                         QTransform, QColor,QLabel
+                         QTransform, QColor,QLabel, QErrorMessage
                          )
 
 from PyQt4.QtCore import (QPoint, QSize, QModelIndex, Qt, QObject, SIGNAL, QVariant,
@@ -27,6 +27,7 @@ from cgi import escape as html_escape
 
 import connection_properties
 import notification
+import agent_connect_dlg
 
 import yobot_interfaces
 
@@ -187,13 +188,10 @@ class AccountModel(QAbstractItemModel):
             self.blist.setExpanded(self.index(index, 0), True)
             
     def index(self, row, column = 0, parent = QModelIndex()):
-        #if not self.hasIndex(row, column, parent):
-        #    return QModelIndex()
         if column != 0 or row <0:
             return QModelIndex()
         
         parent_item = parent.internalPointer()
-        #log_err(parent_item)
         
         if not parent_item:
             #top level account..
@@ -228,22 +226,10 @@ class AccountModel(QAbstractItemModel):
             
         if not obj.parent:
             return QModelIndex()
-        #except (ValueError, AttributeError), e:
-        #    log_warn(e)
-        #    raise
-        #    pass
-        #    #return QModelIndex()
-        
-        #return index of the buddy.. this is tough..
-        #log_err("got second level item", obj)
         ret = self.createIndex(obj.parent.index, 0, obj.parent)
-        #log_err("returning index with data", obj.parent)
         return ret
             
     def rowCount(self, index = QModelIndex()):
-        #if index.column() > 0:
-        #    log_debug("returning 0 for column > 0")
-        #    return 0
         if not index.isValid():
             ret = len(self.backend)
         else:
@@ -506,11 +492,6 @@ class OverlayConnectionWidget(ConnectionWidget):
         if not event.spontaneous():
             self.animation.setStartValue(QSize(self.width(), 0))
             self.animation.setEndValue(QSize(self.width(), self.visible_height))
-            #height_offset = 0
-            #if hasattr(self.parent_, "widgets") and hasattr(self.parent_.widgets, "menubar"):
-            #    height_offset += self.parent_.widgets.menubar.height()
-            #    log_err("using offset", height_offset)
-            #self.move(0, height_offset)
             self.move(self.pos_fn())
             self.animation.start()
         
@@ -619,4 +600,35 @@ class NotificationBox(object):
         self.qsw.addWidget(qw)
         self.qsw.setCurrentWidget(qw)
     def delItem(self, item):
-        log_err("not implemented!")        
+        log_err("not implemented!")
+
+class AgentConnectDialog(QDialog):
+    def __init__(self, *args, **kwargs):
+        QDialog.__init__(self, *args, **kwargs)
+        w = agent_connect_dlg.Ui_Dialog()
+        w.setupUi(self)
+        self.widgets = w
+        signal_connect(self, SIGNAL("accepted()"), self._accepted)
+        self.show()
+        
+    def _accepted(self):
+        w = self.widgets
+        log_err("hi")
+        client_operations = yobot_interfaces.component_registry.get_component("client-operations")
+        if not client_operations:
+            raise Exception("Couldn't get client operations")
+        acct_port_string = str(w.agent_addrinfo.currentText())
+        if not acct_port_string:
+            QErrorMessage(self).showMessage("Address is empty")
+            return False
+        tmp = acct_port_string.rsplit(":", 1)
+        if len(tmp) >= 2:
+            address = tmp[0]
+            port = int(tmp[1])
+            client_operations.connectToAgent(address=address, port=port,
+                                             disconnect_from_server=w.disconnect_from_server.isChecked())
+        else:
+            address = tmp[0]
+            client_operations.connectToAgent(address=address,
+                                             disconnect_from_server=w.disconnect_from_server.isChecked())
+        

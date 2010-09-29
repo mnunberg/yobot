@@ -1,11 +1,15 @@
 #!/usr/bin/env python
 import sys
-sys.path.append("../")
+
+#begin dependent modules
+#sys.path.insert(0, "../")
 import yobot_interfaces
 import yobotproto
 from client_support import YCAccount, SimpleNotice
 from gui import gui_util
 from gui.gui_util import signal_connect, ConnectionWidget
+#end
+
 import PyQt4
 from PyQt4.QtGui import (QComboBox, QMainWindow, QStandardItemModel, QStandardItem,
                          QIcon, QPixmap, QImage, QPainter, QDialog, QMessageBox,
@@ -59,6 +63,22 @@ def get_categories_list(dbname):
 def scramble_word(word):
     return "".join(random.sample(word, len(word)))
 
+
+class _BlackHole(str):
+    def __init__(self, *args, **kwargs):
+        pass
+    def __getattr__(self, name):
+        return _BlackHole()
+    def __setattr__(self, name, value):
+        pass
+    def __call__(self, *args, **kwargs):
+        pass
+    def __bool__(self):
+        return False
+    def __str__(self):
+        return ""
+
+
 class TriviaGui(gui_new.TGui):
     def __init__(self, parent=None):
         gui_new.TGui.__init__(self, parent)
@@ -84,7 +104,6 @@ class TriviaGui(gui_new.TGui):
         else:
             self.connwidget.hide()
 
-        
         #notification widgets:
         qdw = QFrame(self)
         self.notification_shadow = QGraphicsDropShadowEffect(qdw)
@@ -93,7 +112,6 @@ class TriviaGui(gui_new.TGui):
         qdw.setGraphicsEffect(self.notification_shadow)
         qdw.setFrameShape(qdw.StyledPanel)
         qdw.setAutoFillBackground(True)
-        gui_util.set_bg_opacity(qdw, 240)
         qsw = QStackedWidget(qdw)
         qdw.setLayout(QGridLayout())
         qdw.layout().setSizeConstraint(QLayout.SetMinimumSize)
@@ -186,26 +204,6 @@ class TriviaGui(gui_new.TGui):
         signal_connect(w.questions_categories, SIGNAL("itemDoubleClicked(QListWidgetItem*)"), _select)
         signal_connect(w.selected_categories, SIGNAL("itemDoubleClicked(QListWidgetItem*)"), _unselect)
         
-        #formatting and color
-        self.fmtstr = "%s"
-        self.font = None
-        self.color = None
-        self.font_menu = QMenu()
-        self.action_change_font_style = self.font_menu.addAction(QIcon(":/icons/icons/format-text-bold.png"),"Style and Face")
-        self.action_change_font_color = self.font_menu.addAction(QIcon(":/icons/icons/format-fill-color.png"),"Color")
-        self.action_change_font_reset = self.font_menu.addAction(QIcon(":/icons/icons/dialog-close.png"), "Reset Formatting")
-        def _reset_formatting():
-            self.font = None
-            self.color = None
-            self._gen_font_stylesheet()
-            self._update_fmtstr()
-        signal_connect(self.action_change_font_color, SIGNAL("activated()"),
-                       lambda: self.change_formatting(color=True))
-        signal_connect(self.action_change_font_style, SIGNAL("activated()"),
-                       lambda: self.change_formatting(style=True))
-        signal_connect(self.action_change_font_reset, SIGNAL("activated()"), _reset_formatting)
-        signal_connect(w.change_font, SIGNAL("clicked()"),
-                       lambda: self.font_menu.exec_(QCursor().pos()))
         
         self.anagrams_db_is_valid = False
         self.questions_db_is_valid = False
@@ -220,43 +218,7 @@ class TriviaGui(gui_new.TGui):
         w.questions_categories_params.sizeHint = lambda: QSize(1,1)
                 
         self.show()
-        
-
-    
-    def change_formatting(self, style=False, color=False):
-        if color:
-            self.color = QColorDialog.getColor(self.color if self.color else QColor())
-        elif style:
-            self.font = QFontDialog.getFont(self.font if self.font else QFont())[0]
-        self._gen_font_stylesheet()
-        self._update_fmtstr()
-    
-    def _update_fmtstr(self):
-        if not self.font and not self.color:
-            return
-        fmt_begin = fmt_end = ""
-        _font = "<font "
-        if self.font:
-            if self.font.bold():
-                fmt_begin += "<b>"
-                fmt_end += "</b>"
-            if self.font.italic():
-                fmt_begin += "<i>"
-                fmt_end += "</i>"
-            if self.font.underline():
-                fmt_begin += "<u>"
-                fmt_end += "</u>"
-            _font += "face='%s' size='%d' absz='%d' " % (self.font.family(),
-                point_to_html(self.font.pointSize()),self.font.pointSize())
-        
-        if self.color:
-            _font += "color='%s' " % (self.color.name())
-        _font += ">"
-        fmt_begin += _font
-        fmt_end += "</font>"
-        self.fmtstr = fmt_begin + "%s" + fmt_end
-    
-    
+            
     def _validate_anagrams_db(self, db):
         dbconn = None
         db = str(db)
@@ -288,24 +250,7 @@ class TriviaGui(gui_new.TGui):
             QErrorMessage(self).showMessage("Questions database is invalid: " + str(e))
         finally:
             if dbconn:
-                dbconn.close()
-    
-    def _gen_font_stylesheet(self):
-        stylesheet = ""
-        if self.font:
-            if self.font.bold():
-                stylesheet += "font-weight: bold;"
-            if self.font.italic():
-                stylesheet += "font-style: italic;"
-            if self.font.underline():
-                stylesheet += "text-decoration: underline;"
-            stylesheet += "font-size: %dpt;" % (self.font.pointSize())
-            stylesheet += "font-family: %s;" % (self.font.family())
-        if self.color:
-            stylesheet += "color: %s;" % (self.color.name(),)
-        
-        self.widgets.change_font.setStyleSheet(stylesheet)
-    
+                dbconn.close()    
     
     def _dbs_are_valid(self):
         type = str(self.widgets.questions_type.currentText()).lower()
@@ -482,7 +427,7 @@ class TriviaGui(gui_new.TGui):
         log_err("implement me")
         
     def got_notification(self, notification_object):
-        self.notifications.addItem(notifications)
+        self.notifications.addItem(notification_object)
         self._notification_dlg.show()
     def del_notification(self, notification_object):
         self.notifications.delItem(notification_object)
@@ -1029,7 +974,7 @@ class TriviaPlugin(object):
     def _trivia_stopped(self):
         self._set_editable_widgets(True)
         del self.triviabot
-        self.triviabot = None
+        self.triviabot = _BlackHole()
     
     def _write_chat(self, message):
         if not self.account:

@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'main_auto.ui'
 #
-# Created: Fri Sep 17 20:49:29 2010
+# Created: Tue Sep 28 20:23:50 2010
 #      by: PyQt4 UI code generator 4.7.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -179,6 +179,9 @@ class Ui_MainWindow(object):
         icon13.addPixmap(QtGui.QPixmap(":/icons/icons/extended-away.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.actionStatusCustom.setIcon(icon13)
         self.actionStatusCustom.setObjectName("actionStatusCustom")
+        self.action_connectAgent = QtGui.QAction(MainWindow)
+        self.action_connectAgent.setIcon(icon4)
+        self.action_connectAgent.setObjectName("action_connectAgent")
         self.menu.addAction(self.actionNewconn)
         self.menu.addSeparator()
         self.menu.addAction(self.actionDisconnect_Account_Client)
@@ -186,6 +189,8 @@ class Ui_MainWindow(object):
         self.menu.addAction(self.actionDisconnect_All_Server)
         self.menu.addAction(self.actionQuit_And_Disconnect_all_from_Server)
         self.menu.addAction(self.actionQuit)
+        self.menu.addSeparator()
+        self.menu.addAction(self.action_connectAgent)
         self.menuChat.addAction(self.actionSend_IM)
         self.menuChat.addAction(self.actionJoin_Room)
         self.menuChat.addSeparator()
@@ -250,6 +255,7 @@ class Ui_MainWindow(object):
         self.actionStatusInvisible.setText(QtGui.QApplication.translate("MainWindow", "Invisible", None, QtGui.QApplication.UnicodeUTF8))
         self.actionStatusBusy.setText(QtGui.QApplication.translate("MainWindow", "Busy", None, QtGui.QApplication.UnicodeUTF8))
         self.actionStatusCustom.setText(QtGui.QApplication.translate("MainWindow", "Custom..", None, QtGui.QApplication.UnicodeUTF8))
+        self.action_connectAgent.setText(QtGui.QApplication.translate("MainWindow", "(Re)Connect to Agent", None, QtGui.QApplication.UnicodeUTF8))
 
 import resources_rc
 

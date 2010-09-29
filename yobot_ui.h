@@ -85,4 +85,16 @@ int *yobot_purple_account_refcount_decrease(PurpleAccount *acct);
 int *yobot_purple_account_refcount_increase(PurpleAccount *acct);
 int *yobot_purple_account_refcount_register(PurpleAccount *acct);
 
+/*application mode, whether we are an actual daemon, or just invoked as
+ * part of a desktop application, in which case we shut down after first exit
+ */
+typedef enum {
+	YOBOT_DESKTOP,
+	YOBOT_DAEMON
+} yobot_application_modes;
+extern int yobot_application_mode; /*initialized in main.c*/
+
+/*address and port on which to listen*/
+extern char *yobot_listen_address, *yobot_listen_port;
+
 #endif /*HAVE_YOBOT_UI_H_*/

@@ -1,6 +1,14 @@
 #!/usr/bin/env python
+
+ABOUT_MESSAGE="""
+Yobot Copyright (C) 2010  M. Nunberg
+This program comes with ABSOLUTELY NO WARRANTY;
+This is free software, and you are welcome to redistribute it
+under certain conditions; see the included LICENSE file for details"""
+
+
 import sys
-sys.path.append("../")
+#sys.path.append("../")
 import yobotproto
 from yobotclass import YobotAccount
 from client_support import YCAccount, YBuddylist, YBuddy, YCRequest, SimpleNotice
@@ -535,7 +543,11 @@ class YobotGui(object):
             
         self.client = client
         log_debug( "__init__ done")
-        self.datamodel = AccountModel(account_manager)
+        
+        model = yobot_interfaces.component_registry.get_component("account-model")
+        if not model:
+            model = AccountModel(account_manager)
+        self.datamodel = model
         self.chats = {} #chats[account,target]->ChatWindow instance
         self.gui_init()
         self.mw.show()
@@ -561,7 +573,7 @@ class YobotGui(object):
     def _showAbout(self):
         msg = QMessageBox()
         msg.setIconPixmap(QPixmap(":/yobot_icons/icons/custom/yobot_48_h"))
-        msg.setText("Yobot (C) 2010 by M. Nunberg. Licensed under the GPLv2, see LICENSE for more information")
+        msg.setText(ABOUT_MESSAGE)
         msg.setWindowTitle("Yobot")
         msg.exec_()
         
@@ -706,7 +718,8 @@ class YobotGui(object):
         signal_connect(w.actionDisconnect_Account_Server, SIGNAL("activated()"),
                        lambda: DisconnectDialog(
                         self.datamodel, parent=self.mw, server=True).show())
-        
+        signal_connect(w.action_connectAgent, SIGNAL("activated()"),
+                       lambda: gui_util.AgentConnectDialog(parent=self.mw))
         self.logbrowser = None
 
     #########################   PUBLIC      ###################################

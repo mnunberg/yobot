@@ -102,6 +102,8 @@
     <addaction name="actionDisconnect_All_Server"/>
     <addaction name="actionQuit_And_Disconnect_all_from_Server"/>
     <addaction name="actionQuit"/>
+    <addaction name="separator"/>
+    <addaction name="action_connectAgent"/>
    </widget>
    <widget class="QMenu" name="menuChat">
     <property name="title">
@@ -437,6 +439,15 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="text">
     <string>Custom..</string>
+   </property>
+  </action>
+  <action name="action_connectAgent">
+   <property name="icon">
+    <iconset resource="../../../yobot/py/gui/resources.qrc">
+     <normaloff>:/icons/icons/network-connect.png</normaloff>:/icons/icons/network-connect.png</iconset>
+   </property>
+   <property name="text">
+    <string>(Re)Connect to Agent</string>
    </property>
   </action>
  </widget>

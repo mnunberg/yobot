@@ -28,7 +28,7 @@ else
 	LIBS=-L$(WHIER)/bin -L$(WHIER)/lib -L$(WROOT)/libpurple \
 	     -lglib-2.0 -lpurple.dll -lws2_32
 	LIBPREFIX=
-	LIBSUFFIX=dll
+	LIBSUFFIX=dll
 	PYMODULE_SUFFIX=pyd
 	EXEC=yobot.exe
 	TPL=contrib/tpl.dll.a
@@ -49,7 +49,7 @@ ifdef DARWIN
 endif
 
 PROTOCLIENT_LIB=$(LIBPREFIX)yobotprotoclient.$(LIBSUFFIX)
-MODULES+=yobot_ui yobot_uiops yobot_conversation yobot_blist yobot_log yobot_request
+MODULES+=yobot_ui yobot_uiops yobot_conversation yobot_blist yobot_log yobot_request yobotutil
 OBJS+=$(addprefix $(OBJDIR)/, $(addsuffix .o, $(MODULES)))
 INCLUDES+=-I$(shell pwd)
 CFLAGS+=-Wall -ggdb3 $(DEFINES) $(INCLUDES)

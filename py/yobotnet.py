@@ -199,6 +199,8 @@ class YobotClient(YobotNode):
         self.factory.requestRegistration(self)
     def connectionLost(self, reason):
         log_err( "lost server.. shutting down")
+        log_err("not really")
+        return
         if self.factory.reactor and self.factory.reactor.running:
             self.factory.reactor.stop()
         
@@ -273,7 +275,7 @@ class ClientAccountStore(ModelBase):
         store = yobot_interfaces.component_registry.get_component("account-store")
         if not store:
             yobot_interfaces.component_registry.register_component("account-store", self)
-            log_err("registered")
+            log_info("registered")
         else:
             return store
         
@@ -292,7 +294,10 @@ class ClientAccountStore(ModelBase):
         return acct
     def getAccount(self, acctid):
         return self._getItem(acctid)
-
+    def clear(self):
+        for k in self._d.keys():
+            self.delAccount(k)
+            
 ###############################################################################
 ############################## CLIENT SERVICE #################################
 ###############################################################################
@@ -554,16 +559,13 @@ class YobotClientService(YobotServiceBase):
         for a in self.accounts:
             self.disconnectAccount(a, True)
 ###############################    PROTO FACTORY     ###########################
-    def getYobotClientFactory(self):
-        f = ClientFactory()
+    def polishClientFactory(self, f):
         f.protocol = YobotClient
         f.dispatch = self.dispatch
         f.doRegister = self.doRegister
         f.reactor = self.reactor
         f.requestRegistration = self.requestRegistration
-        #...
-        return f
-    
+        #...    
 ###############################################################################
 ############################ AGENT SERVICE ####################################
 ###############################################################################
@@ -1026,7 +1028,24 @@ class YobotServerService(YobotServiceBase):
 
 ############## TESTING ################
 def startup(args=sys.argv[1:]):
-    if args[0] == "-s":        
+    import optparse
+    parser = optparse.OptionParser()
+    parser.add_option("-l", "--listen", help="listening address:port", default="localhost:7770", dest="listening_addrinfo")
+    parser.add_option("-c", "--connect", help="purple address:port", default="localhost:7771", dest="purple_addrinfo")
+    parser.add_option("-s", help="does nothing. for compatibility", action="store_true", dest="dummy")
+    options, args = parser.parse_args(args)
+    
+    tmp = options.listening_addrinfo.rsplit(":", 1)
+    assert len(tmp) >= 2
+    listen_address = tmp[0]
+    listen_port = int(tmp[1])
+    
+    tmp = options.purple_addrinfo.rsplit(":", 1)
+    assert len(tmp) >= 2
+    connect_address = tmp[0]
+    connect_port = int(tmp[1])
+
+    if True:
         debuglog.init("Agent", title_color="cyan")
         log_info( "INSTALLING REACTOR...")
         from twisted.internet import reactor as _reactor
@@ -1035,8 +1054,13 @@ def startup(args=sys.argv[1:]):
         
         yobotproto.yobot_proto_setlogger("Agent")
         svc = YobotServerService()
-        reactor.connectTCP("localhost", 7771, svc.getYobotPurpleFactory())
-        reactor.listenTCP(7770, svc.getYobotServerFactory())
+        
+        log_info("connecting to purple at %s:%d" % (connect_address, connect_port))
+        reactor.connectTCP(connect_address, connect_port, svc.getYobotPurpleFactory())
+        
+        log_info("listening on %s:%d" % (listen_address, listen_port))
+        reactor.listenTCP(listen_port, svc.getYobotServerFactory(), interface=listen_address)
+        
         reactor.run()
 
 if __name__ == "__main__":

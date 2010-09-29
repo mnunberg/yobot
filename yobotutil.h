@@ -34,4 +34,6 @@ status = ioctlsocket(s, FIONBIO, &_argp); }
 
 #endif
 
+void yobot_rmdir_r(const gchar *startpath, gboolean keep_top);
+
 #endif /* YOBOTUTIL_H_ */

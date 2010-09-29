@@ -3,7 +3,8 @@ all: main_auto.py chatwindow_auto.py \
 	notification.py resources_rc.py \
 	smileys_rc.py logbrowser.py \
 	logdlg.py status_dialog.py \
-	triviaopts.py connection_properties.py
+	triviaopts.py connection_properties.py \
+	agent_connect_dlg.py
 
 resources_rc.py: resources.qrc
 	pyrcc4 $^ -o $@

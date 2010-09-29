@@ -344,13 +344,18 @@ static void init_listener(gboolean first_time)
 		hints.ai_family = AF_INET;
 		hints.ai_socktype = SOCK_STREAM;
 		hints.ai_next = NULL;
-
-		status = getaddrinfo("localhost", "7771", &hints, &result);
-		if (status < 0)
-			perror("getaddrinfo");
+		assert(yobot_listen_address && yobot_listen_port);
+		yobot_log_info("listening on %s:%s", yobot_listen_address, yobot_listen_port);
+		status = getaddrinfo(yobot_listen_address, yobot_listen_port, &hints, &result);
+		if (status < 0) {
+			yobot_log_err("getaddrinfo failed: %s", gai_strerror(status));
+			exit(EXIT_FAILURE);
+		}
 		s = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-		if (s < 0)
-			perror("socket");
+		if (s < 0) {
+			yobot_log_err("socket() failed: %s", strerror(errno));
+			exit(EXIT_FAILURE);
+		}
 #ifndef _WIN32
 		unsigned int opt = 1;
 #else
@@ -359,11 +364,11 @@ static void init_listener(gboolean first_time)
 		status = setsockopt(s,SOL_SOCKET,SO_REUSEADDR,&opt,sizeof(opt));
 		if (status < 0)
 			perror("setsockopt");
-
 		status = bind(s, result->ai_addr, result->ai_addrlen);
-		if (status < 0)
-			perror("bind");
-
+		if (status < 0) {
+			yobot_log_crit("bind() failed: %s", strerror(errno));
+			exit(EXIT_FAILURE);
+		}
 		freeaddrinfo(result);
 		status = listen(s, 5);
 	}
@@ -371,6 +376,13 @@ static void init_listener(gboolean first_time)
 		/*we need to close the old socket first*/
 		purple_input_remove(cb_handle);
 		close(yobot_socket);
+		/*check if this is a daemon or desktop mode*/
+		if (yobot_application_mode == YOBOT_DESKTOP) {
+			yobot_log_warn("Agent has disconnected and desktop mode was requested. Exiting");
+			exit(0);
+		} else {
+			yobot_log_info("Agent disconnected. Listening for reconnect in daemon mode");
+		}
 	}
 
 	/*block....*/
@@ -391,8 +403,8 @@ static void init_listener(gboolean first_time)
 	//status = fcntl(yobot_socket,F_SETFL, flags|O_NONBLOCK);
 	YOBOT_SET_SOCK_BLOCK(yobot_socket, 1, status);
 	if(status <= -1 ) {
-		perror(__func__);
 		yobot_log_crit("fcntl failed");
+		exit(EXIT_FAILURE);
 	}
 
 	in = in_w = out = yobot_socket;
@@ -404,7 +416,6 @@ static void init_listener(gboolean first_time)
 			PURPLE_INPUT_READ,
 			yobot_listener,NULL);
 	yobot_log_info("END");
-
 }
 
 static void yobot_listener(gpointer _null, gint fd, PurpleInputCondition cond)

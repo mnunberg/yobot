@@ -10,8 +10,10 @@
 #include "yobot_ui.h"
 #include "yobot_log.h"
 #include "win32/yobot_win32.h"
+#include "yobotutil.h"
 #include <errno.h>
 #include <stdbool.h>
+#include <string.h>
 
 #ifdef _WIN32
 #include "win32/win32dep.h"
@@ -179,21 +181,15 @@ static PurpleCoreUiOps core_uiops =
 };
 
 
-static void init_libpurple(debug)
+static void init_libpurple(int debug, char *directory)
 {
-	purple_util_set_user_dir(CUSTOM_USER_DIRECTORY);
+	purple_util_set_user_dir(directory);
 	purple_debug_set_enabled(debug);
 
 	purple_core_set_ui_ops(&core_uiops);
 	purple_debug_set_ui_ops(&yobot_libpurple_debug_uiops);
 	purple_eventloop_set_ui_ops(&glib_eventloops);
 
-//#ifdef WIN32
-//	purple_plugins_add_search_path(WPURPLE_ROOT);
-//	purple_plugins_add_search_path(WPURPLE_ROOT G_DIR_SEPARATOR_S "Plugins");
-//	purple_plugins_add_search_path(WPURPLE_ROOT G_DIR_SEPARATOR_S "sasl2");
-//	purple_certificate_add_ca_search_path(WPURPLE_ROOT G_DIR_SEPARATOR_S "ca-certs");
-//#endif
 	if (!purple_core_init(UI_ID)) {
 		fprintf(stderr,
 				"libpurple initialization failed. Dumping core.\n"
@@ -203,8 +199,6 @@ static void init_libpurple(debug)
 	purple_set_blist(purple_blist_new());
 	purple_blist_load();
 	purple_prefs_load();
-//	purple_plugins_load_saved(PLUGIN_SAVE_PREF);
-//	purple_pounces_load();
 	/*some settings for our application*/
 	purple_prefs_set_bool("/purple/away/away_when_idle", false);
 	purple_prefs_set_string("/purple/away/idle_reporting", "system");
@@ -217,12 +211,81 @@ yobot_log_s yobot_log_params = {
 		1
 };
 
+
+int yobot_application_mode = YOBOT_DESKTOP;
+char *yobot_listen_address = NULL;
+char *yobot_listen_port = NULL;
+
 int main(int argc, char *argv[])
 {
-	if(argc < 2) {
-		fprintf(stderr,"Need a debug parameter\n");
+	/*set up option parsing...*/
+	int debug = 0;
+	char *config_dir = NULL;
+	char *mode = NULL;
+	char *addrport = NULL;
+	gboolean clean_confdir = FALSE;
+	GError *error = NULL;
+
+	GOptionEntry entries[] =
+	{
+			{ "debug", 'd', 0, G_OPTION_ARG_INT, &debug, "0 turns off debugging, anthing else turns it on", "LEVEL" },
+			{ "config-dir", 'c' , 0, G_OPTION_ARG_STRING, &config_dir, "Configuration directory, defaults to $HOME/.yobot/purple", "DIR" },
+			{ "mode", 'm', 0, G_OPTION_ARG_STRING, &mode, "Mode, 'desktop' or 'daemon'", "MODE"},
+			{ "clean", 0, 0, G_OPTION_ARG_NONE, &clean_confdir, "Clean configuration directory. Useful for debugging"},
+			{ "listening-address", 'l', 0, G_OPTION_ARG_STRING, &addrport, "Listening address in the form of address:port"},
+			{NULL}
+	};
+	GOptionContext *context = g_option_context_new("Yobot purple command server");
+	g_option_context_add_main_entries(context, entries, NULL);
+	if(!g_option_context_parse(context, &argc, &argv, &error)) {
+		g_print("option parsing failed: %s\n", error->message);
 		exit(1);
 	}
+
+	if (mode && strcmp(mode, "daemon"))
+		yobot_application_mode = YOBOT_DAEMON;
+
+	/*build configuration directory path*/
+	if (!config_dir) {
+		/*configuration directory was not specified on the command line*/
+		if(!(config_dir = getenv("YOBOT_USER_DIR"))) {
+			config_dir = g_build_path(G_DIR_SEPARATOR_S, g_get_home_dir(), ".yobot", "purple", NULL);
+		} else {
+			config_dir = g_build_path(G_DIR_SEPARATOR_S, config_dir, "purple", NULL);
+		}
+	} else {
+		config_dir = g_build_path(G_DIR_SEPARATOR_S, config_dir, "purple", NULL);
+	}
+
+	/*make the directory...*/
+	if (g_mkdir_with_parents(config_dir, 0700)<0) {
+		yobot_log_warn("Couldn't mkdir %s: %s", config_dir, strerror(errno));
+		g_free(config_dir);
+		config_dir = g_build_path(G_DIR_SEPARATOR_S, g_get_tmp_dir(), "yobot_failover", g_get_user_name(), "purple", NULL);
+		yobot_log_warn("trying failover path of %s", config_dir);
+		if (g_mkdir_with_parents(config_dir, 0700)<0) {
+			yobot_log_crit("failed to make failover directory %s: %s. Aborting!", config_dir, strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+	}
+	if (clean_confdir) {
+		yobot_log_warn("emptying configuration directory %s", config_dir);
+		yobot_rmdir_r(config_dir, TRUE);
+	}
+	if (addrport) {
+		char **tmp = g_strsplit(addrport, ":", 2);
+		if(tmp[0] && tmp[1]) {
+			yobot_listen_address = tmp[0];
+			yobot_listen_port = tmp[1];
+		} else {
+			yobot_log_err("got bad address value: '%s'", addrport);
+			exit(EXIT_FAILURE);
+		}
+	} else {
+		yobot_listen_address = "localhost";
+		yobot_listen_port = "7771";
+	}
+
 #ifdef _WIN32
 	yobot_patch_purple_searchpath();
 	yobot_log_info("testing.. ");
@@ -233,20 +296,13 @@ int main(int argc, char *argv[])
 	yobot_log_info("install_dir() returned %s", tmp);
 	yobot_log_info("trying dependent wpurple_lib_dir");
 	wpurple_lib_dir();
-
 #endif
-	/*get rid of annoying preferences*/
-	remove(CUSTOM_USER_DIRECTORY G_DIR_SEPARATOR_S "prefs.xml");
-	remove(CUSTOM_USER_DIRECTORY G_DIR_SEPARATOR_S "accounts.xml");
-	remove(CUSTOM_USER_DIRECTORY G_DIR_SEPARATOR_S "status.xml");
-	remove(CUSTOM_USER_DIRECTORY G_DIR_SEPARATOR_S "blist.xml");
-	gboolean debug = atoi(argv[1]);
 	GMainLoop *loop = g_main_loop_new(NULL, FALSE);
 #ifndef WIN32
 	signal(SIGCHLD, SIG_IGN);
 	signal(SIGHUP, SIG_IGN);
 #endif
-	init_libpurple(debug);
+	init_libpurple(debug, config_dir);
 	g_main_loop_run(loop);
 	return 0;
 

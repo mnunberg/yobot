@@ -1,20 +1,30 @@
 #!/usr/bin/env python
 #for py2exe to work properly:
 from lxml import _elementpath as _dummy
-
 import yobot_plugins
 from twisted.internet import reactor
+from twisted.internet.protocol import ClientFactory
 from yobotclass import YobotAccount, YobotMessage
 from yobotnet import YobotClientService
 import yobotproto
 from client_support import ModelBase, YCAccount
 from debuglog import log_debug, log_err, log_warn, log_crit, log_info
 import yobot_interfaces
-from triviabot import triviabot
 from collections import defaultdict
 import debuglog
 import sys
 ID_COUNTER=1
+
+class YobotClientFactory(ClientFactory):
+    def startedConnecting(self, connector):
+        #super(type(self),self).startedConnecting(connector)
+        log_debug("")
+    def clientConnectionFailed(self, connector, reason):
+        #super(type(self),self).connectionFailed(connector, reason)
+        log_debug("")
+    def clientConnectionLost(self, connector,reason):
+        #super(type(self),self).clientConnectionLost(connector, reason)
+        log_debug("")
 
 class UIClient(object):
     """These define a bunch of hooks for the server"""
@@ -26,6 +36,7 @@ class UIClient(object):
         self.joined_rooms = defaultdict(lambda: [])
         yobot_interfaces.component_registry.register_component("client-operations", self)
         yobot_interfaces.component_registry.register_component("joined-rooms", self.joined_rooms)
+        self.connector = None
         
     def registerPlugin(self, plugin_object):
         assert yobot_interfaces.IYobotUIPlugin.providedBy(plugin_object)
@@ -34,13 +45,10 @@ class UIClient(object):
     def _plugin_hook_invoke(self, hook_name, hook_args):
         for p in self.plugins:
             getattr(p, hook_name)(*hook_args)
-    def run(self):
-        #self.uihooks = YobotGui(self, self.svc.accounts)
-        #self.trivia = triviabot.TriviaGui()
+    def run(self, address, port):
         for p in yobot_interfaces.component_registry.get_active_plugins():
-            self.registerPlugin(p())
-        reactor.connectTCP("localhost", 7770, self.svc.getYobotClientFactory())
-        #self.registerPlugin(self.uihooks)
+            self.registerPlugin(p())        
+        self.connectToAgent(address, port)
         reactor.run()
     def clientRegistered(self):
         log_info( "REGISTERED")
@@ -48,7 +56,6 @@ class UIClient(object):
         self.test_acct()
     
     def test_acct(self):
-        return
         log_info("creating new test account")
         new_account = YCAccount(self.svc, "meh@10.0.0.99/", "1", yobotproto.YOBOT_JABBER)
 #            proxy_host="localhost", proxy_port="3128", proxy_type="http")
@@ -85,8 +92,31 @@ class UIClient(object):
         acct._logged_in = False
         self._plugin_hook_invoke("accountConnectionRemoved", (acct,))
         log_warn( "ACCOUNT REMOVED!")
+    
+    #agent handlers:
+    def _agentconn_failed(self, connector, reason):
+        #remove all accounts first:
+        self.disconnectAll(True) #arg doesn't matter
+        self.svc.accounts.clear()
         
     #####   GUI HOOKS    #####
+    def connectToAgent(self, address="localhost", port=7770, disconnect_from_server=True):
+        try:
+            self.disconnectAll(disconnect_from_server)
+        except Exception, e:
+            log_warn(e)
+        
+        log_debug("creating new factory")
+        f = YobotClientFactory()
+        self.svc.polishClientFactory(f)
+        f.clientConnectionFailed = self._agentconn_failed
+        f.clientConnectionLost = self._agentconn_failed
+        log_debug("reactor.connect")
+        if self.connector:
+            log_debug("disconnecting current connector")
+            self.connector.disconnect()
+        self.connector = reactor.connectTCP(address, port, f)
+    
     def connect(self, user, passw, improto, **proxy_params):
         user = str(user)
         passw = str(passw)
@@ -95,13 +125,15 @@ class UIClient(object):
     
     def uiClosed(self):
         #stop the reactor..
+        log_err("")
         reactor.stop()
     
     def disconnectAll(self, fromServer):
         if fromServer:
             self.svc.disconnectAll()
         else:
-            reactor.stop()
+            log_err("reactor.stop")
+            #reactor.stop()
     
     def callLater(cls, delay, fn, *args, **kwargs):
         ret = reactor.callLater(delay, fn, *args, **kwargs)
@@ -118,7 +150,8 @@ def startup(args=sys.argv):
     options.add_option("-I", "--improto", dest="improto", help="use this IM protocol [see documentation for a list]")
     options.add_option("-c", "--config", dest="config", help="configuration file")
     options.add_option("--use-proxy", dest="use_proxy", action="store_true", help="use env proxy settings", default=False)
-    options, args = options.parse_args()
+    options.add_option("--agent-address", dest="agent_addrinfo", help="agent server:port", default="localhost:7770")
+    options, args = options.parse_args(args)
     
     if options.selected_plugins:
         #generate dict:
@@ -131,11 +164,17 @@ def startup(args=sys.argv):
                 log_warn("couldn't find plugin", p)
                 continue
             yobot_interfaces.component_registry.activate_plugin(plugin_object)
+            
+    tmp = options.agent_addrinfo.rsplit(":", 1)
+    assert len(tmp) >= 2
+    
+    address = tmp[0]
+    port = int(tmp[1])
     
     debuglog.init("Client", title_color="green")
     yobotproto.yobot_proto_setlogger("Client")
     ui = UIClient()
-    ui.run()
+    ui.run(address, port)
 
 if __name__ == "__main__":
     startup()

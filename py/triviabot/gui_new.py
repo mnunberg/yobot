@@ -4,6 +4,9 @@ from PyQt4.QtGui import *
 import os.path
 import sys
 
+
+#long, boring, linear code.. but less of a headache than using designer
+
 def point_to_html(x):
     #copied from libpurple/protocols/yahoo/util.c
     if (x < 9):
@@ -61,20 +64,6 @@ def xfloat_range_decrement(begin, end, step):
 def print_qsize(sz, title=""):
     print title, "W: ", sz.width(), " H: ", sz.height()
     
-
-#class FontButton(QToolButton):
-#    pass
-    #def paintEvent(self, event):
-    #    option = QStyleOptionButton()
-    #    option.initFrom(self)
-    #    option.state = QStyle.State_Sunken if self.isDown() else QStyle.State_Raised
-    #    option.text = self.text()
-    #    option.icon = self.icon()
-    #    #option.styleOptionType = QStyleOption.SO_ToolButton
-    #    option.buttonFeatures = QStyleOptionButton.HasMenu
-    #    painter = QPainter(self)
-    #    self.style().drawControl(QStyle.CE_PushButton, option, painter, self)
-
 class AnimatedLayout(QLayout):
     STATE_HIDDEN, STATE_VISIBLE, STATE_ANIMATING = range(3)
     USE_ANIMATIONS = True if not sys.platform.lower() == "darwin" else False
@@ -462,10 +451,23 @@ class TGui(QMainWindow):
         elif type == self.FORMAT_RESET:
             self.current_color = QColor()
             self.current_font = QFont()
-            #...
-        #else?
         
-        #update the format string:
+        self._update_fmtstr()
+        self._gen_font_stylesheet()
+    
+        
+    def _gen_font_stylesheet(self):
+        self.change_font.setStyleSheet(("QAbstractButton {" + 
+          ("font-weight: bold; " if self.current_font.bold() else "") +
+          ("font-style: italic; " if self.current_font.italic() else "") +
+          ("text-decoration: underline; " if self.current_font.underline() else "") +
+          ("font-size: %dpt; " % (self.current_font.pointSize(),)) +
+          ("font-family: %s; " % (self.current_font.family(),)) +
+          ("color: %s; " % (self.current_color.name(),))
+        + self.change_font_extrastyle + " } "))
+
+    
+    def _update_fmtstr(self):
         fmt_open = "<font face='%s' size='%d' absz='%d' color='%s'>" % (
             self.current_font.family(), point_to_html(self.current_font.pointSize()),
             self.current_font.pointSize(), self.current_color.name())
@@ -475,17 +477,8 @@ class TGui(QMainWindow):
                 fmt_open += "<%s>" % (tag,)
                 fmt_close += "</%s>" % (tag,)
         fmt_close += "</font>"
-        
-        self.current_fmtstr = fmt_open + "%s" + fmt_close
-    
-        self.change_font.setStyleSheet(("QAbstractButton {" + 
-          ("font-weight: bold; " if self.current_font.bold() else "") +
-          ("font-style: italic; " if self.current_font.italic() else "") +
-          ("text-decoration: underline; " if self.current_font.underline() else "") +
-          ("font-size: %dpt; " % (self.current_font.pointSize(),)) +
-          ("font-family: %s; " % (self.current_font.family(),)) +
-          ("color: %s; " % (self.current_color.name(),))
-        + self.change_font_extrastyle + " } "))
+        self.fmtstr = fmt_open + "%s" + fmt_close
+
     
     def signal_util(self):
         "wire up signals and events"
@@ -524,7 +517,7 @@ class TGui(QMainWindow):
         signal_connect(w.change_font, SIGNAL("clicked()"), lambda: self.font_menu.exec_(QCursor().pos()))
         self.current_font = QFont()
         self.current_color = QColor()
-        self.current_fmtstr = "%s"
+        self.fmtstr = "%s"
         signal_connect(w.action_change_font_color, SIGNAL("activated()"), lambda: self.font_color_change(self.COLOR))
         signal_connect(w.action_change_font_style, SIGNAL("activated()"), lambda: self.font_color_change(self.FONT))
         signal_connect(w.action_change_font_reset, SIGNAL("activated()"), lambda: self.font_color_change(self.FORMAT_RESET))

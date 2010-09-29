@@ -17,9 +17,9 @@ ulimit -c $((1024**3))
 #sleep 0.5
 #urxvt -hold -title "GDB:Purple" -e gdb ./yobot -x gdbcmds & gdb_pid=$!
 #sleep 0.5
-$python py/yobotnet.py -s & relay_pid=$!
+$python py/yobotnet.py & relay_pid=$!
 #sleep 0.5
-$python py/client.py -p foo  \
+$python py/client.py -p foo  -p gui_main \
 	-p triviabot & client_pid=$!
 
 trap "kill $yobot_pid; kill $relay_pid; pkill yobot; kill $client_pid" SIGINT SIGSTOP SIGQUIT
