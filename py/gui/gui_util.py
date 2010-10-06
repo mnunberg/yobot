@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+
+#various utility functions for use with PyQt, used within the yobot codebase
+
 from PyQt4 import QtCore, QtGui
 
 #here be dragons:
@@ -101,6 +104,15 @@ def getIcon(name):
     return QtGui.QIcon.fromTheme(name, QIcon(":/icons/icons/"+name.lower()))
 
 
+def getProtoIconAndName(proto_int):
+    name = IMPROTOS_BY_CONSTANT.get(proto_int, "<UNKNOWN>")
+    if name != "<UNKNOWN>":
+        icon = getIcon(name)
+    else:
+        icon = QIcon
+    return (name, icon)
+    
+    
 def getProtoStatusIcon(name, proto_int=None):
     """Creates a nice little overlay of the status and the protocol icon.
     Returns QIcon"""
@@ -137,6 +149,19 @@ def mkProtocolComboBox(cbox):
     for proto_constant, proto_name in IMPROTOS_BY_CONSTANT.items():
         icon = getProtoStatusIcon(proto_name)
         cbox.addItem(icon, proto_name, proto_constant)
+
+def widgetformatter(widget, font, color, klass="QWidget", extra=""):
+    stylesheet = ((klass + "{" ) +
+        ("font-weight:bold;" if font.bold() else "") +
+        ("font-style:italic;" if font.italic() else "") +
+        ("text-decoration:underline;" if font.underline() else "") +
+        ("font-size:%dpt;" % (font.pointSize(),)) +
+        ("font-family:%s;" % (font.family(),)) +
+        ("color:%s;" % (color.name())) +
+        (extra + "}")
+        )
+    log_debug(stylesheet)
+    widget.setStyleSheet(stylesheet)
 
 INDEX_ACCT, INDEX_BUDDY = (1,2)
 ROLE_ACCT_OBJ = Qt.UserRole + 2

@@ -161,7 +161,8 @@ class ComponentRegistry(object):
         self._plugins = set()
         self._active_plugins = set()
         self.known_ids = ("gui-main", "account-store", "account-model", "client-svc",
-                          "client-operations", "joined-rooms", "reactor")
+                          "client-operations", "joined-rooms", "reactor",
+                          "client-config", "yobot-config-dir")
     def register_component(self, id, object):
         if not id in self.known_ids:
             raise Exception("unknown component", id)
@@ -188,3 +189,18 @@ class ComponentRegistry(object):
         return tuple(self._active_plugins)
 
 component_registry = ComponentRegistry()
+
+def get_yobot_homedir():
+    """Simple utility function. Order is: (1) the "yobot-config-dir" plugin,
+    (2) the YOBOT_USER_DIR environment variable, (3) $HOME/.yobot"""
+    from os import environ
+    from os.path import expanduser, join
+    
+    #see if we've been passed an option on the command line:
+    e = component_registry.get_component("yobot-config-dir")
+    if e: return e
+    
+    e = environ.get("YOBOT_USER_DIR")
+    if e: return e
+    
+    return join(expanduser("~"), ".yobot")

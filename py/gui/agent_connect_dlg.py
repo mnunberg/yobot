@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'agent_connect_dlg.ui'
 #
-# Created: Tue Sep 28 20:31:18 2010
+# Created: Thu Sep 30 21:27:43 2010
 #      by: PyQt4 UI code generator 4.7.3
 #
 # WARNING! All changes made in this file will be lost!

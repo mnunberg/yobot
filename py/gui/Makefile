@@ -4,7 +4,8 @@ all: main_auto.py chatwindow_auto.py \
 	smileys_rc.py logbrowser.py \
 	logdlg.py status_dialog.py \
 	triviaopts.py connection_properties.py \
-	agent_connect_dlg.py
+	agent_connect_dlg.py _config_dialog.py \
+	_account_settings.py
 
 resources_rc.py: resources.qrc
 	pyrcc4 $^ -o $@

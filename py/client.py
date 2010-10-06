@@ -14,6 +14,7 @@ from collections import defaultdict
 import debuglog
 import sys
 ID_COUNTER=1
+    
 
 class YobotClientFactory(ClientFactory):
     def startedConnecting(self, connector):
@@ -31,13 +32,21 @@ class UIClient(object):
     yobot_interfaces.implements(yobot_interfaces.IClientOperations)
     def __init__(self, username=None, password=None, improto=None):
         """Set the service"""
+        #set up the client configuration:
+        self.config = yobot_interfaces.component_registry.get_component("client-config")
+        if not self.config:
+            import client_config
+            import os.path
+            self.config = client_config.ClientConfig(
+                os.path.join(yobot_interfaces.get_yobot_homedir(),"client.conf"),autocreate=True)
+            yobot_interfaces.component_registry.register_component("client-config", self.config)
+        self.config.save()
         self.svc = YobotClientService(self, reactor)
         self.plugins = set()
         self.joined_rooms = defaultdict(lambda: [])
         yobot_interfaces.component_registry.register_component("client-operations", self)
         yobot_interfaces.component_registry.register_component("joined-rooms", self.joined_rooms)
         self.connector = None
-        
     def registerPlugin(self, plugin_object):
         assert yobot_interfaces.IYobotUIPlugin.providedBy(plugin_object)
         self.plugins.add(plugin_object)
@@ -47,7 +56,7 @@ class UIClient(object):
             getattr(p, hook_name)(*hook_args)
     def run(self, address, port):
         for p in yobot_interfaces.component_registry.get_active_plugins():
-            self.registerPlugin(p())        
+            self.registerPlugin(p())
         self.connectToAgent(address, port)
         reactor.run()
     def clientRegistered(self):
@@ -100,12 +109,25 @@ class UIClient(object):
         self.svc.accounts.clear()
         
     #####   GUI HOOKS    #####
-    def connectToAgent(self, address="localhost", port=7770, disconnect_from_server=True):
+    def connectToAgent(self, address=None, port=None, disconnect_from_server=True):
         try:
             self.disconnectAll(disconnect_from_server)
         except Exception, e:
             log_warn(e)
+        if not address and not port:
+            _address = self.config.globals.get("agent_address", "localhost:7777")
+            log_err(_address)
+            a = _address.rsplit(":")
+            if len(a) >= 2:
+                address = a[0]
+                port = int(a[1])
+            else:
+                address = a[0]
+                port = 7770
+        elif address and not port:
+            port = 7770
         
+                
         log_debug("creating new factory")
         f = YobotClientFactory()
         self.svc.polishClientFactory(f)
@@ -144,14 +166,26 @@ class UIClient(object):
 def startup(args=sys.argv):
     import optparse
     options = optparse.OptionParser()
-    options.add_option("-p", "--plugin", dest="selected_plugins", action="append", help="include this plugin")
-    options.add_option("-U", "--username", dest="username", help="use this IM username")
-    options.add_option("-P", "--password", dest="password", help="use this password")
-    options.add_option("-I", "--improto", dest="improto", help="use this IM protocol [see documentation for a list]")
-    options.add_option("-c", "--config", dest="config", help="configuration file")
-    options.add_option("--use-proxy", dest="use_proxy", action="store_true", help="use env proxy settings", default=False)
-    options.add_option("--agent-address", dest="agent_addrinfo", help="agent server:port", default="localhost:7770")
+    options.add_option("-p", "--plugin", dest="selected_plugins", action="append",
+                       help="include this plugin")
+    options.add_option("-U", "--username", dest="username",
+                       help="use this IM username")
+    options.add_option("-P", "--password", dest="password",
+                       help="use this password")
+    options.add_option("-I", "--improto", dest="improto",
+                       help="use this IM protocol [see documentation for a list]")
+    options.add_option("-c", "--config-dir", dest="configdir",
+                       help="client configuration directory",
+                       default=yobot_interfaces.get_yobot_homedir())
+    options.add_option("--use-proxy", dest="use_proxy", action="store_true",
+                       help="use env proxy settings", default=False)
+    options.add_option("--agent-address", dest="agent_addrinfo",
+                       help="agent server:port")
+    
     options, args = options.parse_args(args)
+    
+    #set our configuration directory
+    yobot_interfaces.component_registry.register_component("yobot-config-dir", options.configdir)
     
     if options.selected_plugins:
         #generate dict:
@@ -164,13 +198,19 @@ def startup(args=sys.argv):
                 log_warn("couldn't find plugin", p)
                 continue
             yobot_interfaces.component_registry.activate_plugin(plugin_object)
-            
-    tmp = options.agent_addrinfo.rsplit(":", 1)
-    assert len(tmp) >= 2
     
-    address = tmp[0]
-    port = int(tmp[1])
     
+    
+    tmp = options.agent_addrinfo
+    if tmp:
+        tmp = tmp.rsplit(":", 1)
+        address = tmp[0]
+        if len(tmp) >= 2:
+            port = int(tmp[1])
+    else:
+        #no address specified on the command line
+        address, port = None, None
+        
     debuglog.init("Client", title_color="green")
     yobotproto.yobot_proto_setlogger("Client")
     ui = UIClient()

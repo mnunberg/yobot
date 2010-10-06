@@ -1,10 +1,7 @@
 #!/usr/bin/env python
 
-ABOUT_MESSAGE="""
-Yobot Copyright (C) 2010  M. Nunberg
-This program comes with ABSOLUTELY NO WARRANTY;
-This is free software, and you are welcome to redistribute it
-under certain conditions; see the included LICENSE file for details"""
+ABOUT_MESSAGE="""Yobot Copyright (C) 2010  M. Nunberg
+This program comes with ABSOLUTELY NO WARRANTY; This is free software, and you are welcome to redistribute it under certain conditions; see the included LICENSE file for details"""
 
 
 import sys
