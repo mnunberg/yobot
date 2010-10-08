@@ -28,8 +28,9 @@ _declspec(dllexport) const char *new_wpurple_install_dir(void) {
 			g_free(tmp);
 			return NULL;
 		}
-		if (GetModuleFileNameW(purple_dll_handle, _dir, MAXPNAMELEN) > 0) {
+		if (GetModuleFileNameW(purple_dll_handle, _dir, MAXPATHLEN) > 0) {
 			tmp = g_utf16_to_utf8(_dir, -1, NULL, NULL, NULL);
+			yobot_log_info("FILE NAME: %s", tmp);
 		}
 		if(!tmp) {
 			tmp = g_win32_error_message(GetLastError());

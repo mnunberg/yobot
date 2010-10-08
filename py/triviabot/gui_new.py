@@ -207,6 +207,7 @@ class TGui(QMainWindow):
         
         self.questions_type = QComboBox(self)
         self.questions_type.addItems(("Mix", "Anagrams", "Trivia"))
+        
         self.post_interval = QSpinBox(self)
         self.post_interval.setSuffix(" sec")
         self.answer_timeout = QSpinBox(self)
@@ -217,6 +218,9 @@ class TGui(QMainWindow):
         self.percent_trivia = QSpinBox()
         self.percent_trivia.setSuffix("%")
         
+        for i in ("post_interval", "answer_timeout", "amount"):
+            getattr(self, i).setMinimum(1)
+            
         l_left = list()
         l_left.append(("Type",  self.questions_type))
         l_left.append(("Interval",  self.post_interval))
@@ -404,7 +408,7 @@ class TGui(QMainWindow):
         self.setMenuBar(self.menubar)
         
         self.signal_util()
-        
+        self.setdefaults()
     
     def select_file(self, field, initial_path="", select_type=FILE_EXISTING, caption=""):
         """Select a file. The caller may wish to attach a signal to the field's
@@ -500,7 +504,6 @@ class TGui(QMainWindow):
                        lambda i: w.percent_trivia.setValue(100-i))
         signal_connect(w.percent_trivia, SIGNAL("valueChanged(int)"),
                        lambda i: w.percent_anagrams.setValue(100-i))
-        
         #show/hide specific parameters
         signal_connect(w.questions_type, SIGNAL("currentIndexChanged(QString)"), self.type_changed)
         
@@ -522,6 +525,14 @@ class TGui(QMainWindow):
         signal_connect(w.action_change_font_style, SIGNAL("activated()"), lambda: self.font_color_change(self.FONT))
         signal_connect(w.action_change_font_reset, SIGNAL("activated()"), lambda: self.font_color_change(self.FORMAT_RESET))
         
+    
+    def setdefaults(self):
+        "Sets the defaults. In a separate function so things can be changed if needed"
+        self.post_interval.setValue(30)
+        self.answer_timeout.setValue(40)
+        self.amount.setValue(40)
+        self.percent_anagrams.setValue(50)
+        self.setWindowTitle("Yobot Trivia")
         
 if __name__ == "__main__":
     import sys

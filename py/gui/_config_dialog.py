@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file '_config_dialog.ui'
 #
-# Created: Tue Oct  5 12:53:32 2010
+# Created: Tue Oct  5 20:12:45 2010
 #      by: PyQt4 UI code generator 4.7.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -73,7 +73,7 @@ class Ui_config_dialog(object):
         config_dialog.addTab(self.appearance_tab, "")
 
         self.retranslateUi(config_dialog)
-        config_dialog.setCurrentIndex(2)
+        config_dialog.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(config_dialog)
 
     def retranslateUi(self, config_dialog):

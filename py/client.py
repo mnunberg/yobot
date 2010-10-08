@@ -60,11 +60,40 @@ class UIClient(object):
         self.connectToAgent(address, port)
         reactor.run()
     def clientRegistered(self):
-        log_info( "REGISTERED")
-        log_info( "trying to register account...")
-        self.test_acct()
+        log_info("REGISTERED")        
+        self.autoconnect()
+    
+    def autoconnect(self):
+        log_info("autoconnecting..")
+        #auto-connect all accounts in our config..
+        if self.config and self.config.do_autoconnect:
+            config = self.config
+            for a in config.accounts:
+                log_debug("found account: %s/%s" % (a["name"], a["improto"]))
+                #create positional arguments:
+                user, password, improto = a.get("name"), a.get("password"), a.get("improto")
+                if not (user and password and improto):
+                    continue
+                improto = getattr(yobotproto, improto, -1)
+                if improto == -1:
+                    continue
+                args = (user, password, improto)
+                kwargs = {}
+                if a.get("use_proxy", False):
+                    while True:
+                        if not (a.get("proxy_address") and a.get("proxy_type")):
+                            break
+                        kwargs["proxy_host"] = a["proxy_address"]
+                        kwargs["proxy_type"] = a["proxy_type"].lower()
+                        kwargs["proxy_port"] = int(a["proxy_port"]) if a["proxy_port"] else None
+                        kwargs["proxy_username"] = a.get("proxy_username", None)
+                        kwargs["proxy_password"] = a.get("proxy_password", None)
+                        break
+                self.connect(*args, **kwargs)
+
     
     def test_acct(self):
+        return
         log_info("creating new test account")
         new_account = YCAccount(self.svc, "meh@10.0.0.99/", "1", yobotproto.YOBOT_JABBER)
 #            proxy_host="localhost", proxy_port="3128", proxy_type="http")

@@ -105,6 +105,7 @@ def getIcon(name):
 
 
 def getProtoIconAndName(proto_int):
+    "->(name, icon)"
     name = IMPROTOS_BY_CONSTANT.get(proto_int, "<UNKNOWN>")
     if name != "<UNKNOWN>":
         icon = getIcon(name)
@@ -512,7 +513,6 @@ class OverlayConnectionWidget(ConnectionWidget):
         painter = QPainter(self)
         qDrawShadePanel(painter, self.rect(), QPalette())
     def showEvent(self, event):
-        log_err("hi")
         super(type(self), self).showEvent(event)
         if not event.spontaneous():
             self.animation.setStartValue(QSize(self.width(), 0))
@@ -638,7 +638,6 @@ class AgentConnectDialog(QDialog):
         
     def _accepted(self):
         w = self.widgets
-        log_err("hi")
         client_operations = yobot_interfaces.component_registry.get_component("client-operations")
         if not client_operations:
             raise Exception("Couldn't get client operations")

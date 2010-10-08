@@ -198,8 +198,7 @@ class YobotClient(YobotNode):
         """
         self.factory.requestRegistration(self)
     def connectionLost(self, reason):
-        log_err( "lost server.. shutting down")
-        log_err("not really")
+        log_err( "lost server.. ")
         return
         if self.factory.reactor and self.factory.reactor.running:
             self.factory.reactor.stop()
@@ -215,6 +214,30 @@ class YobotPurple(YobotNode):
         log_err( "lost purple.. shutting down")
         if reactor.running:
             reactor.stop()
+
+
+class PurpleQueue(object):
+    "Asynchronous proxy class using Deferreds"
+    def __init__(self):
+        self.deferred = defer.Deferred()
+    def __bool__(self):
+        return False
+    def __getattribute__(self, name):
+        "Returns a wrapper function"
+        try:
+            return object.__getattribute__(self, name)
+        except AttributeError:
+            #craft a function to insert ourself as a callback for the deferred
+            def fn(*args, **kwargs):
+                def cb(purple):
+                    log_err("calling purple.%s()" % (name,))
+                    getattr(purple, name)(*args, **kwargs)
+                    return purple
+                self.deferred.addCallback(cb)
+            return fn
+    def release(self, purple):
+        log_err("calling delayed queue purple protocol class methods")
+        self.deferred.callback(purple)
         
 ############################    SERVICES    ############################
 
@@ -574,7 +597,7 @@ class YobotServerService(YobotServiceBase):
     def _initvars(self):
         YobotServiceBase._initvars(self)
         #should eventually be something that lets us hook up with libpurple
-        self.prpl_server = None
+        self.prpl_server = PurpleQueue()
         #clients[cid] = <YobotServer>
         self.clients = {}
         self.requests = {} # requests[reqid] -> client_object
@@ -887,6 +910,8 @@ class YobotServerService(YobotServiceBase):
     
     
     def setPurple(self, proto):
+        log_err("SETTING PURPLE!")
+        self.prpl_server.release(proto)
         self.prpl_server = proto
         
     def purpleDoRegister(self, proto, obj):
@@ -1024,6 +1049,16 @@ class YobotServerService(YobotServiceBase):
         f.doRegister = self.purpleDoRegister
         f.dispatch = self.purple_dispatch
         #...
+        f.attempts = 0
+        max_attempts = 5
+        def clientConnectionFailed(connector, reason):
+            log_err("Attempt %d/%d failed: %s" % (f.attempts, max_attempts, reason))
+            if f.attempts < max_attempts:
+                log_info("trying again in 1.5 secs")
+                reactor.callLater(1.5, connector.connect)
+                f.attempts += 1
+        
+        f.clientConnectionFailed = clientConnectionFailed
         return f
 
 ############## TESTING ################

@@ -5,6 +5,8 @@ config = None
 import yobot_interfaces
 import sys
 import yobotops
+from debuglog import log_debug, log_err, log_warn, log_crit, log_info
+
 
 try:
     import json
@@ -22,11 +24,34 @@ class acctlist(list):
             if a["name"] == obj["name"] and a["improto"] == obj["improto"]:
                 return
         list.append(self, obj)
+
+class RingBuffer(list):
+    def __init__(self, limit, l=list()):
+        list.__init__(self, l)
+        if limit < len(l): limit = len(l)
+        self.limit = limit
+        #fill the difference with None
+        if len(self) < limit:
+            difference = limit-len(self)
+            for i in xrange(difference):
+                self.insert(0, None)
+        
+    def append(self, obj):
+        if not obj in self:
+            self.pop(0)
+            list.append(self,obj)
+        else:
+            i = self.index(obj)
+            o = self.pop(i)
+            list.append(self, o)
+        
         
 class ClientConfig(object):
     indent = 2
     def __init__(self, filename, autocreate = False):
         self.load(filename, autocreate)
+        self.account_lookup_cache = {}
+        self.do_autoconnect = False
     
     def load(self, filename, autocreate=False):
         self.filename = filename
@@ -52,22 +77,39 @@ class ClientConfig(object):
                 if not hasattr(a, "__getitem__") or not hasattr(a, "__setitem__"):
                     raise ConfigLoadError, "Error parsing accounts! __get/setitem__ not supported"
                 if not a.get("name", None) or not a.get("improto", None):
-                    raise ConfigLoadError, "Missing values: name: %s improto %s" % (a.get("name", "<name>"), a.get("improto", "<proto>"))
+                    raise ConfigLoadError, "Missing values: name: %s improto %s" % (a.get("name", "<name>"), a.get("improto", "<proto>"))                
+                
+                #if someone knows a better, quicker way to do this, let me know
+                if a.get("recent_contacts", []):
+                    a["recent_contacts"] = RingBuffer(25, a["recent_contacts"].copy())
+                if a.get("recent_chats", []):
+                    a["recent_chats"] = RingBuffer(25, a["recent_chats"].copy())
     
     def get_account(self, acctobj, autoadd=False):
         """Return a config entry with the improto and name of this account object"""
+        #first try the cache..
+        try:
+            return self.account_lookup_cache[acctobj]
+        except KeyError, e:
+            log_debug("account not in cache yet..", e)
+        
         for a in self.accounts:
             if a["name"] == acctobj.name and a["improto"] == yobotops.imprototostr(acctobj.improto):
-                return a
+                self.account_lookup_cache[acctobj] = a
+                self.get_account(acctobj, autoadd)
         if autoadd:
             d = {"name":acctobj.name,
                  "improto":yobotops.imprototostr(acctobj.improto),
-                 "password":acctobj.passw
+                 "password":"",
+                 "autoconnect": False
             }
             self.accounts.append(d)
-            return d
+            self.account_lookup_cache[acctobj] = d
+            return self.get_account(acctobj, autoadd=False)
+            
         else:
-            return None
+            return {}
+            
     def save(self, fatalerror=False):
         if self.globals.get("read_only", False):
             print "WARNING! read only requested, not saving"

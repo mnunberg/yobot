@@ -1,8 +1,8 @@
 import common
 common.run(init_args=["--no-stdio"],
         invoke_client=True,
-        client_args=["-p", "triviabot"],
+        client_args=["--plugin=triviabot"],
         invoke_agent=True,
         invoke_server=True,
-        server_args=["1"]
+        server_args=["--debug=1"]
         )

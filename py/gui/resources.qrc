@@ -7,6 +7,7 @@
     <file>res/16x16/actions/media-playback-start.png</file>
     <file>res/16x16/actions/media-playback-stop.png</file>
     <file>res/16x16/actions/media-skip-forward.png</file>
+    <file>icons/preferences-plugin.png</file>
     <file>res/16x16/actions/media-skip-backward.png</file>
     <file>res/16x16/actions/media-playback-pause.png</file>
     <file>res/16x16/actions/media-playback-start.png</file>
@@ -348,6 +349,7 @@
     <file>icons/zephyr.png</file>
   </qresource>
   <qresource prefix="yobot_icons">
+    <file>icons/configure.png</file>
     <file>icons/custom/yobot_24_h.png</file>
     <file>icons/custom/yobot_48_h.png</file>
   </qresource>

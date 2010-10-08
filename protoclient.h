@@ -33,7 +33,7 @@ typedef struct {
 struct segment_r {
 	long len;
 	void *data;
-	int read_return;
+	ssize_t read_return;
 };
 
 /*for the encoding functions*/

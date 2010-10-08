@@ -30,10 +30,10 @@ def run(client_args=[], invoke_client=False,
     console_exec=[] if not console else ["cmd", "/c", "start"]
 
     if invoke_server:
-        subprocess.Popen(console_exec + ["startyobot.exe", "--type", "server"] + init_args + server_args)
+        subprocess.Popen(console_exec + ["startyobot.exe", "--type=server"] + init_args + server_args)
         time.sleep(0.5)
     if invoke_agent:
-        subprocess.Popen(console_exec + ["startyobot.exe", "--type", "agent"] + init_args + agent_args)
+        subprocess.Popen(console_exec + ["startyobot.exe", "--type=agent"] + init_args + agent_args)
         time.sleep(0.5)
     if invoke_client:
-        subprocess.Popen(console_exec + ["startyobot.exe", "--type", "client"] + init_args + client_args)
+        subprocess.Popen(console_exec + ["startyobot.exe", "--type=client"] + init_args + client_args)

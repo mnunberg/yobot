@@ -42,6 +42,7 @@ class AccountSettingsDialog(QDialog):
         signal_connect(w.use_proxy, SIGNAL("toggled(bool)"), self.widgets.proxy_params.setEnabled)
         mkProtocolComboBox(w.improto)
         self.values = {}
+        self.setWindowTitle("Configure Account")
         
     def fill_from(self, account_dict):
         w = self.widgets
@@ -153,7 +154,14 @@ class ConfigDialog(QDialog):
         signal_connect(w.select_color, SIGNAL("clicked()"), lambda: self.change_formatting(color=True))
         signal_connect(w.select_font, SIGNAL("clicked()"), lambda: self.change_formatting(font=True))
         
+        signal_connect(w.agent_address, SIGNAL("editingFinished()"), self.change_agent)
+        
+        self.input_validated = True
+        
+        self.setWindowTitle("Yobot Configuration")
+        
     def load_settings(self):
+        w = self.widgets
         if not self.config:
             log_warn("config object not available! bailing")
             return
@@ -179,8 +187,8 @@ class ConfigDialog(QDialog):
         
         #for the agent...
         agent = self.config.globals.get("agent_address", None)
-        if agent: self.w.agent_address.setText("agent_address")
-        
+        if agent: w.agent_address.setText(agent)
+        self.change_agent()
         #for accounts:
         for a in self.config.accounts:
             if a.get("name", None) and a.get("password", None) and a.get("improto", None):
@@ -244,7 +252,10 @@ class ConfigDialog(QDialog):
         new_a = dlg.values
         
         item.setText(0, new_a["name"])
-        item.setText(1, new_a["improto"])
+        #get icon and name...
+        name, icon = getProtoIconAndName(getattr(yobotproto, new_a["improto"], -1))
+        item.setText(1, name)
+        item.setIcon(1, icon)
         if add:
             if self.account_exists(new_a):
                 print "account already exists.. not adding"
@@ -282,11 +293,28 @@ class ConfigDialog(QDialog):
             "font_italic":bool(self.font.italic()),
             "font_underline":bool(self.font.underline())
         })
-        
+    
+    def change_agent(self):
+        #bah.. the same boring thing as always
+        s = str(self.widgets.agent_address.text())
+        if len(s.rsplit(":", 1)) == 2 and not str.isdigit(s.rsplit(":",1)[1]):
+            self.input_validated = False
+            self.widgets.agent_address.setStyleSheet("background-color:red;")
+        else:
+            self.widgets.agent_address.setStyleSheet("background-color:green")
+            if s:
+                self.config.globals["agent_address"] = str(s)
+            self.input_validated = True
+            
+            
+    
     def accept(self):
         #do some stuff first, like save
-        self.config.save()
-        QDialog.accept(self)
+        if self.input_validated:
+            self.config.save()
+            QDialog.accept(self)
+        else:
+            QErrorMessage(self).showMessage("Bad input.. (somewhere?)")
     
 if __name__ == "__main__":
     import sys

@@ -65,16 +65,6 @@ int yobot_protoclient_getsegsize(void *buf) {
 	return ntohs(*(uint16_t*)buf) + 2;
 }
 
-ssize_t _read_data(int fd, void *buf, size_t count) {
-	puts(__func__);
-	if(recv(fd, buf, count, 0)<count) {
-//	if(read(fd,buf,count)<count) {
-		return 0;
-	}
-	return 1;
-}
-
-
 struct segment_r yobot_proto_segfrombuf(void *buf) {
 	struct segment_r ret;
 	ret.len = 0;
@@ -121,23 +111,37 @@ struct segment_r yobot_proto_segfrombuf(void *buf) {
 }
 
 struct segment_r yobot_proto_read_segment(void *input) {
+#ifdef WIN32
+#define xerrno WSAGetLastError()
+#else
+#define xerrno errno
+#endif
+
 #define full_read(size) \
 	nread = 0; \
 	while (nread < size) { \
-		/*err = read(fd,bufp,size-nread);*/ \
-		err = recv(fd,bufp,size-nread,0); \
-		if (err <= 0) { \
-			if ((errno == EWOULDBLOCK) && err != 0) { \
-				yobotproto_log_debug("continuing to read...");\
-				usleep(100); \
-				continue; \
-			} else /*got a HUP*/ { \
-				ret.read_return = err; \
+		ret.read_return = recv(fd,bufp,size-nread,0); \
+		if (ret.read_return <= 0) { \
+			if (ret.read_return == 0) { \
+				yobotproto_log_err("disconnected"); \
 				free(buf); \
 				return ret; \
 			} \
+			else /*-1*/ { \
+				ret.read_return = xerrno; \
+				assert(ret.read_return == -1); \
+				if (ret.read_return == EWOULDBLOCK) { \
+					yobotproto_log_debug("continuing to read...");\
+					usleep(100); \
+					continue; \
+				} else /*got a HUP*/ { \
+					yobotproto_log_err("recv error.."); \
+					free(buf); \
+					return ret; \
+				} \
+			} \
 		} \
-		nread += err; \
+		nread += ret.read_return; \
 		bufp += nread; \
 	}
 	struct segment_r ret;
@@ -149,7 +153,7 @@ struct segment_r yobot_proto_read_segment(void *input) {
 	YOBOT_SET_SOCK_BLOCK(fd, 1, status);
 	//fcntl(fd,F_SETFL,fcntl(fd,F_GETFL)|O_NONBLOCK);
 
-	uint16_t len=0, nread=0, err=0;
+	uint16_t len=0, nread=0;
 	char *buf = malloc(YOBOT_MAX_COMMSIZE);
 	char *bufp = buf;
 	/*read a short*/
@@ -478,16 +482,14 @@ void *yobot_proto_segment_encode(yobot_proto_model_internal *model, void *output
 	}
 
 	/*Now write the actual message to the fd/buffer*/
-//	printf("bufsz is %d\n",bufsz);
 	*(uint16_t*)buf = htons(bufsz);
-//	printf("%s: BUFSZ=%d\n", __func__, bufsz);
 	if (out_type == YOBOT_PROTOCLIENT_TO_FD) {
 		/*block....*/
 		int fd = *(int*) output;
 		int status;
 		YOBOT_SET_SOCK_BLOCK(fd, 0, status)
-		if(send(fd,buf,bufsz+2,0) == -1) {
-			perror(__func__);
+		if(send(fd, buf, bufsz+2, 0) == -1) {
+			yobotproto_log_err(strerror(errno));
 		}
 		YOBOT_SET_SOCK_BLOCK(fd, 1, status);
 		/*done...*/

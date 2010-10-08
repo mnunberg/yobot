@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'triviaopts.ui'
 #
-# Created: Sun Sep 19 19:58:18 2010
+# Created: Tue Oct  5 20:12:45 2010
 #      by: PyQt4 UI code generator 4.7.3
 #
 # WARNING! All changes made in this file will be lost!

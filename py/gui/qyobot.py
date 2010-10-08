@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
-ABOUT_MESSAGE="""Yobot Copyright (C) 2010  M. Nunberg
-This program comes with ABSOLUTELY NO WARRANTY; This is free software, and you are welcome to redistribute it under certain conditions; see the included LICENSE file for details"""
+ABOUT_MESSAGE=("Yobot Copyright (C) 2010  M. Nunberg\n"
+                "This program comes with ABSOLUTELY NO WARRANTY; This is free "
+                "software, and you are welcome to redistribute it under certain " 
+                "conditions; see the included LICENSE file for details")
 
 
 import sys
@@ -25,6 +27,8 @@ from html_fmt import simplify_css, process_input, insert_smileys
 import smileys_rc
 import gui_util
 import yobot_interfaces
+import config_dialog
+
 #from modeltest import ModelTest
 
 import traceback
@@ -38,7 +42,7 @@ from PyQt4.QtGui import (QComboBox, QMainWindow, QStandardItemModel, QStandardIt
                          QListWidget, QListWidgetItem, QStyledItemDelegate,
                          QStyleOptionViewItem, QRegion, QWidget, QBrush, QStyle,
                          QPen, QPushButton, QStyleOption, QMenu, QAction, QCursor,
-                         QTreeView, QLineEdit, QButtonGroup)
+                         QTreeView, QLineEdit, QButtonGroup, QColor)
 
 from PyQt4.QtCore import (QPoint, QSize, QModelIndex, Qt, QObject, SIGNAL, QVariant,
                           QAbstractItemModel, QRect, QRectF, QPointF)
@@ -205,15 +209,46 @@ class AccountInputDialog(QDialog):
         QDialog.__init__(self, parent)
         widgets = sendjoin_auto.Ui_Dialog()
         widgets.setupUi(self)
-        widgets.account.setModel(model)
         self.widgets = widgets
+        widgets.account.setModel(model)
         self.model = model
+        
+        self.recent_list_write = []
+        self.config = yobot_interfaces.component_registry.get_component("client-config")
+        signal_connect(self.widgets.account, SIGNAL("currentIndexChanged(int)"), self.index_changed)
+        
+        def _add_to_recent():
+            #only add if the user finds it worthwhile enough to act on the entry
+            self.recent_list_write.append(self.widgets.target.currentText())
+            self.config.save()
+        signal_connect(self, SIGNAL("accepted()"), _add_to_recent)
+        
         signal_connect(self, SIGNAL("accepted()"), self.dialogDone)
         self.type = type
+        
+        self.index_changed(self.widgets.account.currentIndex())
+    
+    def recent_lookup(self, acctobj):
+        "should return a list of strings..."
+        log_err("override me!")
+        return []
+        #sample implementation...
+        if self.config:
+            return self.config.get_account(acctobj).get("recent_contacts")
+        
+    def index_changed(self, index):
+        "subclasses should implement the 'recent_lookup' method"
+        acctobj = self.model.index(self.widgets.account.currentIndex()).internalPointer()
+        l = self.recent_lookup(acctobj)
+        self.recent_list_write = l
+        if l:
+            self.widgets.target.clear()
+            self.widgets.target.addItems(l)
+        
     
     def dialogDone(self):
         acct_obj = self.model.index(self.widgets.account.currentIndex()).internalPointer()
-        target  = self.widgets.target.text()
+        target  = self.widgets.target.currentText()
         log_debug( "account: ", acct_obj, " target: ", target)
         self.action(acct_obj, target, self.type)
         #do something...
@@ -232,6 +267,13 @@ class SendJoinDialog(AccountInputDialog):
         txt = "Send Message" if type == IM else "Join Room"
         self.setWindowTitle(txt)
         self.widgets.target_label.setText("To" if type == IM else "Room")
+        self.type = type
+    def recent_lookup(self, acctobj):
+        if self.type == IM:
+            return self.config.get_account(acctobj, autoadd=True).setdefault("recent_contacts", [])
+        else:
+            return self.config.get_account(acctobj, autoadd=True).setdefault("recent_chats", [])
+        
 
 class UserAddDialog(AccountInputDialog):
     def __init__(self, model, parent = None, type = None):
@@ -258,6 +300,15 @@ class DisconnectDialog(AccountInputDialog):
 class ChatWindow(QMainWindow):
     """This class is quite dumb, but it does contain client hooks to get and send
     messages"""
+    appearance_config = None
+    @classmethod
+    def get_config(self):
+        "set appearance configuration object. no need to set it each time"
+        if not self.appearance_config:
+            c = yobot_interfaces.component_registry.get_component("client-config")
+            self.appearance_config = c.globals.get("appearance", {"nothing":None})
+        return self.appearance_config
+    
     defaultBacklogCount = 50
     def __init__(self, client, parent=None, type=IM, acct_obj=None, target=None,
                  factory=None, initial_text="",):
@@ -302,14 +353,8 @@ class ChatWindow(QMainWindow):
                        lambda bold: self.widgets.input.setFontWeight(75 if bold else 50))
         
         #color handling
-        def choosecolor():
-            def _onClicked(color):
-                self.widgets.input.setTextColor(color)
-                self.widgets.fg_color.setStyleSheet("background-color: '%s'" % (color.name()))
-            cdlg = QColorDialog(self)
-            signal_connect(cdlg, SIGNAL("colorSelected(QColor)"), _onClicked)
-            ret = cdlg.open()
-        signal_connect(self.widgets.fg_color, SIGNAL("clicked()"), choosecolor)
+        
+        signal_connect(self.widgets.fg_color, SIGNAL("clicked()"), self._choosecolor)
         fgcolor = self.widgets.input.textColor().name()
         self.widgets.fg_color.setStyleSheet("background-color: '%s'" % (fgcolor,))
         
@@ -325,7 +370,39 @@ class ChatWindow(QMainWindow):
         #for updating the formatting buttons
         signal_connect(self.widgets.input, SIGNAL("currentCharFormatChanged(QTextCharFormat)"),
                        self._currentCharFormatChanged)
-                        
+        
+        #load formatting from configuration:
+        self.load_appearance_config()
+        
+    def _choosecolor(self, set_color=None):
+        def _onClicked(color):
+            self.widgets.input.setTextColor(color)
+            self.widgets.fg_color.setStyleSheet("background-color: '%s'" % (color.name()))
+        if not set_color:
+            cdlg = QColorDialog(self)
+            signal_connect(cdlg, SIGNAL("colorSelected(QColor)"), _onClicked)
+            ret = cdlg.open()
+        else:
+            _onClicked(set_color)
+
+    
+    def load_appearance_config(self):
+        self.get_config()
+        w = self.widgets
+        if self.appearance_config:
+            #navigate around.. this could be tricky
+            c = self.appearance_config
+            if c.get("font_family", None):
+                f = QFont()
+                f.setFamily(c["font_family"])
+                w.font.setCurrentFont(f)
+            if c.get("font_size", None): w.fontsize.setValue(c["font_size"])
+            if c.get("font_color", None): self._choosecolor(set_color=QColor(c["font_color"]))
+            if c.get("font_bold", False): w.bold.setChecked(True)
+            if c.get("font_italic", False): w.italic.setChecked(True)
+            if c.get("font_underline", False): w.underline.setChecked(True)
+            
+            
     def _init_menu(self):
         if not self.type == CHAT:
             return
@@ -374,6 +451,7 @@ class ChatWindow(QMainWindow):
         self.widgets.fg_color.setStyleSheet("background-color: '%s'" % (format.foreground().color().name(),))
                 
     def _inputKeyPressEvent(self, event):
+        w = self.widgets
         key = event.key()
         modifiers = event.modifiers()
         if key== Qt.Key_Return:
@@ -387,11 +465,20 @@ class ChatWindow(QMainWindow):
             self.widgets.input.clear()
             return
         if key == Qt.Key_Backspace:
-            #log_debug("backspace")
-            self.widgets.input.textCursor().deletePreviousChar()
+            cursor = self.widgets.input.textCursor()
+            if cursor.position() == 1:
+                #Don't erase formatting.. normally erasing the last character
+                #will also reset the format. This stores the current formatting,
+                #so that we can reset it after the character has been removed
+                font = w.input.currentFont()
+                color = w.input.textColor()
+                cursor.deletePreviousChar()
+                w.input.setCurrentFont(font)
+                w.input.setTextColor(color)
+                return
+            cursor.deletePreviousChar()            
             return
         if modifiers & Qt.CTRL:
-            #print "control"
             if key == Qt.Key_BracketLeft:
                 self.widgets.fontsize.stepBy(-1)
                 return
@@ -549,6 +636,13 @@ class YobotGui(object):
         self.gui_init()
         self.mw.show()
         yobot_interfaces.component_registry.register_component("gui-main", self)
+        
+        #for this plugin, enable autoconnect
+        config = yobot_interfaces.component_registry.get_component("client-config")
+        if config:
+            config.do_autoconnect = True
+        else:
+            log_err("couldn't get client-config component!")
     ######################      PRIVATE HELPERS     ###########################
 
     def _showConnectionDialog(self):
@@ -700,8 +794,7 @@ class YobotGui(object):
         
         self.notifications = NotificationBox(w.noticebox, w.notices)
         #connect signals...
-        signal_connect(w.blist, SIGNAL("doubleClicked(QModelIndex)"),
-               self._buddyClick)
+        signal_connect(w.blist, SIGNAL("doubleClicked(QModelIndex)"), self._buddyClick)
         
         signal_connect(w.actionNewconn, SIGNAL("activated()"), self._showConnectionDialog)
         signal_connect(w.actionAbout, SIGNAL("activated()"), self._showAbout)
@@ -717,6 +810,13 @@ class YobotGui(object):
                         self.datamodel, parent=self.mw, server=True).show())
         signal_connect(w.action_connectAgent, SIGNAL("activated()"),
                        lambda: gui_util.AgentConnectDialog(parent=self.mw))
+        
+        def _show_config():
+            dlg = config_dialog.ConfigDialog(self.mw)
+            dlg.load_settings()
+            dlg.show()
+        signal_connect(w.actionPreferences, SIGNAL("activated()"), _show_config)
+            
         self.logbrowser = None
 
     #########################   PUBLIC      ###################################

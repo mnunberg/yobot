@@ -47,12 +47,14 @@ static void yobot_listener(gpointer _null, gint fd, PurpleInputCondition cond);
 void yobot_core_ui_init()
 {
 	yobot_log_debug("begin");
+	yobot_log_debug("hash tables");
 	yobot_acct_table = g_hash_table_new(g_direct_hash, g_direct_equal);
 	yobot_request_table = g_hash_table_new(g_direct_hash, g_direct_equal);
 	yobot_purple_account_refcount = g_hash_table_new_full(g_direct_hash,
 			g_direct_equal, NULL, free);
 
 	/*Set UiOps*/
+	yobot_log_debug("uiops");
 	purple_connections_set_ui_ops(&yobot_connection_uiops);
 	purple_conversations_set_ui_ops(&yobot_conversation_uiops);
 	purple_accounts_set_ui_ops(&yobot_account_uiops);
@@ -62,13 +64,17 @@ void yobot_core_ui_init()
 
 
 	/*Connect signal handlers.. each module should implement its own wrapper*/
+	yobot_log_debug("signals");
 	yobot_account_signals_register();
 	yobot_conversation_signals_register();
 	yobot_connection_signals_register();
 	yobot_blist_signals_register();
 	/*...*/
+	yobot_log_debug("setting logger");
 	yobot_proto_setlogger(yobot_log_params.prefix);
+	yobot_log_debug("calling init_listener");
 	init_listener(TRUE);
+	yobot_log_debug("end");
 }
 
 int *yobot_purple_account_refcount_get(PurpleAccount *acct) {
@@ -306,16 +312,9 @@ static void mkacct(const yobotmkacct_internal *arq) {
 /****************************** LISTENER/HANDLER FUNCTIONS *******************/
 static void init_listener(gboolean first_time)
 {
-	yobot_proto_segfrombuf(yobot_log_params.prefix);
+	//yobot_proto_segfrombuf(yobot_log_params.prefix);
 	yobot_log_info("BEGIN");
-#ifndef WIN32
-	tpl_hook.oops = printf;
-#endif
-	/*Initialize the pipes*/
-	int in, out, in_w;
-	static guint cb_handle;
-	static int s, yobot_socket;
-	struct sockaddr_storage incoming_addr;
+
 #ifdef WIN32
 	if (first_time) {
 		WSADATA wsadata;
@@ -326,9 +325,18 @@ static void init_listener(gboolean first_time)
 	}
 #endif
 
+#ifndef WIN32
+	tpl_hook.oops = printf;
+#endif
+	/*Initialize the pipes*/
+	int in, out, in_w;
+	static guint cb_handle;
+	static int s, yobot_socket;
+	struct sockaddr_storage incoming_addr;
 	int status;
 
 	/*remove all the accounts first...*/
+	yobot_log_debug("removing accounts. ignore following message about send() error");
 	GList *accounts = purple_accounts_get_all();
 	for (; accounts; accounts = accounts->next) {
 		purple_accounts_remove((PurpleAccount*)accounts->data);
@@ -336,6 +344,7 @@ static void init_listener(gboolean first_time)
 
 	/*initialize the listening socket*/
 	if (first_time == TRUE) {
+		yobot_log_debug("first_time==TRUE");
 		/*called first time only*/
 		struct addrinfo hints;
 		struct addrinfo *result;
@@ -411,7 +420,7 @@ static void init_listener(gboolean first_time)
 
 	client_write_fd = in;
 	server_write_fd = out;
-
+	yobot_log_info("connecting purple input handler");
 	cb_handle = purple_input_add(in,
 			PURPLE_INPUT_READ,
 			yobot_listener,NULL);
@@ -424,7 +433,6 @@ static void yobot_listener(gpointer _null, gint fd, PurpleInputCondition cond)
 	struct segment_r segr;
 	yobot_protoclient_segment *seg = NULL;
 	segr = yobot_proto_read_segment(&fd);
-	int old_errno = errno;
 	if(!(segr.len)) {
 		yobot_log_warn("segr.len is empty... empty read, going to error");
 		goto err;
@@ -449,8 +457,8 @@ static void yobot_listener(gpointer _null, gint fd, PurpleInputCondition cond)
 	return;
 
 	err:
-	if(old_errno && !(old_errno == EAGAIN || old_errno == EWOULDBLOCK)) {
-		yobot_log_err("read error: %s", strerror(old_errno));
+	if(segr.read_return != EWOULDBLOCK) {
+		yobot_log_err("recv error: [code %d] %s", segr.read_return, strerror(segr.read_return));
 	}
 
 	yobot_protoclient_free_segment(seg);

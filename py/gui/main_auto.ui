@@ -104,6 +104,7 @@
     <addaction name="actionQuit"/>
     <addaction name="separator"/>
     <addaction name="action_connectAgent"/>
+    <addaction name="separator"/>
    </widget>
    <widget class="QMenu" name="menuChat">
     <property name="title">
@@ -128,8 +129,21 @@
    </widget>
    <widget class="QMenu" name="menuExtensions">
     <property name="title">
-     <string>Extensions</string>
+     <string>Tools</string>
     </property>
+    <widget class="QMenu" name="menuExtensions_2">
+     <property name="title">
+      <string>Extensions</string>
+     </property>
+     <property name="icon">
+      <iconset resource="../../../yobot/py/gui/resources.qrc">
+       <normaloff>:/icons/icons/preferences-plugin.png</normaloff>:/icons/icons/preferences-plugin.png</iconset>
+     </property>
+     <addaction name="actionFoo"/>
+    </widget>
+    <addaction name="actionPreferences"/>
+    <addaction name="separator"/>
+    <addaction name="menuExtensions_2"/>
    </widget>
    <addaction name="menu"/>
    <addaction name="menuChat"/>
@@ -448,6 +462,20 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="text">
     <string>(Re)Connect to Agent</string>
+   </property>
+  </action>
+  <action name="actionPreferences">
+   <property name="icon">
+    <iconset resource="../../../yobot/py/gui/resources.qrc">
+     <normaloff>:/yobot_icons/icons/configure.png</normaloff>:/yobot_icons/icons/configure.png</iconset>
+   </property>
+   <property name="text">
+    <string>Preferences</string>
+   </property>
+  </action>
+  <action name="actionFoo">
+   <property name="text">
+    <string>Foo..</string>
    </property>
   </action>
  </widget>

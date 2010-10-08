@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'sendjoin_auto.ui'
 #
-# Created: Fri Sep 17 20:49:29 2010
+# Created: Wed Oct  6 09:36:50 2010
 #      by: PyQt4 UI code generator 4.7.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -50,14 +50,6 @@ class Ui_Dialog(object):
         self.target_label.setFont(font)
         self.target_label.setObjectName("target_label")
         self.formLayout.setWidget(1, QtGui.QFormLayout.LabelRole, self.target_label)
-        self.target = QtGui.QLineEdit(Dialog)
-        sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Fixed)
-        sizePolicy.setHorizontalStretch(50)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.target.sizePolicy().hasHeightForWidth())
-        self.target.setSizePolicy(sizePolicy)
-        self.target.setObjectName("target")
-        self.formLayout.setWidget(1, QtGui.QFormLayout.FieldRole, self.target)
         self.buttonBox = QtGui.QDialogButtonBox(Dialog)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -69,6 +61,10 @@ class Ui_Dialog(object):
         self.buttonBox.setCenterButtons(False)
         self.buttonBox.setObjectName("buttonBox")
         self.formLayout.setWidget(2, QtGui.QFormLayout.FieldRole, self.buttonBox)
+        self.target = QtGui.QComboBox(Dialog)
+        self.target.setEditable(True)
+        self.target.setObjectName("target")
+        self.formLayout.setWidget(1, QtGui.QFormLayout.FieldRole, self.target)
 
         self.retranslateUi(Dialog)
         QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL("accepted()"), Dialog.accept)

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-HELPMSG="please specify 'client', 'server', or 'agent' followed by arguments"
 import sys
 import os
 import optparse
@@ -98,7 +97,7 @@ def do_start(args=sys.argv):
         if os.name == "nt":
             #set up paths
             execname="yobot.exe"
-            dep_paths = os.pathsep.join([os.path.abspath(p) for p in ("glib","purple")])
+            dep_paths = os.pathsep.join([os.path.abspath(p) for p in ("glib","purple", "purple_support")])
             print "ADDING", dep_paths, "TO PATH"
             os.environ["PATH"]+=os.pathsep
             os.environ["PATH"]+=dep_paths
@@ -108,7 +107,8 @@ def do_start(args=sys.argv):
                 os.execvp("cmd", ["cmd", "/c", "start", execname] + startargs)
             else:
                 f = open(os.path.join(configdir["log_dir"], type), "w", 1)
-                subprocess.Popen([execname] + startargs, stdout=f, stderr=f)
+                subprocess.Popen([execname] + startargs, stdout=f, stderr=f,
+                    stdin =  subprocess.PIPE)
                 sys.exit(0)
             #no returning
             sys.exit(1)
@@ -126,7 +126,7 @@ def do_start(args=sys.argv):
             subprocess.Popen([execname] + startargs, stdout=f, stderr=f)
             sys.exit(0)
     else:
-        print HELPMSG
+        parser.print_help()
         sys.exit(1)
         
 if __name__ == "__main__":
