@@ -74,7 +74,7 @@ $(PROTOCLIENT_LIB): protoclient.c yobot_log.c $(TPL)
 
 #SWIG stuff
 $(PYMODULE_SRC): yobotproto.i
-	swig -python -o $@ $^
+	swig -python -O -o $@ $^
 
 $(PYMODULE): $(PYMODULE_SRC) $(PROTOCLIENT_LIB)
 	$(CC) $(CFLAGS) $(PYHDR) -I. -shared -fpic $^ -o $@ $(PYLIB)
