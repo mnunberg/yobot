@@ -826,6 +826,9 @@ class TriviaPlugin(object):
     #plugin hooks
     def accountConnected(self, acct):
         if self.triviabot: self.triviabot.stop()
+    def connectProgress(self, acct, msg):
+        pass
+        #log_info(acct, msg)
     def accountConnectionFailed(self, acct, msg):
         r = SimpleNotice(acct, msg)
         self.gui.notifications.addItem(r)
@@ -848,7 +851,12 @@ class TriviaPlugin(object):
     def roomJoined(self, acct, room_name):
         if room_name == self.pending_room and acct == self.account:
             self._start_trivia()
-        
+    def roomLeft(self, acct, room_name):
+        if room_name == self.pending_room and acct == self.account:
+            log_warn("left requested room", room_name)
+            if self.triviabot:
+                self.triviabot.stop()
+
     def chatUserJoined(self, acct, room, user):
         pass
     def chatUserLeft(self, acct, room, user):
