@@ -165,7 +165,6 @@ class YobotMessage(YobotBase):
         self.txt = ""
         self.who = ""
         self.acctid = 0
-        #yprotoflags = 0
         
     def __init__(self, ymi=None):
         self._initvars()
@@ -180,7 +179,7 @@ class YobotMessage(YobotBase):
     
     def __str__(self):
         retstr = ("FLAGS:" +
-                  yobotops.prplmsgtostr(self.prplmsgflags) +
+                  yobotops.prplmsgtostr(self.prplmsgflags) + " " +
                   yobotops.msgtostr(self.yprotoflags) + " ")
         
         #figure out the timestamp, if there is one:
@@ -211,7 +210,7 @@ class YobotMessage(YobotBase):
     
     #for compatibility...
     def _yprotoflags_set(self, value):
-        self.commflags = value
+        self.commflags |= value
     def _yprotoflags_get(self):
         return self.commflags
     yprotoflags = property(fget=_yprotoflags_get, fset=_yprotoflags_set)
