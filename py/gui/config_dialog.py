@@ -155,6 +155,8 @@ class ConfigDialog(QDialog):
         signal_connect(w.select_font, SIGNAL("clicked()"), lambda: self.change_formatting(font=True))
         
         signal_connect(w.agent_address, SIGNAL("editingFinished()"), self.change_agent)
+        signal_connect(w.html_relsize, SIGNAL("toggled(bool)"),
+                       lambda b: self.config.globals.setdefault("appearance", {}).__setitem__("use_html_relsize", b))
         
         self.input_validated = True
         
@@ -178,10 +180,12 @@ class ConfigDialog(QDialog):
         bold = appearance.get("font_bold", False)
         italic = appearance.get("font_italic", False)
         underline = appearance.get("font_underline", False)
+        html_relsize = appearance.get("use_html_relsize", False)
         
         self.font.setBold(bold)
         self.font.setItalic(italic)
         self.font.setUnderline(underline)
+        w.html_relsize.setChecked(html_relsize)
         
         self.change_formatting()
         
