@@ -70,6 +70,8 @@ class UIClient(object):
             config = self.config
             for a in config.accounts:
                 log_debug("found account: %s/%s" % (a["name"], a["improto"]))
+                if not a.get("autoconnect", False):
+                    continue
                 #create positional arguments:
                 user, password, improto = a.get("name"), a.get("password"), a.get("improto")
                 if not (user and password and improto):
@@ -111,7 +113,13 @@ class UIClient(object):
         self.joined_rooms[acct].append(room)
         self._plugin_hook_invoke("roomJoined", (acct, room))
         log_info( "ROOM JOINED ", room)
-        
+    def roomLeft(self, acct, room):
+        try:
+            self.joined_rooms[acct].remove(room)
+        except Exception, e:
+            log_err("couldn't remove room %s from room list for account %s: %s" %(
+                room, str(acct), str(e)))
+        self._plugin_hook_invoke("roomLeft", (acct, room))
     def gotRequest(self, request_obj):
         self._plugin_hook_invoke("gotRequest", (request_obj,))
     def delRequest(self, acct, refid):
@@ -120,7 +128,8 @@ class UIClient(object):
     def accountConnected(self, acct):
         log_info( "ACCOUNT CONNECTED", acct)
         self._plugin_hook_invoke("accountConnected", (acct,))
-        
+    def connectProgress(self, acct, msg):
+        self._plugin_hook_invoke("connectProgress",(acct, msg))
     def accountConnectionFailed(self, acct, txt):
         acct._logged_in = False
         log_err( "AUTHORIZATION FAILED!", txt, acct)
@@ -144,7 +153,7 @@ class UIClient(object):
         except Exception, e:
             log_warn(e)
         if not address and not port:
-            _address = self.config.globals.get("agent_address", "localhost:7777")
+            _address = self.config.globals.get("agent_address", "localhost:7770")
             log_err(_address)
             a = _address.rsplit(":")
             if len(a) >= 2:
@@ -227,8 +236,6 @@ def startup(args=sys.argv):
                 log_warn("couldn't find plugin", p)
                 continue
             yobot_interfaces.component_registry.activate_plugin(plugin_object)
-    
-    
     
     tmp = options.agent_addrinfo
     if tmp:
