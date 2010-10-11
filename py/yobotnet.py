@@ -41,13 +41,20 @@ class PurpleNotAvailable(Exception): pass
 
 class YobotSegment(object):
     """Just a way to bind together the various protocol types for lower level
-    functions"""
+    functions.
+    Instance variables `cmd', `msg', `evt', and `acct', which hold the
+    corresponding YobotBase subclass instance that the decoded string has been
+    resolved to. Usually only one of these will hold actual data and the rest
+    will be set to None.
+    `base' is a 'link' to whatever the main object is.
+    A reference to the 'raw' undecoded string is contained in `raw'."""
+    
     def __init__(self, msg):
-        """takes a raw string and convers it to a python YobotSegment"""
+        """takes a raw string and converts it to a python YobotSegment."""        
         for a in ("cmd", "msg", "evt", "acct", "base"):
             setattr(self, a, None)
         #something will 'stamp' our segment with the CID on which it was received
-        self.cid = 0        
+        self.cid = 0
         self.raw = msg
         
         decoded_segment = self._decode_segment(msg)
@@ -97,8 +104,7 @@ class YobotSegment(object):
     
 
 def getNameAndData(obj):
-    """
-    Parse certain events to extract the name and data portion -> (name, data)"""
+    """Parse certain events to extract the name and data portion -> (name, data)"""
     name, data = obj.evt.txt.split(str(yobotproto.YOBOT_TEXT_DELIM), 1)
     name = name.replace('\0', '')
     return (name, data)
@@ -144,7 +150,7 @@ class YobotNode(Int16StringReceiver):
         
     def sendSegment(self, pycls):
         """
-        Sends a protocol representation of a python class to the connection
+        Sends a protocol representation of a YobotBase subclass to the connection
         """
         msg = self._encode_pycls(pycls)
         if not msg:
@@ -152,11 +158,12 @@ class YobotNode(Int16StringReceiver):
         self.transport.write(msg)
     
     def sendPrefixed(self, str):
+        """Send a raw encoded protocol string"""
         self.sendString(str)
     
     #some convenience functions:
-    def sendAccountEvent(self, event, id,
-                         severity=yobotproto.YOBOT_INFO, txt=None):
+    def sendAccountEvent(self, event, id,severity=yobotproto.YOBOT_INFO, txt=None):
+        "Convenicne function to send an event related to an account"
         log_debug("begin")
         evt = yobotclass.YobotEvent()
         evt.objid = id
@@ -168,6 +175,7 @@ class YobotNode(Int16StringReceiver):
         log_debug( "done")
     
     def sendCommand(self, command, id, flags=0, txt=None):
+        "Convenience function that sends a command"
         cmd = yobotclass.YobotCommand()
         cmd.cmd = command
         cmd.acctid = id
@@ -179,12 +187,10 @@ class YobotServer(YobotNode):
     def __init__(self):
         self._initvars()
         #keep an account reference for when
-        self.accounts = set()
+        #self.accounts = set()
         self.iconHash = set()
     def connectionLost(self, reason):
-        """
-        Does unregistration of the client
-        """
+        """Does unregistration of the client"""
         self.factory.unregisterClient(self)
     
 
@@ -192,13 +198,11 @@ class YobotClient(YobotNode):
     def __init__(self):
         self._initvars()
     def connectionMade(self):
-        """
-        Request registration before we do anything else, this will also
-        notify the rest of the stuff about our connection.. so we can send stuff
-        """
+        """Request registration before we do anything else, this will also
+        notify the rest of the stuff about our connection.. so we can send stuff"""
         self.factory.requestRegistration(self)
     def connectionLost(self, reason):
-        log_err( "lost server.. ")
+        log_err("lost agent server.. ")
         return
         if self.factory.reactor and self.factory.reactor.running:
             self.factory.reactor.stop()
@@ -211,13 +215,15 @@ class YobotPurple(YobotNode):
         self.factory.setPurple(self)
         
     def connectionLost(self, reason):
-        log_err( "lost purple.. shutting down")
-        if reactor.running:
-            reactor.stop()
+        log_err("lost purple.. shutting down")
+        if reactor.running: reactor.stop()
 
 
 class PurpleQueue(object):
-    "Asynchronous proxy class using Deferreds"
+    """Asynchronous proxy class using Deferreds.
+    Any attribute accessed is assumed to be a function. This function is dynamically
+    returned and adds itself as a callback to a Deferred which will be called when
+    the real purple class takes over"""
     def __init__(self):
         self.deferred = defer.Deferred()
     def __bool__(self):
@@ -230,13 +236,15 @@ class PurpleQueue(object):
             #craft a function to insert ourself as a callback for the deferred
             def fn(*args, **kwargs):
                 def cb(purple):
-                    log_err("calling purple.%s()" % (name,))
+                    log_debug("calling purple.%s()" % (name,))
                     getattr(purple, name)(*args, **kwargs)
                     return purple
                 self.deferred.addCallback(cb)
             return fn
     def release(self, purple):
-        log_err("calling delayed queue purple protocol class methods")
+        """Call with the purple protocol class. All the queued functions will be
+        called"""
+        log_info("calling delayed queue purple protocol class methods")
         self.deferred.callback(purple)
         
 ############################    SERVICES    ############################
@@ -245,7 +253,6 @@ def mkDispatcher(tbl_name, attrs):
     """generates dispatchers"""
     def fn(cls, obj, proto):
         tbl = getattr(cls, tbl_name)
-        
         #get required attribute:
         target = obj
         try:
@@ -254,7 +261,6 @@ def mkDispatcher(tbl_name, attrs):
         except AttributeError, e:
             log_warn( e)
             return None
-        
         f_name = tbl.get(target, None)
         if f_name:
             return getattr(cls, f_name)(obj, proto)
@@ -282,15 +288,14 @@ class YobotServiceBase(service.Service):
     def unhandled(self, obj, proto):
         log_warn("UNHANDLED", obj)
         return NotImplemented
-
+    
     dispatch = mkDispatcher("handlers", "struct_type")
     
     for i in ("evt","msg","mkacct","cmd"):
-        exec(("def handle_%s(self,obj,proto): log_warn( obj.base); return NotImplemented") % i)
-    
-        
+        exec(("def handle_%s(self,obj,proto): log_warn(obj.base); return NotImplemented") % i)
 
 class ClientAccountStore(ModelBase):
+    """Stores and manages accounts for the client"""
     def __init__(self, svc):
         self._initvars()
         self.svc = svc
@@ -301,8 +306,6 @@ class ClientAccountStore(ModelBase):
             log_info("registered")
         else:
             return store
-        
-    """This is intended for fast access but really slow modification"""
     def addAccount(self, acctid, acct):
         self._addItem(acct, acctid)
         self.svc._all_accounts.add(acct)
@@ -347,6 +350,7 @@ class YobotClientService(YobotServiceBase):
             yobotproto.YOBOT_EVENT_ACCT_ID_CHANGE: "changeId",
             
             yobotproto.YOBOT_EVENT_CONNECTED: "accountConnected",
+            yobotproto.YOBOT_EVENT_CONNECTING: "connectProgress",
             
             yobotproto.YOBOT_EVENT_AUTH_FAIL: "accountConnectionRemoved",
             yobotproto.YOBOT_EVENT_LOGIN_ERR: "accountConnectionRemoved",
@@ -359,6 +363,7 @@ class YobotClientService(YobotServiceBase):
             yobotproto.YOBOT_EVENT_PURPLE_NOTICE_GENERIC: "handle_request",
             yobotproto.YOBOT_EVENT_AGENT_NOTICE_GENERIC: "handle_request", 
             yobotproto.YOBOT_EVENT_ROOM_JOINED: "roomJoined",
+            yobotproto.YOBOT_EVENT_ROOM_LEFT: "roomLeft",
             yobotproto.YOBOT_EVENT_ROOM_USER_JOIN: "chatUserEvent",
             yobotproto.YOBOT_EVENT_ROOM_USER_LEFT: "chatUserEvent"
             }
@@ -374,10 +379,8 @@ class YobotClientService(YobotServiceBase):
     
 ##############################  YOBOT REGISTRATION    #######################
     def doRegister(self, proto, obj):
-        """
-        Check if this is a registration response from the server, if it is, then
-        give ourselves the cid assigned by the server, otherwise lose the connection
-        """
+        """Check if this is a registration response from the server, if it is, then
+        give ourselves the cid assigned by the server, otherwise lose the connection"""
         if (obj.struct_type == yobotproto.YOBOT_PROTOCLIENT_YEVTI and
             obj.base.event == yobotproto.YOBOT_EVENT_CLIENT_REGISTERED):
             proto.cid = obj.base.objid
@@ -460,6 +463,9 @@ class YobotClientService(YobotServiceBase):
     
     def accountConnected(self, obj, proto):
         self.uihooks.accountConnected(self.accounts.getAccount(obj.evt.objid))
+        
+    def connectProgress(self, obj, proto):
+        self.uihooks.connectProgress(self.accounts.getAccount(obj.evt.objid), obj.evt.txt)
     
     def accountConnectionRemoved(self, obj, proto):
         acct = self.accounts.delAccount(obj.evt.objid)
@@ -474,6 +480,9 @@ class YobotClientService(YobotServiceBase):
         acct = self.accounts.getAccount(obj.evt.objid)
         self.uihooks.roomJoined(acct, obj.evt.txt)
         self.fetchRoomUsers(self.accounts.getAccount(obj.evt.objid),obj.evt.txt)
+    def roomLeft(self, obj, proto):
+        acct = self.accounts.getAccount(obj.evt.objid)
+        self.uihooks.roomLeft(acct, obj.evt.txt)
         
     def buddyEvent(self, obj, proto):
         #find account...
@@ -901,6 +910,7 @@ class YobotServerService(YobotServiceBase):
             yobotproto.YOBOT_EVENT_CONNECTING: "relay_event",
             yobotproto.YOBOT_EVENT_USER_ADDREQ: "relay_event",
             yobotproto.YOBOT_EVENT_ROOM_JOINED: "relay_event",
+            yobotproto.YOBOT_EVENT_ROOM_LEFT: "relay_event", 
             yobotproto.YOBOT_EVENT_PURPLE_REQUEST_GENERIC: "relay_event",
             yobotproto.YOBOT_EVENT_PURPLE_NOTICE_GENERIC: "relay_event",
             yobotproto.YOBOT_EVENT_PURPLE_REQUEST_GENERIC_CLOSED: "relay_event",
@@ -1010,14 +1020,14 @@ class YobotServerService(YobotServiceBase):
         #first get the type...
         if obj.commflags & yobotproto.YOBOT_RESPONSE_END:
             self.requests.pop(obj.reference, None)
-            log_debug( "request done.. removing..")
+            log_debug("request done.. removing..")
             return
         if not obj.commflags & yobotproto.YOBOT_RESPONSE:
-            log_err( "how the hell did this get here..")
+            log_err("how the hell did this get here..")
             return
         client = self.requests.get(obj.reference, None)
         if not client:
-            log_err( "couldn't get client!")
+            log_err("couldn't get client!")
             return
         #check that the client is associated with the account ID still (this is
         #a really paranoid provision, for e.g. a new client which has taken the
@@ -1026,7 +1036,7 @@ class YobotServerService(YobotServiceBase):
         #if not self.verifyObj(obj, client):
         #    raise UnauthorizedTransmission()
         #finally.. relay..
-        log_debug( obj.evt)
+        log_debug(obj.evt)
         client.sendPrefixed(obj.raw)
         
     def relay_event(self, obj, proto):
