@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'chatwindow_auto.ui'
 #
-# Created: Tue Oct  5 20:12:44 2010
+# Created: Sat Oct  9 15:02:06 2010
 #      by: PyQt4 UI code generator 4.7.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -319,11 +319,8 @@ class Ui_w_chatwindow(object):
         self.actionShow_Ignore_List.setIcon(icon9)
         self.actionShow_Ignore_List.setObjectName("actionShow_Ignore_List")
         self.menuView.addAction(self.actionShow_Formatting_Toolbox)
-        self.menuView.addAction(self.actionShow_User_List)
-        self.menuView.addAction(self.actionShow_Ignore_List)
         self.menuView.addAction(self.actionTimestamps)
         self.menuActions.addAction(self.actionShow_Backlog)
-        self.menuActions.addAction(self.actionLeave)
         self.menuActions.addAction(self.actionClose)
         self.menubar.addAction(self.menuActions.menuAction())
         self.menubar.addAction(self.menuView.menuAction())

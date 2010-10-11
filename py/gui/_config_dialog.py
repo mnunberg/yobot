@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file '_config_dialog.ui'
 #
-# Created: Tue Oct  5 20:12:45 2010
+# Created: Fri Oct  8 13:40:42 2010
 #      by: PyQt4 UI code generator 4.7.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -12,10 +12,10 @@ from PyQt4 import QtCore, QtGui
 class Ui_config_dialog(object):
     def setupUi(self, config_dialog):
         config_dialog.setObjectName("config_dialog")
-        config_dialog.resize(327, 304)
-        config_dialog.setTabPosition(QtGui.QTabWidget.West)
+        config_dialog.resize(327, 282)
+        config_dialog.setTabPosition(QtGui.QTabWidget.North)
         config_dialog.setTabShape(QtGui.QTabWidget.Rounded)
-        config_dialog.setDocumentMode(False)
+        config_dialog.setDocumentMode(True)
         self.general_tab = QtGui.QWidget()
         self.general_tab.setObjectName("general_tab")
         self.formLayout = QtGui.QFormLayout(self.general_tab)
@@ -69,11 +69,14 @@ class Ui_config_dialog(object):
         self.select_color.setObjectName("select_color")
         self.gridLayout.addWidget(self.select_color, 0, 1, 1, 1)
         spacerItem1 = QtGui.QSpacerItem(20, 40, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
-        self.gridLayout.addItem(spacerItem1, 3, 0, 1, 1)
+        self.gridLayout.addItem(spacerItem1, 4, 0, 1, 1)
+        self.html_relsize = QtGui.QCheckBox(self.appearance_tab)
+        self.html_relsize.setObjectName("html_relsize")
+        self.gridLayout.addWidget(self.html_relsize, 3, 0, 1, 2)
         config_dialog.addTab(self.appearance_tab, "")
 
         self.retranslateUi(config_dialog)
-        config_dialog.setCurrentIndex(0)
+        config_dialog.setCurrentIndex(2)
         QtCore.QMetaObject.connectSlotsByName(config_dialog)
 
     def retranslateUi(self, config_dialog):
@@ -87,6 +90,7 @@ class Ui_config_dialog(object):
         self.select_font.setText(QtGui.QApplication.translate("config_dialog", "Font..", None, QtGui.QApplication.UnicodeUTF8))
         self.sample_text.setPlainText(QtGui.QApplication.translate("config_dialog", "The quick brown fox jumps over the lazy dog", None, QtGui.QApplication.UnicodeUTF8))
         self.select_color.setText(QtGui.QApplication.translate("config_dialog", "Color..", None, QtGui.QApplication.UnicodeUTF8))
+        self.html_relsize.setText(QtGui.QApplication.translate("config_dialog", "Use Relative HTML Sizes", None, QtGui.QApplication.UnicodeUTF8))
         config_dialog.setTabText(config_dialog.indexOf(self.appearance_tab), QtGui.QApplication.translate("config_dialog", "Appearance", None, QtGui.QApplication.UnicodeUTF8))
 
 

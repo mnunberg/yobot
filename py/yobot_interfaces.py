@@ -9,6 +9,8 @@ class IYobotUIPlugin(Interface):
     plugin_name = Attribute("plugin_name", "identifier for plugin")
     def accountConnected(account_object):
         "when an account is connected"
+    def connectProgress(account_object, message):
+        "Called when an account is connecting..."
     def accountConnectionFailed(account_object, error_message):
         "when a connection has failed"
     def accountConnectionRemove(account_object):
@@ -17,6 +19,8 @@ class IYobotUIPlugin(Interface):
         """Hook when a message (chat or IM) is received)"""
     def roomJoined(account_object, room_name):
         "When a room is joined"
+    def roomLeft(account_object, room_name):
+        "When an account leaves a room"
     def chatUserJoined(account_object, room_name, user_name):
         "When a user joins a room"
     def chatUserLeft(account_object, room_name, user_name):
