@@ -628,8 +628,9 @@ static void cmd_handler(yobot_protoclient_segment *seg) {
 			yobot_protoclient_event_encode(info, &server_write_fd,
 					YOBOT_PROTOCLIENT_TO_FD);
 			g_free(room_user);
-			memset(&info, 0, sizeof(info));
 		}
+		memset(&info, 0, sizeof(info));
+		info.event = YOBOT_EVENT_DUMMY;
 		info.commflags = YOBOT_RESPONSE_END;
 		info.data = room;
 		info.len = strlen(room);
