@@ -9,9 +9,9 @@ re_int = re.compile("\d+")
 
 def point_to_html(x):
     #copied from libpurple/protocols/yahoo/util.c
-    if (x < 9):
+    if (x < 8):
             return 1
-    if (x < 11): 
+    if (x < 10): 
             return 2
     if (x < 13):
             return 3
@@ -22,6 +22,9 @@ def point_to_html(x):
     if (x < 35):
             return 6
     return 7
+
+def _relativize(s):
+    pass
 
 def _parse_style(txt):
     d = {}
@@ -46,20 +49,8 @@ class OutgoingParser(HTMLParser):
         attrs = d
         d = _parse_style(attrs.get("style"))
         if name == "body": #get font..
+            #do not submit any "default" formatting, if not requested
             self.cts = True
-            #this is really a font tag..
-            self.result += "<font "
-            if not d:
-                end_tags.append("</font>")
-                return
-            font = d.get('font-family', "")
-            size = d.get('font-size', "10")
-            m = re_int.match(size)
-            if m:
-                size = m.group(0)
-            self.result += "face=%s absz='%s'" % (font, size)
-            self.result += ">"
-            self.end_tags.append("</font>")
         elif name == "span": #get formatting...
             end_fmt = ""
             decoration = d.get('text-decoration')
@@ -92,7 +83,7 @@ class OutgoingParser(HTMLParser):
                 size = m.group(0)
                 have_font_attrs = True
                 _font_tag_begin += "style='font-size:%spt;' absz='%s' " % (size,size)
-                _font_tag_begin += "size='%d' " % (point_to_html(int(size)),)
+                _font_tag_begin += "size='%s' " % (str(point_to_html(int(size))),)
 
             if have_font_attrs:
                 _font_tag_begin += ">"
@@ -116,7 +107,7 @@ class OutgoingParser(HTMLParser):
         if self.cts:
             self.result += data
     def handle_entityref(self, name):
-        self.result += "&" + name + ";"
+        self.result += "&%s;" % (name,)
     def reset(self):
         HTMLParser.reset(self)
         self.result = ""
@@ -126,37 +117,63 @@ class OutgoingParser(HTMLParser):
 class IncomingParser(HTMLParser):
     result = ""
     end_tags = []
+    use_relsize = False
     def handle_starttag(self, name, attrs):
+        name = name.lower()
         d = {}
         for k, v in attrs:
-            d[k] = v
+            d[str(k.lower())] = str(v.lower())
         attrs = d
+        
         def restore(tag):
             self.result += "<" + tag
             for attr, vals in attrs.items():
                 self.result += ' %s="%s" ' % (attr, vals)
             self.result += ">"
             self.end_tags.append("</%s>" % (tag,))
+                
         
-        name = name.lower()
+        if self.use_relsize:
+            if name == "font":
+                sz = attrs.get("size", "")
+                if sz and (sz.endswith("pt") or sz.endswith("px")):
+                    sz = re_int.match(sz)
+                    if sz: attrs["size"] = "%s" % (str(point_to_html(int(sz.group(0)))),)
+                
+                if attrs.get("size"):
+                    attrs.pop("absz", "")
+                else:
+                    sz = attrs.get("absz")
+                    if sz:
+                        if sz.isdigit(): attrs["size"] = sz
+                        else: print "WARNING: INVALID VALUE FOR ABSZ (%s)" % (sz,)
         
+            if not attrs.get("style"): attrs["style"]=""
+            attrs["style"] += re.sub(r"(font-size\s*:\s*)(\d+)(pt|px)",
+                                        lambda m: "font-size:" + str(point_to_html(int(m.group(2)))),
+                                        attrs["style"])
+        else:
+            #no point in converting relative sizes to absolute ones, thus we only
+            #need to convert the non-standard yahoo-based absz attribute
+            if name == "font":
+                #yahoo uses absz attribute
+                absz = attrs.get("absz")
+                if absz:
+                    tmp = attrs.get("style")
+                    if tmp:
+                        tmp += " font-size:%dpt;" % (int(absz),)
+                        attrs["style"] = tmp
+                    else:
+                        attrs["style"] = "font-size:%dpt;" % (int(absz),)
+                    attrs.pop("size", "")
+        
+        #replace "structure" tags with a simple font tag
         if name in ("head", "script", "body", "html", "p"):
             if len(attrs):
                 restore("font")
             else:
                 self.end_tags.append("")
             return
-        
-        if name == "font":
-            absz = attrs.get("absz")
-            if absz:
-                tmp = attrs.get("style")
-                if tmp:
-                    tmp += " font-size:%dpt;" % (int(absz),)
-                    attrs["style"] = tmp
-                else:
-                    attrs["style"] = "font-size:%dpt;" % (int(absz),)
-                attrs.pop("size", "")
         restore(name)
     
     def handle_endtag(self, name):
@@ -181,8 +198,9 @@ def simplify_css(txt):
     _outgoing_parser.feed(txt)
     return re.sub("\n","",_outgoing_parser.result)
 
-def process_input(txt):
+def process_input(txt, use_relsize=True, use_samesize=False):
     _incoming_parser.result = ""
+    _incoming_parser.use_relsize = use_relsize
     _incoming_parser.feed(txt)
     return _incoming_parser.result.strip()
 
