@@ -507,8 +507,11 @@ class OverlayConnectionWidget(ConnectionWidget):
         self.setGraphicsEffect(self.effect)
         self.pos_fn = pos_fn
         saved_size = None
+        self._parent = parent
         
     def paintEvent(self, event):
+        if self._parent:
+            self.setFixedWidth(self._parent.width()-20)
         super(type(self), self).paintEvent(event)            
         painter = QPainter(self)
         qDrawShadePanel(painter, self.rect(), QPalette())
