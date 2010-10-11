@@ -171,15 +171,17 @@ static PurpleCoreUiOps core_uiops =
 
 static void init_libpurple(int debug, char *directory)
 {
-	/*mandatory.. so it doesn't mess with whatever*/
+	/*mandatory.. so it doesn't mess with whatever. Keep blist.xml so we have cached
+	 * icons. For some reason problems only occur on windows*/
 	char *remove_list[] = {"prefs.xml", "accounts.xml", "xmpp-caps.xml", NULL};
 	int i = 0;
-	while (remove_list[i++]) {
+	while (remove_list[i]) {
 		char *tmp = g_build_path(G_DIR_SEPARATOR_S, directory, remove_list[i], NULL);
 		if(remove(tmp) == -1) {
 			yobot_log_warn("Error cleaning %s: %s", tmp, strerror(errno));
 		}
 		g_free(tmp);
+		i++;
 	}
 	purple_util_set_user_dir(directory);
 	purple_debug_set_enabled(debug);
