@@ -11,7 +11,7 @@ from debuglog import log_debug, log_err, log_warn, log_crit, log_info
 try:
     import json
 except Exception, e:
-    print "Couldn't load json module: ", str(e)
+    log_debug("Couldn't load json module: ", str(e))
     import simplejson
     json = simplejson
     
@@ -30,15 +30,11 @@ class RingBuffer(list):
         list.__init__(self, l)
         if limit < len(l): limit = len(l)
         self.limit = limit
-        #fill the difference with None
-        if len(self) < limit:
-            difference = limit-len(self)
-            for i in xrange(difference):
-                self.insert(0, None)
         
     def append(self, obj):
         if not obj in self:
-            self.pop(0)
+            if len(self) >= self.limit:
+                self.pop(0)
             list.append(self,obj)
         else:
             i = self.index(obj)
@@ -81,22 +77,24 @@ class ClientConfig(object):
                 
                 #if someone knows a better, quicker way to do this, let me know
                 if a.get("recent_contacts", []):
-                    a["recent_contacts"] = RingBuffer(25, a["recent_contacts"].copy())
+                    a["recent_contacts"] = RingBuffer(25, a["recent_contacts"][:])
                 if a.get("recent_chats", []):
-                    a["recent_chats"] = RingBuffer(25, a["recent_chats"].copy())
+                    a["recent_chats"] = RingBuffer(25, a["recent_chats"][:])
     
     def get_account(self, acctobj, autoadd=False):
         """Return a config entry with the improto and name of this account object"""
         #first try the cache..
         try:
-            return self.account_lookup_cache[acctobj]
+            ret = self.account_lookup_cache[acctobj]
+            log_err(ret)
+            return ret
         except KeyError, e:
-            log_debug("account not in cache yet..", e)
-        
+            log_debug("account not in cache yet..", self.account_lookup_cache, e)
         for a in self.accounts:
             if a["name"] == acctobj.name and a["improto"] == yobotops.imprototostr(acctobj.improto):
                 self.account_lookup_cache[acctobj] = a
-                self.get_account(acctobj, autoadd)
+                log_debug("added account %s to cache, calling again", a)
+                return self.get_account(acctobj, autoadd)
         if autoadd:
             d = {"name":acctobj.name,
                  "improto":yobotops.imprototostr(acctobj.improto),
@@ -131,3 +129,10 @@ class ClientConfig(object):
         if not _name == "yobot_config":
             return False
         return True
+
+if __name__ == "__main__":
+    #ringbuffer test
+    b = RingBuffer(20)
+    for i in xrange(25):
+        b.append(i)
+    print b
