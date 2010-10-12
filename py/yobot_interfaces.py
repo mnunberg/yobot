@@ -193,6 +193,7 @@ class ComponentRegistry(object):
         return tuple(self._active_plugins)
 
 component_registry = ComponentRegistry()
+global_states = {}
 
 def get_yobot_homedir():
     """Simple utility function. Order is: (1) the "yobot-config-dir" plugin,
@@ -208,3 +209,4 @@ def get_yobot_homedir():
     if e: return e
     
     return join(expanduser("~"), ".yobot")
+    

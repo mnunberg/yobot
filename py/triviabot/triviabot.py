@@ -808,7 +808,7 @@ class TriviaPlugin(object):
     yobot_interfaces.implements(yobot_interfaces.IYobotUIPlugin)
     plugin_name = "triviabot"
     def __init__(self):
-        self.gui = TriviaGui()        
+        self.gui = TriviaGui()
         self.room = None
         self.pending_room = None
         self.gui.start_requested = self.start_requested
@@ -822,6 +822,7 @@ class TriviaPlugin(object):
         self.gui.widgets.room.insertItem(0, "muc@muc.debmed.mordnet")
         self.gui.widgets.room.setCurrentIndex(0)
         self.gui.widgets.account.setCurrentIndex(0)
+        yobot_interfaces.global_states["gui"] = True
         log_err("done")
     #plugin hooks
     def accountConnected(self, acct):
