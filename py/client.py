@@ -101,6 +101,19 @@ class UIClient(object):
 #            proxy_host="localhost", proxy_port="3128", proxy_type="http")
         new_account.connect()
     def gotmsg(self, acct, msg):
+        if (msg.prplmsgflags & yobotproto.PURPLE_MESSAGE_SYSTEM and
+            acct.improto == yobotproto.YOBOT_YAHOO):
+            log_err("Trying to use captcha class...")
+            from gui import yahoo_captcha
+            import re
+            #parse URL and
+            m = re.search(r"http://\S+", msg.txt, re.I)
+            if m:
+                url = m.group(0)
+                prompter = yahoo_captcha.CaptchaPrompter()
+                prompter.prompt(url)
+            else:
+                log_err("NO MATCH!!!")
         self._plugin_hook_invoke("gotMessage", (acct, msg))
     
     def chatUserJoined(self, acct, room, user):
@@ -112,7 +125,7 @@ class UIClient(object):
     def roomJoined(self, acct, room):
         self.joined_rooms[acct].append(room)
         self._plugin_hook_invoke("roomJoined", (acct, room))
-        log_info( "ROOM JOINED ", room)
+        log_info("ROOM JOINED:", room)
     def roomLeft(self, acct, room):
         try:
             self.joined_rooms[acct].remove(room)
@@ -192,6 +205,7 @@ class UIClient(object):
         if fromServer:
             self.svc.disconnectAll()
         else:
+            return
             log_err("reactor.stop")
             #reactor.stop()
     
