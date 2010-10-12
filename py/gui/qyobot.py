@@ -204,7 +204,8 @@ class BuddyItemDelegate(QStyledItemDelegate):
             return
         
         self._paintDirect(painter, option, index)
-                                
+
+from client_config import RingBuffer
 class AccountInputDialog(QDialog):
     def __init__(self, model, parent=None, type=None):
         QDialog.__init__(self, parent)
@@ -213,7 +214,9 @@ class AccountInputDialog(QDialog):
         self.widgets = widgets
         widgets.account.setModel(model)
         self.model = model
-        self.recent_list_write = []
+        
+        self.recent_list_write = RingBuffer(25)
+        
         self.config = yobot_interfaces.component_registry.get_component("client-config")
         signal_connect(self.widgets.account, SIGNAL("currentIndexChanged(int)"), self.index_changed)
         self._current_account = None
@@ -223,7 +226,6 @@ class AccountInputDialog(QDialog):
             self.recent_list_write.append(self.widgets.target.currentText())
             self.update_recents()
         signal_connect(self, SIGNAL("accepted()"), _add_to_recent)
-        
         signal_connect(self, SIGNAL("accepted()"), self.dialogDone)
         self.type = type
         
@@ -245,6 +247,9 @@ class AccountInputDialog(QDialog):
         
     def index_changed(self, index):
         "subclasses should implement the 'recent_lookup' method"
+        if index < 0:
+            log_warn("got invalid index")
+            return
         acctobj = self.model.index(self.widgets.account.currentIndex()).internalPointer()
         #set the context
         self._current_account = acctobj

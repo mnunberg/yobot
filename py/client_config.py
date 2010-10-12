@@ -27,6 +27,9 @@ class acctlist(list):
 
 class RingBuffer(list):
     def __init__(self, limit, l=list()):
+        if l:
+            #filter out duplicates...
+            l = list(set(l))
         list.__init__(self, l)
         if limit < len(l): limit = len(l)
         self.limit = limit
@@ -86,14 +89,15 @@ class ClientConfig(object):
         #first try the cache..
         try:
             ret = self.account_lookup_cache[acctobj]
-            log_err(ret)
+            #log_err(ret)
             return ret
         except KeyError, e:
-            log_debug("account not in cache yet..", self.account_lookup_cache, e)
+            pass
+            #log_debug("account not in cache yet..", self.account_lookup_cache, e)
         for a in self.accounts:
             if a["name"] == acctobj.name and a["improto"] == yobotops.imprototostr(acctobj.improto):
                 self.account_lookup_cache[acctobj] = a
-                log_debug("added account %s to cache, calling again", a)
+                #log_debug("added account %s to cache, calling again", a)
                 return self.get_account(acctobj, autoadd)
         if autoadd:
             d = {"name":acctobj.name,
