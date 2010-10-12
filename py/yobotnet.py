@@ -401,7 +401,7 @@ class YobotClientService(YobotServiceBase):
 #since we aren't receiving any commands or mkacct object (for now), we aren't implementing their handlers.
 
     def handle_evt(self, obj, proto):
-        log_info( obj.evt)
+        log_info(obj.evt)
         self.dispatchEvent(obj, proto)
     def handle_msg(self,obj,proto):
         acct = self.accounts.getAccount(obj.msg.acctid)
@@ -479,7 +479,7 @@ class YobotClientService(YobotServiceBase):
     def roomJoined(self, obj, proto):
         acct = self.accounts.getAccount(obj.evt.objid)
         self.uihooks.roomJoined(acct, obj.evt.txt)
-        self.fetchRoomUsers(self.accounts.getAccount(obj.evt.objid),obj.evt.txt)
+        #self.fetchRoomUsers(self.accounts.getAccount(obj.evt.objid),obj.evt.txt)
     def roomLeft(self, obj, proto):
         acct = self.accounts.getAccount(obj.evt.objid)
         self.uihooks.roomLeft(acct, obj.evt.txt)
@@ -920,7 +920,7 @@ class YobotServerService(YobotServiceBase):
     
     
     def setPurple(self, proto):
-        log_err("SETTING PURPLE!")
+        log_info("connected to purple server")
         self.prpl_server.release(proto)
         self.prpl_server = proto
         
