@@ -907,6 +907,7 @@ class YobotServerService(YobotServiceBase):
             
             yobotproto.YOBOT_EVENT_BUDDY_GOT_ICON : "update_icon",
             yobotproto.YOBOT_EVENT_ROOM_USER_JOIN: "relay_event",
+            yobotproto.YOBOT_EVENT_ROOM_USER_LEFT: "relay_event",
             yobotproto.YOBOT_EVENT_CONNECTING: "relay_event",
             yobotproto.YOBOT_EVENT_USER_ADDREQ: "relay_event",
             yobotproto.YOBOT_EVENT_ROOM_JOINED: "relay_event",

@@ -635,9 +635,13 @@ class ChatWindow(QMainWindow):
         self.widgets.userlist.addItem(u)
         self.users[user] = u
     def userLeft(self, user):
+        log_err("hi")
         u = self.users.get(user)
         if not u: return
-        self.widgets.userlist.removeItemWidget(u)
+        #as always, we need to get the row of the item widget first...
+        row = self.widgets.userlist.row(u)
+        if row >= 0:
+            self.widgets.userlist.takeItem(row)
         self.users.pop(u,"")
         
     def leaveRoom(self):
@@ -1004,7 +1008,7 @@ class YobotGui(object):
         if not c: return
         c.userJoined(user)
     def chatUserLeft(self, acct_obj, room, user):
-        c = self.chats.get([acct_obj, room])
+        c = self.chats.get((acct_obj, room))
         if not c: return
         c.userLeft(user)
     def gotRequest(self, request_obj):
