@@ -22,9 +22,8 @@ static void event_conversation_send(PurpleConversation *conv, yobot_proto_evtype
 	info.acctid = yobot_get_acct_id(conv->account);
 	info.purple_type = YOBOT_PURPLE_CONV;
 	info.data = conv->name;
-	info.len = strlen(conv->name);
+	info.len = strlen(conv->name)+1;
 	yobot_protoclient_event_encode(info, &server_write_fd,YOBOT_PROTOCLIENT_TO_FD);
-
 }
 
 
