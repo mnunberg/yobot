@@ -389,6 +389,8 @@ class ChatWindow(QMainWindow):
     defaultBacklogCount = 50
     def __init__(self, client, parent=None, type=IM, acct_obj=None, target=None,
                  factory=None, initial_text="",):
+        """Factory takes a target username and an account object. Supposed to respawn/activate a
+        chat window"""
         self.users = {} #dict containing the name of the user mapped to the model object..
         
         if not target or not acct_obj:
@@ -502,10 +504,16 @@ class ChatWindow(QMainWindow):
         self._action_ignore_perm = menu.addAction(QIcon(":/icons/res/16x16/actions/dialog-cancel.png"), "Ignore (server)")
         
         if self.factory:
+            def respawn(username):
+                username = str(username)
+                if self.account.improto == yobotproto.YOBOT_JABBER:
+                    username = "/".join([self.target, username])
+                self.factory(username, self.account)
+                
             signal_connect(self._action_newmsg, SIGNAL("activated()"),
-                lambda: self.factory(target = self.current_action_target, account = self.account, type = self.type))
+                    lambda: respawn(self.current_action_target))
             signal_connect(self.widgets.userlist, SIGNAL("itemDoubleClicked(QListWidgetItem*)"),
-                lambda item: self.factory(target = item.text(), account = self.account, type = self.type))
+                lambda item: respawn(item.text()))
             
         signal_connect(self._action_ignore_tmp, SIGNAL("activated()"), lambda: self.ignore_list.add(self.current_action_target))
         self.userActionMenu = menu
@@ -598,10 +606,15 @@ class ChatWindow(QMainWindow):
         w = self.widgets
         if msg_obj.who in self.ignore_list:
             return
+        
+        whocolor = "darkblue" if msg_obj.prplmsgflags & yobotproto.PURPLE_MESSAGE_SEND else "darkred"
+        whostyle = "color:%s;font-weight:bold;text-decoration:none;" % (whocolor,)
+        
+        
         msg_str = ""
-        msg_str += "<a href='YOBOT_INTERNAL/%s'>" % (msg_obj.who)
+        msg_str += """<a href='YOBOT_INTERNAL/%s' style='%s'>""" % (msg_obj.who, whostyle)
         msg_str += "(%s) " % (msg_obj.timeFmt,) if w.actionTimestamps.isChecked() else ""
-        msg_str += "<span style='color:mediumblue; font-weight:bold;'>%s</span></a>: " % (msg_obj.who,)
+        msg_str += "%s</a>: " % (msg_obj.who,)
         formatted = process_input(msg_obj.txt, self.use_relsize)
         formatted = insert_smileys(formatted, self.account.improto, ":smileys/smileys", 24, 24)
         log_debug(formatted)
@@ -820,10 +833,14 @@ class YobotGui(object):
         target = str(target)
         window = self.chats.get((acct, target))
         if window:
+            if popup:
+                window.activateWindow()
             return
         
-        self.chats[(acct, target)] = ChatWindow(self.client, type=type, parent=self.mw,
-                                                acct_obj=acct, target=target)
+        respawn_fn = lambda username, acctobj: self._openChat(acctobj, username, IM, popup=True)
+        
+        self.chats[(acct, target)] = ChatWindow(
+            self.client, type=type, parent=self.mw, acct_obj=acct, target=target, factory=respawn_fn)
         self.chats[(acct, target)].activateWindow()
         def _closeEvent(_QCloseEvent_null):
             "Remove window from the window list when closed"
@@ -831,8 +848,8 @@ class YobotGui(object):
         self.chats[(acct, target)].closeEvent = _closeEvent
         self.chats[(acct, target)].show()
         self.chats[(acct, target)].activateWindow()
-        log_info( "created chat with type %d, target %s" % (type, target))
-        log_debug( self.chats)
+        log_info("created chat with type %d, target %s" % (type, target))
+        log_debug(self.chats)
         
     def _logBrowserAppend(self, acct_obj, name, msg, title="Log"):
         if not self.logbrowser:
@@ -965,8 +982,11 @@ class YobotGui(object):
         #log_debug(msg_obj)
         #FIXME: hack..
         name = msg_obj.name
-        if acct_obj.improto == yobotproto.YOBOT_JABBER:
-            name = name.split("/", 1)[0]
+        if acct_obj.improto == yobotproto.YOBOT_JABBER and msg_obj.yprotoflags & yobotproto.YOBOT_MSG_TYPE_IM:
+            tmp = name.rsplit("/", 1)[0]
+            chat = self.chats.get((acct_obj, tmp))
+            if not (chat and chat.type == CHAT):                
+                name = tmp
 
         if (msg_obj.yprotoflags & yobotproto.YOBOT_OFFLINE_MSG or
             (msg_obj.yprotoflags & yobotproto.YOBOT_BACKLOG and
