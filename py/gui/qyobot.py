@@ -514,7 +514,10 @@ class ChatWindow(QMainWindow):
         signal_connect(self.widgets.convtext, SIGNAL("anchorClicked(QUrl)"), _anchorClicked)
         
         def _userlistContextMenu(point):
-            self.current_action_target = self.widgets.userlist.itemAt(point).text()
+            item = self.widgets.userlist.itemAt(point)
+            if not item:
+                return
+            self.current_action_target = item.text()
             self.userActionMenu.exec_(QCursor().pos())
             
         self.widgets.userlist.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -534,20 +537,21 @@ class ChatWindow(QMainWindow):
         key = event.key()
         modifiers = event.modifiers()
         if key== Qt.Key_Return:
-            if not str(self.widgets.input.toPlainText()):
+            if not w.input.toPlainText():
                 log_debug("empty input")
                 return
-            txt = self.widgets.input.toHtml()
+            txt = unicode(w.input.toHtml().toUtf8(), "utf-8")
             if not txt:
                 return
-            log_warn(txt)
-            txt = simplify_css(str(txt))
+            
+            log_warn(txt.encode("utf-8"))
+            txt = simplify_css(txt.encode("utf-8"))
             log_warn(txt)
             self.sendMsg(txt)
-            self.widgets.input.clear()
+            w.input.clear()
             return
         if key == Qt.Key_Backspace:
-            cursor = self.widgets.input.textCursor()
+            cursor = w.input.textCursor()
             if cursor.selectionStart() <=1:
                 #Don't erase formatting.. normally erasing the last character
                 #will also reset the format. This stores the current formatting,
@@ -563,14 +567,15 @@ class ChatWindow(QMainWindow):
             cursor.deletePreviousChar()            
             return
         if modifiers & Qt.CTRL:
+            #MS-Word style size increase/decrease
             if key == Qt.Key_BracketLeft:
-                self.widgets.fontsize.stepBy(-1)
+                w.fontsize.stepBy(-1)
                 return
             elif key == Qt.Key_BracketRight:
-                self.widgets.fontsize.stepBy(1)
+                w.fontsize.stepBy(1)
                 return
         
-        QTextEdit.keyPressEvent(self.widgets.input,event)    
+        QTextEdit.keyPressEvent(w.input,event)    
     
     def _input_mouseDoubleClickEvent(self, event):
         cursor = self.widgets.input.textCursor()
@@ -596,6 +601,7 @@ class ChatWindow(QMainWindow):
         formatted = insert_smileys(formatted, self.account.improto, ":smileys/smileys", 24, 24)
         log_debug(formatted)
         msg_str += formatted
+        msg_str = unicode(msg_str, "utf-8")
         if (msg_obj.yprotoflags & yobotproto.YOBOT_BACKLOG or
             msg_obj.prplmsgflags & yobotproto.PURPLE_MESSAGE_DELAYED):
             self.chat_text.append(msg_str, fmt=self.chat_text.archFmt)
@@ -719,6 +725,7 @@ class YobotGui(object):
     yobot_interfaces.implements(yobot_interfaces.IYobotUIPlugin)
     plugin_name = "gui_main"
     def __init__(self):
+        yobot_interfaces.global_states["gui"] = True
         #first get some components.. we need the account store at least
         account_manager = yobot_interfaces.component_registry.get_component("account-store")
         if not account_manager:
