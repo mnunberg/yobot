@@ -10,7 +10,7 @@ from PyQt4.QtGui import (QComboBox, QMainWindow, QStandardItemModel, QStandardIt
                          QStyleOptionViewItem, QRegion, QWidget, QBrush, QStyle,
                          QPen, QPushButton, QStyleOption, QMenu, QAction, QCursor,
                          QTreeView, QLineEdit, QButtonGroup, QColor, QTextCursor,
-                         QTextBlockFormat)
+                         QTextBlockFormat, QLinearGradient)
 
 from PyQt4.QtCore import (QPoint, QSize, QModelIndex, Qt, QObject, SIGNAL, QVariant,
                           QAbstractItemModel, QRect, QRectF, QPointF, QStringList)
@@ -25,13 +25,44 @@ from debuglog import log_debug, log_err, log_warn, log_crit, log_info
 from html_fmt import simplify_css, process_input, insert_smileys
 import smileys_rc
 from gui_util import qlw_delitem, qlw_additem, TINY_VERTICAL_SCROLLBAR_STYLE
+import datetime
+import yobotops
 
 class _ChatText(object):
+    _styles_initialized = False
     defaultFmt = QTextBlockFormat()
     defaultFmt.setBottomMargin(2.5)
     
     archFmt = QTextBlockFormat()
     archFmt.setBackground(QBrush(QColor("#EEEEEE")))
+    
+    infoFmt = QTextBlockFormat()
+    errFmt = QTextBlockFormat()
+    
+    #gradient for info format.. gonna try this..
+    #g = QLinearGradient()
+    #g.setSpread(g.PadSpread)
+    #g.setStart(0,0)
+    #g.setFinalStop(240, 0)
+    #g.setColorAt(0.0, QColor("#33CC00"))
+    #g.setColorAt(0.7, QColor("#ffffff"))
+    #infoFmt.setBackground(QBrush(g))
+    #
+    #g.setColorAt(0.0, QColor("#ff8e8e"))
+    #errFmt.setBackground(QBrush(g))
+    #del g
+    
+    errFmt.setBackground(QBrush(QColor("#ff8e8e"), Qt.Dense4Pattern))
+    infoFmt.setBackground(QBrush(QColor("#33cc00"),Qt.Dense4Pattern))
+    
+    @staticmethod
+    def print_colors():
+        p = QApplication.palette()
+        for c in ("Window", "Background", "WindowText", "Foreground", "Base", "AlternateBase",
+                  "ToolTipBase", "ToolTipText", "Text", "Button", "ButtonText",
+                  "BrightText"):
+            print c, p.color(getattr(QPalette, c)).name()
+    
     def __init__(self, qtb):
         self.qtb = qtb
         self.append = self._initAppend
@@ -73,7 +104,6 @@ class ChatWindow(QMainWindow):
     defaultBacklogCount = 50
     appearance_config = {}
     use_relsize = False
-    #fgcolor_button_stylesheet_fmtstr = "background-color:%s;border:none;"
     
     def __init__(self, client, parent=None, type=IM, acct_obj=None, target=None,
                  factory=None, initial_text="",):
@@ -100,10 +130,15 @@ class ChatWindow(QMainWindow):
         w.input.keyPressEvent = self._inputKeyPressEvent
         w.input.mouseDoubleClickEvent = self._input_mouseDoubleClickEvent
         w.input.setHtml("")
+        
+        self._send_html = yobotops.improto_supports_html(acct_obj.improto)
+        
         w.convtext.setHtml(initial_text)
+        self.show_join_leave_messages = False
         if type == CHAT:
             w.menuView.addAction(w.actionShow_User_List)
             w.menuView.addAction(w.actionShow_Ignore_List)
+            w.menuView.addAction(w.actionShow_Join_Leave)
             w.menuActions.addAction(w.actionLeave)
             w.actionShow_User_List.setChecked(True)
             w.actionShow_Ignore_List.setChecked(True)
@@ -111,6 +146,8 @@ class ChatWindow(QMainWindow):
             w.ignorelist.clear()
             w.menuView.addAction(w.actionShow_User_List)
             signal_connect(w.actionLeave, SIGNAL("activated()"), self.leaveRoom)
+            signal_connect(w.actionShow_Join_Leave, SIGNAL("toggled(bool)"),
+                           lambda b: setattr(self, "show_join_leave_messages", b))
             
         elif type == IM:
             w.userlists.hide()
@@ -121,9 +158,10 @@ class ChatWindow(QMainWindow):
         self.current_action_target = ""
         w.userlist.clear()
         
-        w.userlist.setStyleSheet(TINY_VERTICAL_SCROLLBAR_STYLE)
-        w.ignorelist.setStyleSheet(TINY_VERTICAL_SCROLLBAR_STYLE)
+        w.userlists.setStyleSheet(TINY_VERTICAL_SCROLLBAR_STYLE)
+        w.convtext.setStyleSheet(TINY_VERTICAL_SCROLLBAR_STYLE)
         w.userlists.resize(w.userlist.height(), 100)
+        
         
         self.factory = factory
         self._init_input()
@@ -182,16 +220,16 @@ class ChatWindow(QMainWindow):
         w = self.widgets
         key = event.key()
         modifiers = event.modifiers()
-        if key== Qt.Key_Return:
+        if key == Qt.Key_Return and not modifiers:
             if not w.input.toPlainText():
                 log_debug("empty input")
                 return
-            txt = unicode(w.input.toHtml().toUtf8(), "utf-8")
-            if not txt:
-                return
-            
-            log_warn(txt.encode("utf-8"))
-            txt = simplify_css(txt.encode("utf-8"))
+            if self._send_html:
+                txt = unicode(w.input.toHtml().toUtf8(), "utf-8")
+                txt = simplify_css(txt.encode("utf-8"))
+            else:
+                txt = unicode(w.input.toPlainText().toUtf8(), "utf-8")
+                if not txt: return
             log_warn(txt)
             self.sendMsg(txt)
             w.input.clear()
@@ -259,6 +297,8 @@ class ChatWindow(QMainWindow):
             if c.get("font_bold", False): w.bold.setChecked(True)
             if c.get("font_italic", False): w.italic.setChecked(True)
             if c.get("font_underline", False): w.underline.setChecked(True)
+            if c.get("show_joinpart", False): w.actionShow_Join_Leave.setChecked(True)
+            
             self.use_relsize = c.get("use_html_relsize", False)
     
     def fgcolor_button_change_color(self, color):
@@ -282,9 +322,7 @@ class ChatWindow(QMainWindow):
 ###############################################################################
     def _init_menu(self):
         "Initializes context menu for usernames"
-        if not self.type == CHAT:
-            return
-        
+        if not self.type == CHAT: return
         menu = QMenu()
         self._action_newmsg = menu.addAction(QIcon(":/icons/icons/message-new.png"), "Send IM")
         self._action_ignore_tmp = menu.addAction(QIcon(":/icons/res/16x16/actions/dialog-cancel.png"), "Ignore (from chat)")
@@ -359,24 +397,41 @@ class ChatWindow(QMainWindow):
     
     def userJoined(self, user):
         qlw_additem(user, self.users, self.widgets.userlist)
+        if self.show_join_leave_messages:
+            self.chat_text.append("<b>%s</b> Has Joined %s" % (user, self.target), _ChatText.infoFmt)
     def userLeft(self, user):
         qlw_delitem(user, self.users, self.widgets.userlist)
+        if self.show_join_leave_messages:
+            self.chat_text.append("<b>%s</b> Has Left %s" % (user, self.target), _ChatText.infoFmt)
+
     def leaveRoom(self):
         self.account.leaveRoom(self.target)
-    def roomLeft(self, msg=None):
-        self.chat_text.append()
+    def roomLeft(self):
+        self.chat_text.append("Left %s at %s" % (self.target, datetime.datetime.now()),
+                              _ChatText.errFmt)
         
 if __name__ == "__main__":
     import sys
-    import string
-    
+    import random
+    from yobotclass import YobotAccount
+    from string import ascii_letters
     app = QApplication(sys.argv)
-    chatwindow = ChatWindow(None, target="sdf", acct_obj="kj", type=CHAT)
+    chatwindow = ChatWindow(None, target="sdf", acct_obj=YobotAccount(), type=CHAT)
+    chatwindow.show_join_leave_messages = True
+    
     for i in xrange(40):
-        item = QListWidgetItem(string.ascii_letters[:40])
-        chatwindow.widgets.userlist.addItem(item)
-        item = QListWidgetItem(item)
-        chatwindow.widgets.ignorelist.addItem(item)
+        chatwindow.userJoined("".join(random.sample(ascii_letters, 10)))
+        chatwindow.users
+        chatwindow.ignore_list.add("".join(random.sample(ascii_letters, 10)))
+    
     chatwindow.show()
+    
+    def spamtext(text="Some Text", iterations=100, format=_ChatText.defaultFmt):
+        for i in xrange(iterations):
+            chatwindow.chat_text.append(text, format)
+    spamtext("Archive Text", format=_ChatText.archFmt)
+    spamtext("Error Text", format=_ChatText.errFmt)
+    spamtext("Info Text", format=_ChatText.infoFmt)
+    _ChatText.print_colors()
     app.exec_()
     
