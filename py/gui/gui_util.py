@@ -35,7 +35,6 @@ import agent_connect_dlg
 import yobot_interfaces
 
 
-
 _PROTO_INT, _PROTO_NAME = (1,2)
 
 _status_icon_cache = {}
@@ -69,6 +68,31 @@ STATUS_TYPE_MAPS = {
     "Available" : yobotproto.PURPLE_STATUS_AVAILABLE,
     "Invisible" : yobotproto.PURPLE_STATUS_INVISIBLE,
 }
+
+TINY_VERTICAL_SCROLLBAR_STYLE="""
+QScrollBar:vertical {
+    border:0px;
+    border-style:inset;
+    max-width:6px;
+    background-color:palette(dark);
+}
+
+QScrollBar::handle:vertical {
+    border-radius:3px;
+    background-color:palette(text); /*black*/
+}
+
+QScrollBar::down-arrow:vertical,
+QScrollBar::up-arrow:vertical,
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    background-color:none;
+}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background:none;
+}
+"""
 
 def set_bg_opacity(widget, a):
     palette = widget.palette()
@@ -163,6 +187,31 @@ def widgetformatter(widget, font, color, klass="QWidget", extra=""):
         )
     log_debug(stylesheet)
     widget.setStyleSheet(stylesheet)
+
+def qlw_additem(key, d, listwidget, text=None, icon=None):
+    """Adds a QListWidgetItem to listwidget, storing the ListWidgetItem in d indexed
+    by key. text defaults to str(key)"""
+    if key in d:
+        return
+    if not text:
+        text = str(key)
+    item = QListWidgetItem()
+    item.setText(text)
+    if icon: item.setIcon(icon)
+    listwidget.addItem(item)
+    d[key] = item
+
+def qlw_delitem(key, d, listwidget):
+    """Idiom used throughout the codebase, where QListWidgetItems are stored in a
+    d(ict) indexed by key. This function removes the item (if found in the dict)
+    and returns the corresponding pop'd dict value, otherwise returns False"""
+    lwitem = d.get(key)
+    if not lwitem: return False
+    row = listwidget.row(lwitem)
+    if row < 0:
+        return False
+    listwidget.takeItem(row)
+    return d.pop(key)
 
 INDEX_ACCT, INDEX_BUDDY = (1,2)
 ROLE_ACCT_OBJ = Qt.UserRole + 2

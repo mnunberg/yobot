@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+if __name__ == "__main__":
+    import sys
+    sys.path.append("../")
 import chatwindow_auto
 from PyQt4.QtGui import (QComboBox, QMainWindow, QStandardItemModel, QStandardItem,
                          QIcon, QPixmap, QImage, QPainter, QDialog, QMessageBox,
@@ -21,12 +24,14 @@ import yobotproto
 from debuglog import log_debug, log_err, log_warn, log_crit, log_info
 from html_fmt import simplify_css, process_input, insert_smileys
 import smileys_rc
-
+from gui_util import qlw_delitem, qlw_additem, TINY_VERTICAL_SCROLLBAR_STYLE
 
 class _ChatText(object):
     defaultFmt = QTextBlockFormat()
+    defaultFmt.setBottomMargin(2.5)
+    
     archFmt = QTextBlockFormat()
-    archFmt.setBackground(QBrush(QColor("#c0c0c0")))
+    archFmt.setBackground(QBrush(QColor("#EEEEEE")))
     def __init__(self, qtb):
         self.qtb = qtb
         self.append = self._initAppend
@@ -39,8 +44,10 @@ class _ChatText(object):
         c.movePosition(c.End)
         c.insertBlock(fmt)
         c.insertHtml(txt)
+    def append(self, *args, **kwargs):
+        "This is monkeypatched during runtime. Appends text to the instance's qtb widget"
     
-        
+
 class _IgnoreList(object):
     def __init__(self, listwidget):
         self.lw = listwidget
@@ -56,38 +63,18 @@ class _IgnoreList(object):
         self.remove(username)
         
     def add(self, username):
-        username = str(username)
-        if username in self.users:
-            return
-        lwitem = QListWidgetItem(QIcon(":/icons/res/16x16/actions/dialog-cancel.png"), username)
-        self.lw.addItem(lwitem)
-        self.users[username] = lwitem
+        qlw_additem(str(username), self.users, self.lw, icon=QIcon(":/icons/res/16x16/actions/dialog-cancel.png"))
     def remove(self, username):
-        username = str(username)
-        if not username in self.users:
-            return
-        #remove the row assigned to this widget
-        row = self.lw.row(self.users.pop(username))
-        if row < 0:
-            log_err("row is < 0")
-            return
-        self.lw.takeItem(row)
-        log_debug("removed.. i think")
-
+        qlw_delitem(str(username), self.users, self.lw)
+        
 class ChatWindow(QMainWindow):
     """This class is quite dumb, but it does contain client hooks to get and send
     messages"""
+    defaultBacklogCount = 50
     appearance_config = {}
     use_relsize = False
-    @classmethod
-    def get_config(self):
-        "set appearance configuration object. no need to set it each time"
-        if not self.appearance_config:
-            c = yobot_interfaces.component_registry.get_component("client-config")
-            self.appearance_config = c.globals.get("appearance", {"nothing":None})
-        return self.appearance_config
+    #fgcolor_button_stylesheet_fmtstr = "background-color:%s;border:none;"
     
-    defaultBacklogCount = 50
     def __init__(self, client, parent=None, type=IM, acct_obj=None, target=None,
                  factory=None, initial_text="",):
         """Factory takes a target username and an account object. Supposed to respawn/activate a
@@ -133,6 +120,11 @@ class ChatWindow(QMainWindow):
             
         self.current_action_target = ""
         w.userlist.clear()
+        
+        w.userlist.setStyleSheet(TINY_VERTICAL_SCROLLBAR_STYLE)
+        w.ignorelist.setStyleSheet(TINY_VERTICAL_SCROLLBAR_STYLE)
+        w.userlists.resize(w.userlist.height(), 100)
+        
         self.factory = factory
         self._init_input()
         self._init_menu()
@@ -140,112 +132,52 @@ class ChatWindow(QMainWindow):
         self.load_appearance_config()
         self.chat_text = _ChatText(self.widgets.convtext)
         
+################################################################################
+############################# INPUT WIDGET METHODS #############################
+################################################################################
     def _init_input(self):
+        w = self.widgets
         #bold
-        signal_connect(self.widgets.bold, SIGNAL("toggled(bool)"),
-                       lambda bold: self.widgets.input.setFontWeight(75 if bold else 50))
+        signal_connect(w.bold, SIGNAL("toggled(bool)"),
+                       lambda bold: w.input.setFontWeight(75 if bold else 50))
         
         #color handling
         
-        signal_connect(self.widgets.fg_color, SIGNAL("clicked()"), self._choosecolor)
-        fgcolor = self.widgets.input.textColor().name()
-        self.widgets.fg_color.setStyleSheet("background-color: '%s'" % (fgcolor,))
+        signal_connect(w.fg_color, SIGNAL("clicked()"), self._choosecolor)
+        fgcolor = w.input.textColor()
+        self.fgcolor_button_change_color(fgcolor)
         
         #fontsize handling
-        current_size = int(self.widgets.input.currentFont().pointSize())
+        current_size = int(w.input.currentFont().pointSize())
         def _setSize(i):
             try:
-                self.widgets.input.setFontPointSize(float(i))
+                w.input.setFontPointSize(float(i))
             except Exception, e:
                 log_err(e)
-        signal_connect(self.widgets.fontsize, SIGNAL("valueChanged(int)"), _setSize)
+        signal_connect(w.fontsize, SIGNAL("valueChanged(int)"), _setSize)
         
         #for updating the formatting buttons
-        signal_connect(self.widgets.input, SIGNAL("currentCharFormatChanged(QTextCharFormat)"),
-                       self._currentCharFormatChanged)
+        signal_connect(w.input, SIGNAL("currentCharFormatChanged(QTextCharFormat)"),
+                       self._currentCharFormatChanged)        
+        
     def _choosecolor(self, set_color=None):
+        w = self.widgets
         def _onClicked(color):
-            self.widgets.input.setTextColor(color)
-            self.widgets.fg_color.setStyleSheet("background-color: '%s'" % (color.name()))
+            w.input.setTextColor(color)
+            self.fgcolor_button_change_color(color)
         if not set_color:
             cdlg = QColorDialog(self)
             signal_connect(cdlg, SIGNAL("colorSelected(QColor)"), _onClicked)
             ret = cdlg.open()
         else:
             _onClicked(set_color)
-
-    def load_appearance_config(self):
-        w = self.widgets
-        if self.appearance_config:
-            #navigate around.. this could be tricky
-            c = self.appearance_config
-            if c.get("font_family", None):
-                f = QFont()
-                f.setFamily(c["font_family"])
-                w.font.setCurrentFont(f)
-            if c.get("font_size", None):
-                log_warn("setting font size to ", c["font_size"])
-                w.fontsize.setValue(c["font_size"])
-                w.input.setFontPointSize(c["font_size"])
-            if c.get("font_color", None): self._choosecolor(set_color=QColor(c["font_color"]))
-            if c.get("font_bold", False): w.bold.setChecked(True)
-            if c.get("font_italic", False): w.italic.setChecked(True)
-            if c.get("font_underline", False): w.underline.setChecked(True)
-            self.use_relsize = c.get("use_html_relsize", False)
-            
-            
-    def _init_menu(self):
-        "Initializes context menu for usernames"
-        if not self.type == CHAT:
-            return
-        
-        menu = QMenu()
-        self._action_newmsg = menu.addAction(QIcon(":/icons/icons/message-new.png"), "Send IM")
-        self._action_ignore_tmp = menu.addAction(QIcon(":/icons/res/16x16/actions/dialog-cancel.png"), "Ignore (from chat)")
-        self._action_ignore_perm = menu.addAction(QIcon(":/icons/res/16x16/actions/dialog-cancel.png"), "Ignore (server)")
-        
-        if self.factory:
-            def respawn(username):
-                username = str(username)
-                if self.account.improto == yobotproto.YOBOT_JABBER:
-                    username = "/".join([self.target, username])
-                self.factory(username, self.account)
-                
-            signal_connect(self._action_newmsg, SIGNAL("activated()"),
-                    lambda: respawn(self.current_action_target))
-            signal_connect(self.widgets.userlist, SIGNAL("itemDoubleClicked(QListWidgetItem*)"),
-                lambda item: respawn(item.text()))
-            
-        signal_connect(self._action_ignore_tmp, SIGNAL("activated()"), lambda: self.ignore_list.add(self.current_action_target))
-        self.userActionMenu = menu
-        
-        def _anchorClicked(link):
-            link = str(link.toString())
-            if link.startswith("YOBOT_INTERNAL"):
-                user = link.split("/", 1)[1]
-                self.current_action_target = user
-                self.userActionMenu.exec_(QCursor().pos())
-        signal_connect(self.widgets.convtext, SIGNAL("anchorClicked(QUrl)"), _anchorClicked)
-        
-        def _userlistContextMenu(point):
-            item = self.widgets.userlist.itemAt(point)
-            if not item:
-                return
-            self.current_action_target = item.text()
-            self.userActionMenu.exec_(QCursor().pos())
-            
-        self.widgets.userlist.setContextMenuPolicy(Qt.CustomContextMenu)
-        signal_connect(self.widgets.userlist, SIGNAL("customContextMenuRequested(QPoint)"),
-               _userlistContextMenu)
-    
     def _currentCharFormatChanged(self,format):
         self.widgets.font.setCurrentFont(format.font())
         self.widgets.fontsize.setValue(int(format.fontPointSize()))
         self.widgets.bold.setChecked(format.fontWeight() >= 75)
         self.widgets.italic.setChecked(format.fontItalic())
         self.widgets.underline.setChecked(format.fontUnderline())
-        self.widgets.fg_color.setStyleSheet("background-color: '%s'" % (format.foreground().color().name(),))
-    
+        self.fgcolor_button_change_color(format.foreground().color())
     def _inputKeyPressEvent(self, event):
         w = self.widgets
         key = event.key()
@@ -297,7 +229,104 @@ class ChatWindow(QMainWindow):
             log_debug("doing nothing")
         else:
             QTextEdit.mouseDoubleClickEvent(self.widgets.input, event)
+
     
+    @classmethod
+    def get_config(self):
+        "set appearance configuration object. no need to set it each time"
+        if not self.appearance_config:
+            c = yobot_interfaces.component_registry.get_component("client-config")
+            if c:
+                self.appearance_config = c.globals.get("appearance", {"nothing":None})
+            else:
+                self.appearance_config = {}
+        return self.appearance_config
+
+    def load_appearance_config(self):
+        w = self.widgets
+        if self.appearance_config:
+            #navigate around.. this could be tricky
+            c = self.appearance_config
+            if c.get("font_family", None):
+                f = QFont()
+                f.setFamily(c["font_family"])
+                w.font.setCurrentFont(f)
+            if c.get("font_size", None):
+                log_warn("setting font size to ", c["font_size"])
+                w.fontsize.setValue(c["font_size"])
+                w.input.setFontPointSize(c["font_size"])
+            if c.get("font_color", None): self._choosecolor(set_color=QColor(c["font_color"]))
+            if c.get("font_bold", False): w.bold.setChecked(True)
+            if c.get("font_italic", False): w.italic.setChecked(True)
+            if c.get("font_underline", False): w.underline.setChecked(True)
+            self.use_relsize = c.get("use_html_relsize", False)
+    
+    def fgcolor_button_change_color(self, color):
+        stylesheet="""
+        QAbstractButton, :flat {
+            margin:2px;
+            background-color:%s;
+            border:none;
+            border-radius:3px
+            }
+        :hover {
+            border-width:1.5px;
+            border-color:black;
+            border-style:solid;
+            }
+        """
+        self.widgets.fg_color.setStyleSheet(stylesheet % (color.name(),))
+
+###############################################################################
+######################### CONVERSATION DISPLAY METHODS ########################
+###############################################################################
+    def _init_menu(self):
+        "Initializes context menu for usernames"
+        if not self.type == CHAT:
+            return
+        
+        menu = QMenu()
+        self._action_newmsg = menu.addAction(QIcon(":/icons/icons/message-new.png"), "Send IM")
+        self._action_ignore_tmp = menu.addAction(QIcon(":/icons/res/16x16/actions/dialog-cancel.png"), "Ignore (from chat)")
+        self._action_ignore_perm = menu.addAction(QIcon(":/icons/res/16x16/actions/dialog-cancel.png"), "Ignore (server)")
+        
+        if self.factory:
+            def respawn(username):
+                username = str(username)
+                if self.account.improto == yobotproto.YOBOT_JABBER:
+                    username = "/".join([self.target, username])
+                self.factory(username, self.account)
+                
+            signal_connect(self._action_newmsg, SIGNAL("activated()"),
+                    lambda: respawn(self.current_action_target))
+            signal_connect(self.widgets.userlist, SIGNAL("itemDoubleClicked(QListWidgetItem*)"),
+                lambda item: respawn(item.text()))
+            
+        signal_connect(self._action_ignore_tmp, SIGNAL("activated()"), lambda: self.ignore_list.add(self.current_action_target))
+        self.userActionMenu = menu
+        
+        def _anchorClicked(link):
+            link = str(link.toString())
+            if link.startswith("YOBOT_INTERNAL"):
+                user = link.split("/", 1)[1]
+                self.current_action_target = user
+                self.userActionMenu.exec_(QCursor().pos())
+        signal_connect(self.widgets.convtext, SIGNAL("anchorClicked(QUrl)"), _anchorClicked)
+        
+        def _userlistContextMenu(point):
+            item = self.widgets.userlist.itemAt(point)
+            if not item:
+                return
+            self.current_action_target = item.text()
+            self.userActionMenu.exec_(QCursor().pos())
+            
+        self.widgets.userlist.setContextMenuPolicy(Qt.CustomContextMenu)
+        signal_connect(self.widgets.userlist, SIGNAL("customContextMenuRequested(QPoint)"),
+               _userlistContextMenu)
+        
+###########################################################################
+############################# SEND/RECEIVE/EVENT METHODS###################
+###########################################################################
     def sendMsg(self, txt):
         chat = True if self.type == CHAT else False
         self.account.sendmsg(self.target, str(txt), chat=chat)
@@ -310,7 +339,6 @@ class ChatWindow(QMainWindow):
         
         whocolor = "darkblue" if msg_obj.prplmsgflags & yobotproto.PURPLE_MESSAGE_SEND else "darkred"
         whostyle = "color:%s;font-weight:bold;text-decoration:none;" % (whocolor,)
-        
         
         msg_str = ""
         msg_str += """<a href='YOBOT_INTERNAL/%s' style='%s'>""" % (msg_obj.who, whostyle)
@@ -330,23 +358,25 @@ class ChatWindow(QMainWindow):
         sb.setValue(sb.maximum())
     
     def userJoined(self, user):
-        if self.users.get(user): return
-        u = QListWidgetItem()
-        u.setText(user)
-        self.widgets.userlist.addItem(u)
-        self.users[user] = u
+        qlw_additem(user, self.users, self.widgets.userlist)
     def userLeft(self, user):
-        log_err("hi")
-        u = self.users.get(user)
-        if not u: return
-        #as always, we need to get the row of the item widget first...
-        row = self.widgets.userlist.row(u)
-        if row >= 0:
-            self.widgets.userlist.takeItem(row)
-        self.users.pop(u,"")
-        
+        qlw_delitem(user, self.users, self.widgets.userlist)
     def leaveRoom(self):
         self.account.leaveRoom(self.target)
     def roomLeft(self, msg=None):
-        log_err("implement me!")
-        pass
+        self.chat_text.append()
+        
+if __name__ == "__main__":
+    import sys
+    import string
+    
+    app = QApplication(sys.argv)
+    chatwindow = ChatWindow(None, target="sdf", acct_obj="kj", type=CHAT)
+    for i in xrange(40):
+        item = QListWidgetItem(string.ascii_letters[:40])
+        chatwindow.widgets.userlist.addItem(item)
+        item = QListWidgetItem(item)
+        chatwindow.widgets.ignorelist.addItem(item)
+    chatwindow.show()
+    app.exec_()
+    
