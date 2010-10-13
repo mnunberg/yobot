@@ -13,8 +13,6 @@ import yobot_interfaces
 from collections import defaultdict
 import debuglog
 import sys
-ID_COUNTER=1
-    
 
 class YobotClientFactory(ClientFactory):
     def startedConnecting(self, connector):
@@ -53,7 +51,16 @@ class UIClient(object):
     
     def _plugin_hook_invoke(self, hook_name, hook_args):
         for p in self.plugins:
-            getattr(p, hook_name)(*hook_args)
+            try:
+                getattr(p, hook_name)(*hook_args)
+            except AttributeError, e:
+                #first make sure that the actual exception comes from not having
+                #the plugin implementing the hook, and not e.g. bad arguments or some
+                #other error
+                if not getattr(p, hook_name, None):
+                    log_err("Object %r has not implemented %s") % (p.__class__, hook_name)
+                else:
+                    raise
     def run(self, address, port):
         for p in yobot_interfaces.component_registry.get_active_plugins():
             self.registerPlugin(p())
