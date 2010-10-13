@@ -49,6 +49,7 @@ for proto_name, proto_constant in (
     ("MSN", yobotproto.YOBOT_MSN),
     ("Google-Talk", yobotproto.YOBOT_GTALK),
     ("Jabber", yobotproto.YOBOT_JABBER),
+    ("IRC", yobotproto.YOBOT_IRC),
     ):
     IMPROTOS_BY_CONSTANT[proto_constant] = proto_name
     IMPROTOS_BY_NAME[proto_name] = proto_constant

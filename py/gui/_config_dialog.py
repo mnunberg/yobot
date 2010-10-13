@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file '_config_dialog.ui'
 #
-# Created: Fri Oct  8 13:40:42 2010
+# Created: Tue Oct 12 23:10:03 2010
 #      by: PyQt4 UI code generator 4.7.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -69,10 +69,13 @@ class Ui_config_dialog(object):
         self.select_color.setObjectName("select_color")
         self.gridLayout.addWidget(self.select_color, 0, 1, 1, 1)
         spacerItem1 = QtGui.QSpacerItem(20, 40, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Expanding)
-        self.gridLayout.addItem(spacerItem1, 4, 0, 1, 1)
+        self.gridLayout.addItem(spacerItem1, 5, 0, 1, 1)
         self.html_relsize = QtGui.QCheckBox(self.appearance_tab)
         self.html_relsize.setObjectName("html_relsize")
         self.gridLayout.addWidget(self.html_relsize, 3, 0, 1, 2)
+        self.show_joinpart = QtGui.QCheckBox(self.appearance_tab)
+        self.show_joinpart.setObjectName("show_joinpart")
+        self.gridLayout.addWidget(self.show_joinpart, 4, 0, 1, 2)
         config_dialog.addTab(self.appearance_tab, "")
 
         self.retranslateUi(config_dialog)
@@ -91,6 +94,7 @@ class Ui_config_dialog(object):
         self.sample_text.setPlainText(QtGui.QApplication.translate("config_dialog", "The quick brown fox jumps over the lazy dog", None, QtGui.QApplication.UnicodeUTF8))
         self.select_color.setText(QtGui.QApplication.translate("config_dialog", "Color..", None, QtGui.QApplication.UnicodeUTF8))
         self.html_relsize.setText(QtGui.QApplication.translate("config_dialog", "Use Relative HTML Sizes", None, QtGui.QApplication.UnicodeUTF8))
+        self.show_joinpart.setText(QtGui.QApplication.translate("config_dialog", "Show User Join/Leave Messages", None, QtGui.QApplication.UnicodeUTF8))
         config_dialog.setTabText(config_dialog.indexOf(self.appearance_tab), QtGui.QApplication.translate("config_dialog", "Appearance", None, QtGui.QApplication.UnicodeUTF8))
 
 

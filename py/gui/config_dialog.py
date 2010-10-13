@@ -155,12 +155,15 @@ class ConfigDialog(QDialog):
         signal_connect(w.select_font, SIGNAL("clicked()"), lambda: self.change_formatting(font=True))
         
         signal_connect(w.agent_address, SIGNAL("editingFinished()"), self.change_agent)
-        signal_connect(w.html_relsize, SIGNAL("toggled(bool)"),
-                       lambda b: self.config.globals.setdefault("appearance", {}).__setitem__("use_html_relsize", b))
-        
+        self.connect_global_bool(w.html_relsize, "appearance", "use_html_relsize")
+        self.connect_global_bool(w.show_joinpart, "appearance", "show_joinpart")
         self.input_validated = True
         
         self.setWindowTitle("Yobot Configuration")
+        
+    def connect_global_bool(self, widget, dictname, optname, default=False):
+        signal_connect(widget, SIGNAL("toggled(bool)"),
+                       lambda b: self.config.globals.setdefault(dictname, {}).__setitem__(optname, b))
         
     def load_settings(self):
         w = self.widgets
@@ -181,11 +184,13 @@ class ConfigDialog(QDialog):
         italic = appearance.get("font_italic", False)
         underline = appearance.get("font_underline", False)
         html_relsize = appearance.get("use_html_relsize", False)
+        show_joinpart = appearance.get("show_joinpart", False)
         
         self.font.setBold(bold)
         self.font.setItalic(italic)
         self.font.setUnderline(underline)
         w.html_relsize.setChecked(html_relsize)
+        w.show_joinpart.setChecked(show_joinpart)
         
         self.change_formatting()
         

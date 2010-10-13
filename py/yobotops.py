@@ -80,3 +80,6 @@ for s in ("Online", "Offline", "Invisible", "Busy", "Idle", "Away", "BRB"):
     _status_maps[getattr(yobotproto, "YOBOT_EVENT_BUDDY_" + s.upper())] = s
 def buddystatustostr(s):
     return _status_maps.get(s, "")
+    
+def improto_supports_html(improto):
+    return improto not in (yobotproto.YOBOT_IRC,)

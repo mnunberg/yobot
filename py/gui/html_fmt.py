@@ -206,7 +206,13 @@ def process_input(txt, use_relsize=True, use_samesize=False):
 
 def insert_smileys(txt, improto, path_prefix, x=24, y=24):
     #process smileys
-    regexp = smiley.proto_smiley_regex[improto]
+    try:
+        regexp = smiley.proto_smiley_regex[improto]
+    except KeyError, e:
+        #correct this, and also insert ourselves into the smiley table...
+        improto = smiley.DEFAULT_SCHEME
+        regexp = smiley.proto_smiley_regex[improto]
+        
     def repl_fn(m):
         smiley_name = smiley.smiley_proto_expand_htmlescaped_only[(m.group(0), improto)]
         return '<img src="%s/%s" height="%d" width="%d"/>' % (path_prefix, smiley_name, y, x)

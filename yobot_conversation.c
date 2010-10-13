@@ -163,15 +163,23 @@ static void chat_join_failed(PurpleConnection *gc, GHashTable *components) {
 	info.acctid = yobot_get_acct_id(gc->account);
 	yobot_protoclient_event_encode(info, &server_write_fd, YOBOT_PROTOCLIENT_TO_FD);
 }
+
 static void sending_chat_msg(PurpleAccount *account, char **message, int id) {
 }
 
 static void sent_chat_msg(PurpleAccount *gc, const char *message, int id) {
 }
 
+static void received_chat_msg(PurpleAccount *account, char *sender, char *message,
+                              PurpleConversation *conv, PurpleMessageFlags flags) {
+	yobot_log_info("Sender: %s", sender);
+}
+
+
 static void chat_left(PurpleConversation *conv) {
 	event_conversation_send(conv,YOBOT_INFO,YOBOT_EVENT_ROOM_LEFT);
 }
+
 
 void yobot_conversation_signals_register(void) {
 #define conv_add_signal(sig,f) purple_signal_connect(\
@@ -186,5 +194,6 @@ void yobot_conversation_signals_register(void) {
 	conv_add_signal("sending-chat-msg", sending_chat_msg);
 	conv_add_signal("sent-chat-msg", sent_chat_msg);
 	conv_add_signal("chat-left", chat_left);
+	conv_add_signal("received-chat-msg", received_chat_msg);
 #undef conv_add_signal
 }

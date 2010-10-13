@@ -321,7 +321,7 @@ class YobotAccount(YobotBase):
             info.attr_xml = proxy_info_xml
             log_debug(proxy_info_xml)
         else:
-            log_err("proxy info is null?")
+            log_debug("proxy info is null?")
         ptr = yobot_protoclient_mkacct_encode(info, None, YOBOT_PROTOCLIENT_TO_BUF)
         return ptr
     
