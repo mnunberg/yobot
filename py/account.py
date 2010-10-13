@@ -264,7 +264,7 @@ class AccountRequestHandler(object):
             self.timedOut = True
             d.errback(AccountRemoved("Account authorization timed out"))
             
-        t = reactor.callLater(10, _callTimeout)
+        t = reactor.callLater(60, _callTimeout)
         
         self.newacct.timeoutCb = t
         self.newacct.connectedCb = d
