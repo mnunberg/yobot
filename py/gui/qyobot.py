@@ -685,10 +685,9 @@ class YobotGui(object):
     def roomJoined(self, acct, room):
         acct.fetchRoomUsers(room)
     def roomLeft(self, acct, room):
-        log_err("implement this!!!")
-        #preferrably, this function should print a message in the chat window,
-        #if open, notifying the user about the leave
-    
+        c = self.chats.get((acct, room))
+        if c:
+            c.roomLeft()
     accountConnectionFailed = connectionFailed        
     genericNotice = gotRequest
         
