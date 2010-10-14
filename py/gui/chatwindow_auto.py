@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'chatwindow_auto.ui'
 #
-# Created: Thu Oct 14 00:04:30 2010
+# Created: Thu Oct 14 05:33:17 2010
 #      by: PyQt4 UI code generator 4.7.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -49,10 +49,15 @@ class Ui_w_chatwindow(object):
         sizePolicy.setHeightForWidth(self.convtext.sizePolicy().hasHeightForWidth())
         self.convtext.setSizePolicy(sizePolicy)
         self.convtext.setAcceptDrops(False)
+        self.convtext.setStyleSheet("QTextEdit {\n"
+"background:palette(base);\n"
+"border-radius:4px;\n"
+"border:2px inset palette(dark);\n"
+"border-bottom-style: groove;\n"
+"border-right-style:groove;\n"
+"}")
         self.convtext.setFrameShape(QtGui.QFrame.WinPanel)
         self.convtext.setFrameShadow(QtGui.QFrame.Sunken)
-        self.convtext.setLineWidth(1)
-        self.convtext.setMidLineWidth(0)
         self.convtext.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.convtext.setHtml("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
@@ -167,6 +172,20 @@ class Ui_w_chatwindow(object):
         sizePolicy.setVerticalStretch(1)
         sizePolicy.setHeightForWidth(self.w_inputframe_2.sizePolicy().hasHeightForWidth())
         self.w_inputframe_2.setSizePolicy(sizePolicy)
+        self.w_inputframe_2.setStyleSheet("QFrame#w_inputframe_2 {\n"
+"border: 2px inset palette(dark);\n"
+"border-radius:6px;\n"
+"border-bottom: 1px groove palette(dark);\n"
+"border-right:1px groove palette(dark);\n"
+"}\n"
+"QFrame#w_inputframe_2, QTextEdit {\n"
+"border-bottom-right-radius:10px;\n"
+"border-bottom-left-radius:10px;\n"
+"}\n"
+"#input {\n"
+"background: palette(base);\n"
+"border-top: 1px groove palette(dark);\n"
+"}")
         self.w_inputframe_2.setFrameShape(QtGui.QFrame.WinPanel)
         self.w_inputframe_2.setFrameShadow(QtGui.QFrame.Sunken)
         self.w_inputframe_2.setLineWidth(1)
@@ -335,6 +354,7 @@ class Ui_w_chatwindow(object):
         self.input.setMinimumSize(QtCore.QSize(0, 50))
         self.input.setMaximumSize(QtCore.QSize(16777215, 1000))
         self.input.setSizeIncrement(QtCore.QSize(1, 1))
+        self.input.setStyleSheet("None")
         self.input.setFrameShape(QtGui.QFrame.NoFrame)
         self.input.setLineWidth(10)
         self.input.setMidLineWidth(10)

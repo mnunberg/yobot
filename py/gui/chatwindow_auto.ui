@@ -73,17 +73,20 @@
            <property name="acceptDrops">
             <bool>false</bool>
            </property>
+           <property name="styleSheet">
+            <string notr="true">QTextEdit {
+background:palette(base);
+border-radius:4px;
+border:2px inset palette(dark);
+border-bottom-style: groove;
+border-right-style:groove;
+}</string>
+           </property>
            <property name="frameShape">
             <enum>QFrame::WinPanel</enum>
            </property>
            <property name="frameShadow">
             <enum>QFrame::Sunken</enum>
-           </property>
-           <property name="lineWidth">
-            <number>1</number>
-           </property>
-           <property name="midLineWidth">
-            <number>0</number>
            </property>
            <property name="horizontalScrollBarPolicy">
             <enum>Qt::ScrollBarAlwaysOff</enum>
@@ -389,6 +392,22 @@ margin:2px;
          <horstretch>0</horstretch>
          <verstretch>1</verstretch>
         </sizepolicy>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">QFrame#w_inputframe_2 {
+border: 2px inset palette(dark);
+border-radius:6px;
+border-bottom: 1px groove palette(dark);
+border-right:1px groove palette(dark);
+}
+QFrame#w_inputframe_2, QTextEdit {
+border-bottom-right-radius:10px;
+border-bottom-left-radius:10px;
+}
+#input {
+background: palette(base);
+border-top: 1px groove palette(dark);
+}</string>
        </property>
        <property name="frameShape">
         <enum>QFrame::WinPanel</enum>
@@ -816,6 +835,9 @@ margin-bottom:2px
             <width>1</width>
             <height>1</height>
            </size>
+          </property>
+          <property name="styleSheet">
+           <string notr="true"/>
           </property>
           <property name="frameShape">
            <enum>QFrame::NoFrame</enum>

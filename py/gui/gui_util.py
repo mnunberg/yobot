@@ -80,7 +80,7 @@ QScrollBar:$ORIENTATION {
 QScrollBar::handle:$ORIENTATION {
     border-radius:3px;
     min-$HANDLE_CONSTRAINT_TYPE:15px;
-    background-color:palette(text);
+    background-color:argb(0,0,0,150);
 }
 QScrollBar::$NEXT_DIRECTION:$ORIENTATION,
 QScrollBar::$PREV_DIRECTION:$ORIENTATION,
@@ -92,6 +92,11 @@ QScrollBar::add-page:$ORIENTATION, QScrollBar::sub-page:$ORIENTATION {
     background:none;
 }
 """
+
+def stylesheet_append(widget, extrastyle):
+    """Preserve style information from designer"""
+    existing = str(widget.styleSheet())
+    widget.setStyleSheet(existing + " " + extrastyle)
 
 #for vertical stuff
 d = {}

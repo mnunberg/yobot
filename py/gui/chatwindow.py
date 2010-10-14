@@ -24,9 +24,24 @@ import yobotproto
 from debuglog import log_debug, log_err, log_warn, log_crit, log_info
 from html_fmt import simplify_css, process_input, insert_smileys
 import smileys_rc
-from gui_util import qlw_delitem, qlw_additem, TINY_VERTICAL_SCROLLBAR_STYLE
+from gui_util import qlw_delitem, qlw_additem, TINY_VERTICAL_SCROLLBAR_STYLE, stylesheet_append
 import datetime
 import yobotops
+import re
+
+strip_html_regexp = re.compile(r"<[^>]*>|<.+/>")
+
+def _gen_striped_gradient(basecolor):
+    """Just generate a standard gradient, for use as a background"""
+    g = QLinearGradient()
+    g.setSpread(g.ReflectSpread)
+    g.setStart(0,0)
+    g.setFinalStop(2, 2)
+    g.setColorAt(0.0, QColor(basecolor))
+    g.setColorAt(0.35, QColor(0,0,0,0))
+    g.setColorAt(0.75, QColor(0,0,0,0))
+    g.setColorAt(1.0, QColor(basecolor))
+    return g
 
 class _ChatText(object):
     _styles_initialized = False
@@ -38,22 +53,14 @@ class _ChatText(object):
     
     infoFmt = QTextBlockFormat()
     errFmt = QTextBlockFormat()
+    emoteFmt = QTextBlockFormat()
     
-    #gradient for info format.. gonna try this..
-    #g = QLinearGradient()
-    #g.setSpread(g.PadSpread)
-    #g.setStart(0,0)
-    #g.setFinalStop(240, 0)
-    #g.setColorAt(0.0, QColor("#33CC00"))
-    #g.setColorAt(0.7, QColor("#ffffff"))
-    #infoFmt.setBackground(QBrush(g))
-    #
-    #g.setColorAt(0.0, QColor("#ff8e8e"))
-    #errFmt.setBackground(QBrush(g))
-    #del g
+    #gradient for emotes...        
+    emoteFmt.setBackground(QBrush(_gen_striped_gradient("#f2e4d5")))
     
-    errFmt.setBackground(QBrush(QColor("#ff8e8e"), Qt.Dense4Pattern))
-    infoFmt.setBackground(QBrush(QColor("#33cc00"),Qt.Dense4Pattern))
+    #Qt.Dense4Pattern
+    errFmt.setBackground(QBrush(_gen_striped_gradient("#ff8e8e"),))
+    infoFmt.setBackground(QBrush(_gen_striped_gradient("#33cc00"),))
     
     @staticmethod
     def print_colors():
@@ -164,8 +171,10 @@ class ChatWindow(QMainWindow):
         self.current_action_target = ""
         w.userlist.clear()
         
-        w.userlists.setStyleSheet(TINY_VERTICAL_SCROLLBAR_STYLE)
-        w.convtext.setStyleSheet(TINY_VERTICAL_SCROLLBAR_STYLE)
+        stylesheet_append(w.userlist, TINY_VERTICAL_SCROLLBAR_STYLE)
+        stylesheet_append(w.convtext, TINY_VERTICAL_SCROLLBAR_STYLE)
+        stylesheet_append(w.ignorelist, TINY_VERTICAL_SCROLLBAR_STYLE)
+        
         w.userlists.resize(w.userlist.height(), 100)
         
         
@@ -263,18 +272,7 @@ class ChatWindow(QMainWindow):
         key = event.key()
         modifiers = event.modifiers()
         if key == Qt.Key_Return and not modifiers:
-            if not w.input.toPlainText():
-                log_debug("empty input")
-                return
-            if self._send_html:
-                txt = unicode(w.input.toHtml().toUtf8(), "utf-8")
-                txt = simplify_css(txt.encode("utf-8"))
-            else:
-                txt = unicode(w.input.toPlainText().toUtf8(), "utf-8")
-                if not txt: return
-            log_warn(txt)
-            self.sendMsg(txt)
-            w.input.clear()
+            self.sendMsg()
             return
         if key == Qt.Key_Backspace:
             cursor = w.input.textCursor()
@@ -407,7 +405,21 @@ class ChatWindow(QMainWindow):
 ###########################################################################
 ############################# SEND/RECEIVE/EVENT METHODS###################
 ###########################################################################
-    def sendMsg(self, txt):
+    def sendMsg(self):
+        w = self.widgets
+        if not w.input.toPlainText():
+            log_debug("empty input")
+            return
+        if self._send_html:
+            txt = unicode(w.input.toHtml().toUtf8(), "utf-8")
+            txt = simplify_css(txt.encode("utf-8"))
+        else:
+            txt = unicode(w.input.toPlainText().toUtf8(), "utf-8")
+            if not txt: return
+        log_warn(txt)
+        
+        w.input.clear()
+        
         chat = True if self.type == CHAT else False
         self.account.sendmsg(self.target, str(txt), chat=chat)
         
@@ -415,31 +427,36 @@ class ChatWindow(QMainWindow):
         #get time..
         w = self.widgets
         if msg_obj.who in self.ignore_list:
+            log_debug("ignoring message from", msg_obj.who)
             return
+        fmt = _ChatText.defaultFmt
+        colon_ish = ":"
+        #determine format...
+        if (msg_obj.yprotoflags & yobotproto.YOBOT_BACKLOG or
+            msg_obj.prplmsgflags & yobotproto.PURPLE_MESSAGE_DELAYED):
+            fmt = _ChatText.archFmt
+        elif msg_obj.yprotoflags & yobotproto.PURPLE_MESSAGE_SYSTEM:
+            fmt = _ChatText.errFmt
+        elif strip_html_regexp.sub("", msg_obj.txt).startswith("/me "):
+            fmt = _ChatText.emoteFmt
+            colon_ish = "**"
         
         who = msg_obj.who
         if not who and msg_obj.prplmsgflags & yobotproto.PURPLE_MESSAGE_SYSTEM:
             who = "SYSTEM MESSAGE"
-        
         whocolor = "darkblue" if msg_obj.prplmsgflags & yobotproto.PURPLE_MESSAGE_SEND else "darkred"
         whostyle = "color:%s;font-weight:bold;text-decoration:none;" % (whocolor,)
+        msg_str = (("""<a href='YOBOT_INTERNAL/%s' style='%s'>""" % (who, whostyle)) +
+                   ("(%s) " % (msg_obj.timeFmt,) if w.actionTimestamps.isChecked() else "") +
+                   ("%s</a>%s " % (msg_obj.who,colon_ish)))
         
-        msg_str = ""
-        msg_str += """<a href='YOBOT_INTERNAL/%s' style='%s'>""" % (who, whostyle)
-        msg_str += "(%s) " % (msg_obj.timeFmt,) if w.actionTimestamps.isChecked() else ""
-        msg_str += "%s</a>: " % (msg_obj.who,)
         formatted = process_input(msg_obj.txt, self.use_relsize)
         formatted = insert_smileys(formatted, self.account.improto, ":smileys/smileys", 24, 24)
         log_debug(formatted)
         msg_str += formatted
         msg_str = unicode(msg_str, "utf-8")
-        if (msg_obj.yprotoflags & yobotproto.YOBOT_BACKLOG or
-            msg_obj.prplmsgflags & yobotproto.PURPLE_MESSAGE_DELAYED):
-            self.chat_text.append(msg_str, fmt=_ChatText.archFmt)
-        elif msg_obj.prplmsgflags & yobotproto.PURPLE_MESSAGE_SYSTEM:
-            self.chat_text.append(msg_str, _ChatText.errFmt)
-        else:
-            self.chat_text.append(msg_str)
+        
+        self.chat_text.append(msg_str, fmt)
     
     def userJoined(self, user):
         qlw_additem(user, self.users, self.widgets.userlist)
@@ -467,6 +484,7 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     chatwindow = ChatWindow(None, target="sdf", acct_obj=YobotAccount(), type=CHAT)
     chatwindow.show_join_leave_messages = True
+    chatwindow.chat_text.append("emoting something " * 3, _ChatText.emoteFmt)
     
     for i in xrange(40):
         chatwindow.userJoined("".join(random.sample(ascii_letters, 10)))
@@ -474,14 +492,29 @@ if __name__ == "__main__":
         chatwindow.ignore_list.add("".join(random.sample(ascii_letters, 10)))
     
     chatwindow.show()
-    chatwindow.topicChanged("ALL YOUR BASE ARE BELONG TO US! " * 30)
+    chatwindow.topicChanged("ALL YOUR BASE ARE BELONG TO US! ")
     
     def spamtext(text="Some Text", iterations=100, format=_ChatText.defaultFmt):
         for i in xrange(iterations):
             chatwindow.chat_text.append(text, format)
-    spamtext("Archive Text", format=_ChatText.archFmt)
-    spamtext("Error Text", format=_ChatText.errFmt)
-    spamtext("Info Text", format=_ChatText.infoFmt)
-    chatwindow.chat_text.append("somereallylongtext"*50, _ChatText.infoFmt)
+    
+    #chatwindow.chat_text.append("emoting something " * 3, _ChatText.emoteFmt)
+    #spamtext("Archive Text", format=_ChatText.archFmt)
+    #spamtext("Error Text", format=_ChatText.errFmt)
+    #spamtext("Info Text", format=_ChatText.infoFmt)
+    ##chatwindow.chat_text.append("somereallylongtext"*50, _ChatText.infoFmt)
+    #chatwindow.chat_text.append("emoting something " * 3, _ChatText.emoteFmt)
+    
+    textopts = ([("This is normal Text ", _ChatText.defaultFmt)] * 5) + [
+        ("This is error text ", _ChatText.errFmt),
+        ("This is archive text ", _ChatText.archFmt),
+        ("This is informative text", _ChatText.infoFmt),
+        ("This is emoted text ", _ChatText.emoteFmt)
+    ]
+    
+    for i in xrange(500):
+        t = random.choice(textopts)
+        chatwindow.chat_text.append(t[0] * 3, t[1])
+    
     app.exec_()
     
