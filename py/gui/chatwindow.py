@@ -177,16 +177,40 @@ class ChatWindow(QMainWindow):
         self.chat_text = _ChatText(self.widgets.convtext)
         
         self.zoom_variations = 0
-        def decrement_zoom(): self.zoom_variations -= 1
-        def increment_zoom(): self.zoom_variations += 1
+        def log_zoom(in_fn):
+            def fn(*args, **kwargs):
+                #log_debug(self.zoom_variations)
+                in_fn(*args, **kwargs)
+            return fn
+        @log_zoom
+        def convtext_zoomIn(range=1):
+            self.zoom_variations += range
+            w.convtext.__class__.zoomIn(w.convtext, range)
+        @log_zoom
+        def convtext_zoomOut(range=1):
+            self.zoom_variations -= range
+            w.convtext.__class__.zoomOut(w.convtext, range)
+            
+        @log_zoom
         def reset_zoom():
             if self.zoom_variations == 0: return
-            elif self.zoom_variations > 0: self.widgets.convtext.zoomOut(self.zoom_variations)
-            elif self.zoom_variations < 0: self.widgets.convtext.zoomIn(abs(self.zoom_variations))
+            elif self.zoom_variations > 0: w.convtext.__class__.zoomOut(w.convtext, self.zoom_variations)
+            elif self.zoom_variations < 0: w.convtext.__class__.zoomIn(w.convtext, abs(self.zoom_variations))
             self.zoom_variations = 0
-        signal_connect(w.zoom_in, SIGNAL("clicked()"), increment_zoom)
-        signal_connect(w.zoom_out, SIGNAL("clicked()"), decrement_zoom)
+        @log_zoom
+        def _wheelEvent(event):
+            if not event.modifiers() & Qt.CTRL:
+                w.convtext.__class__.wheelEvent(w.convtext, event)
+                return
+            if event.delta() > 0:
+                #zoom in
+                convtext_zoomIn()
+            else:
+                convtext_zoomOut()            
+        w.convtext.wheelEvent = _wheelEvent
         signal_connect(w.zoom_orig, SIGNAL("clicked()"), reset_zoom)
+        signal_connect(w.zoom_in, SIGNAL("clicked()"), convtext_zoomIn)
+        signal_connect(w.zoom_out, SIGNAL("clicked()"), convtext_zoomOut)
         
 ################################################################################
 ############################# INPUT WIDGET METHODS #############################

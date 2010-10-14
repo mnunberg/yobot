@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'chatwindow_auto.ui'
 #
-# Created: Wed Oct 13 22:05:18 2010
+# Created: Thu Oct 14 00:04:30 2010
 #      by: PyQt4 UI code generator 4.7.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -439,8 +439,6 @@ class Ui_w_chatwindow(object):
         QtCore.QObject.connect(self.italic, QtCore.SIGNAL("toggled(bool)"), self.input.setFontItalic)
         QtCore.QObject.connect(self.underline, QtCore.SIGNAL("toggled(bool)"), self.input.setFontUnderline)
         QtCore.QObject.connect(self.actionShow_Topic, QtCore.SIGNAL("toggled(bool)"), self.chat_topic.setVisible)
-        QtCore.QObject.connect(self.zoom_in, QtCore.SIGNAL("clicked()"), self.convtext.zoomIn)
-        QtCore.QObject.connect(self.zoom_out, QtCore.SIGNAL("clicked()"), self.convtext.zoomOut)
         QtCore.QMetaObject.connectSlotsByName(w_chatwindow)
 
     def retranslateUi(self, w_chatwindow):

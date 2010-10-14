@@ -1164,37 +1164,5 @@ padding:0px;
     </hint>
    </hints>
   </connection>
-  <connection>
-   <sender>zoom_in</sender>
-   <signal>clicked()</signal>
-   <receiver>convtext</receiver>
-   <slot>zoomIn()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>377</x>
-     <y>450</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>189</x>
-     <y>246</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>zoom_out</sender>
-   <signal>clicked()</signal>
-   <receiver>convtext</receiver>
-   <slot>zoomOut()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>407</x>
-     <y>450</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>189</x>
-     <y>246</y>
-    </hint>
-   </hints>
-  </connection>
  </connections>
 </ui>
