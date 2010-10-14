@@ -9,6 +9,7 @@
 #define PROTOCLIENT_H_
 
 #include "yobotproto.h"
+#include <sys/types.h>
 typedef enum {
 	YOBOT_PROTOCLIENT_TO_FD,
 	YOBOT_PROTOCLIENT_TO_BUF,
