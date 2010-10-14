@@ -33,7 +33,7 @@ import notification
 import agent_connect_dlg
 
 import yobot_interfaces
-
+import re
 
 _PROTO_INT, _PROTO_NAME = (1,2)
 
@@ -70,30 +70,73 @@ STATUS_TYPE_MAPS = {
     "Invisible" : yobotproto.PURPLE_STATUS_INVISIBLE,
 }
 
-TINY_VERTICAL_SCROLLBAR_STYLE="""
-QScrollBar:vertical {
+_TINY_SCROLLBAR_BASE="""
+QScrollBar:$ORIENTATION {
     border:0px;
     border-style:inset;
-    max-width:6px;
+    max-$BAR_CONSTRAINT_TYPE:6px;
     background-color:palette(dark);
 }
-
-QScrollBar::handle:vertical {
+QScrollBar::handle:$ORIENTATION {
     border-radius:3px;
-    background-color:palette(text); /*black*/
+    min-$HANDLE_CONSTRAINT_TYPE:15px;
+    background-color:palette(text);
 }
-
-QScrollBar::down-arrow:vertical,
-QScrollBar::up-arrow:vertical,
-QScrollBar::add-line:vertical,
-QScrollBar::sub-line:vertical {
+QScrollBar::$NEXT_DIRECTION:$ORIENTATION,
+QScrollBar::$PREV_DIRECTION:$ORIENTATION,
+QScrollBar::add-line:$ORIENTATION,
+QScrollBar::sub-line:$ORIENTATION {
     background-color:none;
 }
-
-QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+QScrollBar::add-page:$ORIENTATION, QScrollBar::sub-page:$ORIENTATION {
     background:none;
 }
 """
+
+#for vertical stuff
+d = {}
+def replfn(matchobj):
+    res = matchobj.group(0)
+    if not res or not res.startswith("$"):
+        return ""
+    res = res.strip("$").lower()
+    return d[res]
+
+d.update({"orientation":"vertical", "next_direction":"down", "prev_direction":
+    "up", "bar_constraint_type":"width", "handle_constraint_type":"height"})
+regexp = re.compile('\$(ORIENTATION|NEXT_DIRECTION|PREV_DIRECTION|HANDLE_CONSTRAINT_TYPE|BAR_CONSTRAINT_TYPE)')
+
+TINY_VERTICAL_SCROLLBAR_STYLE = regexp.sub(replfn, _TINY_SCROLLBAR_BASE)
+
+d.update({"orientation":"horizontal","next-direction":"right",
+    "prev-direction":"left","bar_constraint_type":"height","handle_constraint_type":"height"})
+
+TINY_HORIZONTAL_SCROLLBAR_STYLE = regexp.sub(replfn, _TINY_SCROLLBAR_BASE)
+
+#TINY_VERTICAL_SCROLLBAR_STYLE="""
+#QScrollBar:vertical {
+#    border:0px;
+#    border-style:inset;
+#    max-width:6px;
+#    background-color:palette(dark);
+#}
+#
+#QScrollBar::handle:vertical {
+#    border-radius:3px;
+#    background-color:palette(text); /*black*/
+#}
+#
+#QScrollBar::down-arrow:vertical,
+#QScrollBar::up-arrow:vertical,
+#QScrollBar::add-line:vertical,
+#QScrollBar::sub-line:vertical {
+#    background-color:none;
+#}
+#
+#QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+#    background:none;
+#}
+#"""
 
 def set_bg_opacity(widget, a):
     palette = widget.palette()

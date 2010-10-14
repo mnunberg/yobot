@@ -1,9 +1,14 @@
 #!/usr/bin/env python
+
+if __name__ == "__main__":
+    import sys
+    sys.path.append("../")
+
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 import os.path
 import sys
-
+from gui.gui_util import TINY_VERTICAL_SCROLLBAR_STYLE, TINY_HORIZONTAL_SCROLLBAR_STYLE
 
 #long, boring, linear code.. but less of a headache than using designer
 
@@ -176,6 +181,7 @@ class TGui(QMainWindow):
     def __init__(self, parent=None):
         "Sets up the layout"
         QMainWindow.__init__(self, parent)
+        self.setStyleSheet(TINY_VERTICAL_SCROLLBAR_STYLE + " " + TINY_HORIZONTAL_SCROLLBAR_STYLE)
         #make the main layout and central widget...
         self.setCentralWidget(QWidget(self))
         self.main_layout = QVBoxLayout(self.centralWidget())
@@ -350,13 +356,27 @@ class TGui(QMainWindow):
             self.change_font = QToolButton(self)
             self.change_font.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
             self.change_font.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
-            self.change_font_extrastyle = """ border:4px solid #000000; border-radius:6px;
-                        text-align:center; background-color:white; """
         else:
             self.change_font = QPushButton(self)
             self.change_font.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
-            self.change_font_extrastyle = ""
-        self.change_font.setStyleSheet("QAbstractButton {" + self.change_font_extrastyle + "}")
+        
+        self.change_font_extrastyle = """QAbstractButton {
+            border:2px outset palette(dark);
+            border-radius:10px;
+            max-width:100px;
+            text-align:center; background-color:palette(button);
+            background-color:qlineargradient(x1:0,y1:0,x2:1,y2:0,
+                stop:0 palette(light), stop: 0.5 palette(dark), stop: 1.0 palette(light));
+            padding-top:5px;
+            padding-bottom:5px
+            }
+            QAbstractButton:hover {
+            }
+            QAbstractButton:pressed:hover {
+            border-style:inset;
+            }"""
+            
+        self.change_font.setStyleSheet(self.change_font_extrastyle)
         self.change_font.setText("Font")
         self.change_font.setIcon(QIcon(":/icons/icons/format-text-color.png"))
         self.font_menu = QMenu(self.change_font)
@@ -468,7 +488,7 @@ class TGui(QMainWindow):
           ("font-size: %dpt; " % (self.current_font.pointSize(),)) +
           ("font-family: %s; " % (self.current_font.family(),)) +
           ("color: %s; " % (self.current_color.name(),))
-        + self.change_font_extrastyle + " } "))
+          + " } " + self.change_font_extrastyle ))
 
     
     def _update_fmtstr(self):
@@ -533,10 +553,25 @@ class TGui(QMainWindow):
         self.amount.setValue(40)
         self.percent_anagrams.setValue(50)
         self.setWindowTitle("Yobot Trivia")
+    
+    def closeEvent(self, qclosevent):
+        qclosevent.accept()
+        self.deleteLater()
         
 if __name__ == "__main__":
     import sys
     app = QApplication(sys.argv)
     mw = TGui()
+    #populate fields:
+    import string
+    import random
+    for i in xrange(40):
+        s = "".join(random.sample(string.ascii_letters, 12))
+        mw.questions_categories.addItem(s)
+        mw.selected_categories.addItem(s)
+        mw.suffix_list.addItem(s)
+        mw.prefix_list.addItem(s)
+        mw.questions_use_categories.setChecked(True)
+        mw.anagrams_use_nfixes.setChecked(True)
     app.exec_()
     
