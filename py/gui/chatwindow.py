@@ -176,6 +176,18 @@ class ChatWindow(QMainWindow):
         self.load_appearance_config()
         self.chat_text = _ChatText(self.widgets.convtext)
         
+        self.zoom_variations = 0
+        def decrement_zoom(): self.zoom_variations -= 1
+        def increment_zoom(): self.zoom_variations += 1
+        def reset_zoom():
+            if self.zoom_variations == 0: return
+            elif self.zoom_variations > 0: self.widgets.convtext.zoomOut(self.zoom_variations)
+            elif self.zoom_variations < 0: self.widgets.convtext.zoomIn(abs(self.zoom_variations))
+            self.zoom_variations = 0
+        signal_connect(w.zoom_in, SIGNAL("clicked()"), increment_zoom)
+        signal_connect(w.zoom_out, SIGNAL("clicked()"), decrement_zoom)
+        signal_connect(w.zoom_orig, SIGNAL("clicked()"), reset_zoom)
+        
 ################################################################################
 ############################# INPUT WIDGET METHODS #############################
 ################################################################################
