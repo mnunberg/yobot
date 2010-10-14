@@ -119,7 +119,7 @@ class UIClient(object):
         import re
         self._plugin_hook_invoke("topicChanged", (acct, room, topic))
         if acct.improto == yobotproto.YOBOT_YAHOO:
-            m = re.search(r"http://\S*captcha\S*", msg.txt, re.I)
+            m = re.search(r"http://\S*captcha\S*", topic, re.I)
             if m:
                 url = m.group(0)
                 prompter = yahoo_captcha.CaptchaPrompter()
