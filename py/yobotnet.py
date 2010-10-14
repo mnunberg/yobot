@@ -1000,6 +1000,11 @@ class YobotServerService(YobotServiceBase):
                     acct.connectedCb.errback(AccountRemoved("Disconnected"))
             except defer.AlreadyCalledError, e:
                 log_err(e)
+            finally:
+                try:
+                    self.accounts.delAcct(acct_id)
+                except Exception, e:
+                    log_err(e)
             return
         
         elif evt.event == yobotproto.YOBOT_EVENT_CONNECTED:
