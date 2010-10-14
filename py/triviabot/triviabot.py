@@ -494,27 +494,10 @@ class TriviaBot(object):
         if not questions_db and not anagrams_db:
             raise Exception("Either anagrams or questions db must be specified")
             
-        #open databases:
-        def _regexp(expr, item):
-            r = re.compile(expr)
-            return r.match(item) is not None
-            
-        if questions_db:
-            self.questions_dbfile = questions_db
-            self.questions_dbconn = sqlite3.connect(questions_db)
-            self.questions_dbconn.row_factory = sqlite3.Row
-            self.questions_dbconn.text_factory = str
-            self.questions_dbconn.create_function("regexp", 2, _regexp)
-            self.questions_dbcursor = self.questions_dbconn.cursor()
-        if anagrams_db:
-            self.anagrams_dbfile = anagrams_db
-            self.anagrams_dbconn = sqlite3.connect(anagrams_db)
-            self.anagrams_dbcursor = self.anagrams_dbconn.cursor()
-            self.anagrams_dbconn.row_factory = sqlite3.Row
-            self.anagrams_dbconn.text_factory = str
-            self.anagrams_dbconn.create_function("regexp", 2, _regexp)
-            self.anagrams_min = wordlen_min
-            self.anagrams_max = wordlen_max
+        self.anagrams_min = wordlen_min
+        self.anagrams_max = wordlen_max
+
+        #TODO: persistent scores...
         self.scores = defaultdict(float)
         self.hint_requested = False
         self.register_usage = register_usage
@@ -538,12 +521,9 @@ class TriviaBot(object):
         self.pct_trivia = pct_trivia
         self.pct_anagram = pct_anagram
         
-        if questions_db and not anagrams_db:
-            self.type = TYPE_TRIVIA
-        elif anagrams_db and not questions_db:
-            self.type = TYPE_ANAGRAMS
-        else:
-            self.type = TYPE_BOTH
+        if questions_db and not anagrams_db: self.type = TYPE_TRIVIA
+        elif anagrams_db and not questions_db: self.type = TYPE_ANAGRAMS
+        else: self.type = TYPE_BOTH
             
         self.current_qa_object = None
         self.qa_object_questions = _QuestionData()
@@ -555,15 +535,53 @@ class TriviaBot(object):
         self.anagram_suffix_exclude = set()
         self.anagram_prefix_exclude = set()
         self.anagrams_caps_hint = False
-        #start it..
-        
+        self.questions_db = questions_db
+        self.anagrams_db = anagrams_db        
+    def open_dbs(self):
+        def _regexp(expr, item):
+            r = re.compile(expr)
+            return r.match(item) is not None
+        if getattr(self, "questions_db", None):
+            questions_db = self.questions_db
+            #don't do this twice...
+            if getattr(self, "questions_dbconn", None):
+                log_warn("Requested to open DB twice..")
+                return
+            self.questions_dbconn = sqlite3.connect(questions_db)
+            self.questions_dbconn.row_factory = sqlite3.Row
+            self.questions_dbconn.text_factory = str
+            self.questions_dbconn.create_function("regexp", 2, _regexp)
+            self.questions_dbcursor = self.questions_dbconn.cursor()
+        if getattr(self, "anagrams_db", None):
+            if getattr(self, "anagrams_dbconn", None):
+                log_warn("Requested to open DB twice..")
+                return
+            anagrams_db = self.anagrams_db
+            self.anagrams_dbconn = sqlite3.connect(anagrams_db)
+            self.anagrams_dbcursor = self.anagrams_dbconn.cursor()
+            self.anagrams_dbconn.row_factory = sqlite3.Row
+            self.anagrams_dbconn.text_factory = str
+            self.anagrams_dbconn.create_function("regexp", 2, _regexp)
+    
+    def close_dbs(self):
+        for d in ("questions", "anagrams"):
+            conn = getattr(self, d + "_dbconn", None)
+            if conn:
+                try:
+                    conn.close()
+                except Exception, e:
+                    log_err(e)
+                    continue
+                delattr(self, d + "_dbcursor")
+                delattr(self, d + "_dbconn")
     @property
     def n_asked_total(self):
         return float(self.n_asked_anagrams + self.n_asked_questions)
     
     def start(self):
+        self.write_chat("Yobot Trivia Starting..")
+        self.open_dbs()
         self.post_dispatcher()
-    
     def post_dispatcher(self):
         if self.n_asked_total >= self.n_trivia:
             self.trivia_finished()
@@ -592,7 +610,6 @@ class TriviaBot(object):
                 else:
                     type = TYPE_ANAGRAMS                    
         if type == TYPE_TRIVIA:
-            log_err("trivia")
             fn = self._set_question
             self.current_qa_object = self.qa_object_questions
         elif type == TYPE_ANAGRAMS:
@@ -639,7 +656,6 @@ class TriviaBot(object):
         return True
         
     def _set_question(self, category=None):
-        log_err("")
         rstr = ""
         if len(self.questions_categories):
             l = ["'" + s + "'" for s in self.questions_categories]
@@ -688,11 +704,8 @@ class TriviaBot(object):
             else:
                 self.hint_requested = True
         elif command_name == "scores":
-            if not len(self.scores):
-                return
-            ret = "Scores: "
-            for k, v in sorted(self.scores.items(), key=lambda i: i[1]):
-                ret += "%s : %0.1f, " % (k, v)
+            ret = self.get_scores()
+            if not ret: return
         elif command_name == "leader":
             if not len(self.scores):
                 return
@@ -705,6 +718,14 @@ class TriviaBot(object):
         else:
             ret = self.help_text
         self.write_chat(ret)
+        
+    def get_scores(self):
+        if not len(self.scores):
+            return
+        ret = "Scores: "
+        for k, v in sorted(self.scores.items(), key=lambda i: i[1]):
+            ret += "%s : %0.1f, " % (k, v)
+        return ret
         
     def got_response(self, user, response):
         if response.startswith("!"):
@@ -792,6 +813,10 @@ class TriviaBot(object):
         self.post_dispatcher()
         
     def stop(self):
+        self.close_dbs()
+        self.write_chat("Yobot Trivia stopped")
+        scores = self.get_scores()
+        if scores: self.write_chat(scores)
         self._cleanup()
         self.trivia_finished()        
     
