@@ -51,6 +51,7 @@ class UIClient(object):
     
     def _plugin_hook_invoke(self, hook_name, hook_args):
         for p in self.plugins:
+            log_err(p)
             try:
                 getattr(p, hook_name)(*hook_args)
             except AttributeError, e:
@@ -58,7 +59,7 @@ class UIClient(object):
                 #the plugin implementing the hook, and not e.g. bad arguments or some
                 #other error
                 if not getattr(p, hook_name, None):
-                    log_err("Object %r has not implemented %s") % (p.__class__, hook_name)
+                    log_err("Object %r has not implemented %s" % (p, hook_name))
                 else:
                     raise
     def run(self, address, port):
@@ -108,27 +109,24 @@ class UIClient(object):
 #            proxy_host="localhost", proxy_port="3128", proxy_type="http")
         new_account.connect()
     def gotmsg(self, acct, msg):
-        if (msg.prplmsgflags & yobotproto.PURPLE_MESSAGE_SYSTEM and
-            acct.improto == yobotproto.YOBOT_YAHOO):
-            log_err("Trying to use captcha class...")
-            from gui import yahoo_captcha
-            import re
-            #parse URL and
-            m = re.search(r"http://\S+", msg.txt, re.I)
+        self._plugin_hook_invoke("gotMessage", (acct, msg))    
+    def chatUserJoined(self, acct, room, user):
+        self._plugin_hook_invoke("chatUserJoined", (acct, room, user))
+    def chatUserLeft(self, acct, room, user):
+        self._plugin_hook_invoke("chatUserLeft", (acct, room, user))
+    def topicChanged(self, acct, room, topic):
+        from gui import yahoo_captcha
+        import re
+        self._plugin_hook_invoke("topicChanged", (acct, room, topic))
+        if acct.improto == yobotproto.YOBOT_YAHOO:
+            m = re.search(r"http://\S*captcha\S*", msg.txt, re.I)
             if m:
                 url = m.group(0)
                 prompter = yahoo_captcha.CaptchaPrompter()
                 prompter.prompt(url)
             else:
                 log_err("NO MATCH!!!")
-        self._plugin_hook_invoke("gotMessage", (acct, msg))
-    
-    def chatUserJoined(self, acct, room, user):
-        self._plugin_hook_invoke("chatUserJoined", (acct, room, user))
-    
-    def chatUserLeft(self, acct, room, user):
-        self._plugin_hook_invoke("chatUserLeft", (acct, room, user))
-    
+        
     def roomJoined(self, acct, room):
         self.joined_rooms[acct].append(room)
         self._plugin_hook_invoke("roomJoined", (acct, room))

@@ -15,7 +15,7 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout_2">
-    <item row="0" column="0">
+    <item row="2" column="0">
      <widget class="QSplitter" name="splitter_2">
       <property name="frameShape">
        <enum>QFrame::NoFrame</enum>
@@ -505,7 +505,7 @@ border-top: 2px inset rgba(0,0,0,130);
 border-left: 2px inset rgba(0,0,0,130);
 border-radius:3px;
 
-margin-right:2px;
+margin-right:1px;
 margin-top:2px;
 margin-bottom:2px
 }</string>
@@ -749,6 +749,37 @@ p, li { white-space: pre-wrap; }
       </widget>
      </widget>
     </item>
+    <item row="1" column="0">
+     <widget class="QLineEdit" name="chat_topic">
+      <property name="font">
+       <font>
+        <pointsize>8</pointsize>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="autoFillBackground">
+       <bool>false</bool>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">QLineEdit {background-color:rgba(0,0,0,25);
+border: 2px inset palette(dark);
+border-radius:6px;
+margin:0px;
+padding:0px;
+}</string>
+      </property>
+      <property name="text">
+       <string>ALL YOUR BASE ARE BELONG TO US</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignCenter</set>
+      </property>
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
    </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -874,6 +905,18 @@ p, li { white-space: pre-wrap; }
    </property>
    <property name="text">
     <string>Show Join/Leave</string>
+   </property>
+  </action>
+  <action name="actionShow_Topic">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/icons/icons/format-line-spacing-normal.png</normaloff>:/icons/icons/format-line-spacing-normal.png</iconset>
+   </property>
+   <property name="text">
+    <string>Show Topic</string>
    </property>
   </action>
  </widget>
@@ -1006,6 +1049,22 @@ p, li { white-space: pre-wrap; }
     <hint type="destinationlabel">
      <x>283</x>
      <y>668</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actionShow_Topic</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>chat_topic</receiver>
+   <slot>setVisible(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>232</x>
+     <y>47</y>
     </hint>
    </hints>
   </connection>

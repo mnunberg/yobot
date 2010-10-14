@@ -75,6 +75,9 @@ class _ChatText(object):
         c.movePosition(c.End)
         c.insertBlock(fmt)
         c.insertHtml(txt)
+        sb = self.qtb.verticalScrollBar()
+        sb.setValue(sb.maximum())
+
     def append(self, *args, **kwargs):
         "This is monkeypatched during runtime. Appends text to the instance's qtb widget"
     
@@ -139,9 +142,11 @@ class ChatWindow(QMainWindow):
             w.menuView.addAction(w.actionShow_User_List)
             w.menuView.addAction(w.actionShow_Ignore_List)
             w.menuView.addAction(w.actionShow_Join_Leave)
+            w.menuView.addAction(w.actionShow_Topic)
             w.menuActions.addAction(w.actionLeave)
             w.actionShow_User_List.setChecked(True)
             w.actionShow_Ignore_List.setChecked(True)
+            w.actionShow_Topic.setChecked(True)
             w.userlist.clear()
             w.ignorelist.clear()
             w.menuView.addAction(w.actionShow_User_List)
@@ -150,6 +155,7 @@ class ChatWindow(QMainWindow):
                            lambda b: setattr(self, "show_join_leave_messages", b))
             
         elif type == IM:
+            w.chat_topic.hide()
             w.userlists.hide()
             signal_connect(w.actionShow_Backlog, SIGNAL("activated()"),
                            lambda: self.account.getBacklog(self.target, self.defaultBacklogCount))
@@ -375,11 +381,15 @@ class ChatWindow(QMainWindow):
         if msg_obj.who in self.ignore_list:
             return
         
+        who = msg_obj.who
+        if not who and msg_obj.prplmsgflags & yobotproto.PURPLE_MESSAGE_SYSTEM:
+            who = "SYSTEM MESSAGE"
+        
         whocolor = "darkblue" if msg_obj.prplmsgflags & yobotproto.PURPLE_MESSAGE_SEND else "darkred"
         whostyle = "color:%s;font-weight:bold;text-decoration:none;" % (whocolor,)
         
         msg_str = ""
-        msg_str += """<a href='YOBOT_INTERNAL/%s' style='%s'>""" % (msg_obj.who, whostyle)
+        msg_str += """<a href='YOBOT_INTERNAL/%s' style='%s'>""" % (who, whostyle)
         msg_str += "(%s) " % (msg_obj.timeFmt,) if w.actionTimestamps.isChecked() else ""
         msg_str += "%s</a>: " % (msg_obj.who,)
         formatted = process_input(msg_obj.txt, self.use_relsize)
@@ -389,11 +399,11 @@ class ChatWindow(QMainWindow):
         msg_str = unicode(msg_str, "utf-8")
         if (msg_obj.yprotoflags & yobotproto.YOBOT_BACKLOG or
             msg_obj.prplmsgflags & yobotproto.PURPLE_MESSAGE_DELAYED):
-            self.chat_text.append(msg_str, fmt=self.chat_text.archFmt)
+            self.chat_text.append(msg_str, fmt=_ChatText.archFmt)
+        elif msg_obj.prplmsgflags & yobotproto.PURPLE_MESSAGE_SYSTEM:
+            self.chat_text.append(msg_str, _ChatText.errFmt)
         else:
             self.chat_text.append(msg_str)
-        sb = w.convtext.verticalScrollBar()
-        sb.setValue(sb.maximum())
     
     def userJoined(self, user):
         qlw_additem(user, self.users, self.widgets.userlist)
@@ -403,7 +413,10 @@ class ChatWindow(QMainWindow):
         qlw_delitem(user, self.users, self.widgets.userlist)
         if self.show_join_leave_messages:
             self.chat_text.append("<b>%s</b> Has Left %s" % (user, self.target), _ChatText.infoFmt)
-
+    def topicChanged(self, topic):
+        #do something...
+        self.widgets.chat_topic.setText(topic)
+        self.chat_text.append("Topic changed to: <i>%s</i>" % (topic), _ChatText.infoFmt)
     def leaveRoom(self):
         self.account.leaveRoom(self.target)
     def roomLeft(self):
@@ -425,6 +438,7 @@ if __name__ == "__main__":
         chatwindow.ignore_list.add("".join(random.sample(ascii_letters, 10)))
     
     chatwindow.show()
+    chatwindow.topicChanged("ALL YOUR BASE ARE BELONG TO US! " * 30)
     
     def spamtext(text="Some Text", iterations=100, format=_ChatText.defaultFmt):
         for i in xrange(iterations):
@@ -432,6 +446,6 @@ if __name__ == "__main__":
     spamtext("Archive Text", format=_ChatText.archFmt)
     spamtext("Error Text", format=_ChatText.errFmt)
     spamtext("Info Text", format=_ChatText.infoFmt)
-    _ChatText.print_colors()
+    chatwindow.chat_text.append("somereallylongtext"*50, _ChatText.infoFmt)
     app.exec_()
     

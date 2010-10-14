@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'chatwindow_auto.ui'
 #
-# Created: Wed Oct 13 01:05:28 2010
+# Created: Wed Oct 13 16:29:20 2010
 #      by: PyQt4 UI code generator 4.7.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -216,7 +216,7 @@ class Ui_w_chatwindow(object):
 "border-left: 2px inset rgba(0,0,0,130);\n"
 "border-radius:3px;\n"
 "\n"
-"margin-right:2px;\n"
+"margin-right:1px;\n"
 "margin-top:2px;\n"
 "margin-bottom:2px\n"
 "}")
@@ -307,7 +307,24 @@ class Ui_w_chatwindow(object):
         self.input.setTextInteractionFlags(QtCore.Qt.LinksAccessibleByKeyboard|QtCore.Qt.LinksAccessibleByMouse|QtCore.Qt.TextBrowserInteraction|QtCore.Qt.TextEditable|QtCore.Qt.TextEditorInteraction|QtCore.Qt.TextSelectableByKeyboard|QtCore.Qt.TextSelectableByMouse)
         self.input.setObjectName("input")
         self.w_inputframe.addWidget(self.input)
-        self.gridLayout_2.addWidget(self.splitter_2, 0, 0, 1, 1)
+        self.gridLayout_2.addWidget(self.splitter_2, 2, 0, 1, 1)
+        self.chat_topic = QtGui.QLineEdit(self.centralwidget)
+        font = QtGui.QFont()
+        font.setPointSize(8)
+        font.setWeight(75)
+        font.setBold(True)
+        self.chat_topic.setFont(font)
+        self.chat_topic.setAutoFillBackground(False)
+        self.chat_topic.setStyleSheet("QLineEdit {background-color:rgba(0,0,0,25);\n"
+"border: 2px inset palette(dark);\n"
+"border-radius:6px;\n"
+"margin:0px;\n"
+"padding:0px;\n"
+"}")
+        self.chat_topic.setAlignment(QtCore.Qt.AlignCenter)
+        self.chat_topic.setReadOnly(True)
+        self.chat_topic.setObjectName("chat_topic")
+        self.gridLayout_2.addWidget(self.chat_topic, 1, 0, 1, 1)
         w_chatwindow.setCentralWidget(self.centralwidget)
         self.menubar = QtGui.QMenuBar(w_chatwindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 466, 29))
@@ -364,6 +381,12 @@ class Ui_w_chatwindow(object):
         icon10.addPixmap(QtGui.QPixmap(":/icons/icons/info.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.actionShow_Join_Leave.setIcon(icon10)
         self.actionShow_Join_Leave.setObjectName("actionShow_Join_Leave")
+        self.actionShow_Topic = QtGui.QAction(w_chatwindow)
+        self.actionShow_Topic.setCheckable(True)
+        icon11 = QtGui.QIcon()
+        icon11.addPixmap(QtGui.QPixmap(":/icons/icons/format-line-spacing-normal.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.actionShow_Topic.setIcon(icon11)
+        self.actionShow_Topic.setObjectName("actionShow_Topic")
         self.menuView.addAction(self.actionShow_Formatting_Toolbox)
         self.menuView.addAction(self.actionTimestamps)
         self.menuActions.addAction(self.actionShow_Backlog)
@@ -380,6 +403,7 @@ class Ui_w_chatwindow(object):
         QtCore.QObject.connect(self.actionShow_Ignore_List, QtCore.SIGNAL("toggled(bool)"), self.ignorelist.setVisible)
         QtCore.QObject.connect(self.italic, QtCore.SIGNAL("toggled(bool)"), self.input.setFontItalic)
         QtCore.QObject.connect(self.underline, QtCore.SIGNAL("toggled(bool)"), self.input.setFontUnderline)
+        QtCore.QObject.connect(self.actionShow_Topic, QtCore.SIGNAL("toggled(bool)"), self.chat_topic.setVisible)
         QtCore.QMetaObject.connectSlotsByName(w_chatwindow)
 
     def retranslateUi(self, w_chatwindow):
@@ -431,6 +455,7 @@ class Ui_w_chatwindow(object):
 "p, li { white-space: pre-wrap; }\n"
 "</style></head><body style=\" font-family:\'Lucida Grande\'; font-size:10pt; font-weight:400; font-style:normal;\">\n"
 "<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"></p></body></html>", None, QtGui.QApplication.UnicodeUTF8))
+        self.chat_topic.setText(QtGui.QApplication.translate("w_chatwindow", "ALL YOUR BASE ARE BELONG TO US", None, QtGui.QApplication.UnicodeUTF8))
         self.menuView.setTitle(QtGui.QApplication.translate("w_chatwindow", "View", None, QtGui.QApplication.UnicodeUTF8))
         self.menuActions.setTitle(QtGui.QApplication.translate("w_chatwindow", "Actions", None, QtGui.QApplication.UnicodeUTF8))
         self.actionShow_Formatting_Toolbox.setText(QtGui.QApplication.translate("w_chatwindow", "Formatting Toolbox", None, QtGui.QApplication.UnicodeUTF8))
@@ -443,6 +468,7 @@ class Ui_w_chatwindow(object):
         self.actionTimestamps.setText(QtGui.QApplication.translate("w_chatwindow", "Timestamps", None, QtGui.QApplication.UnicodeUTF8))
         self.actionShow_Ignore_List.setText(QtGui.QApplication.translate("w_chatwindow", "Ignore List", None, QtGui.QApplication.UnicodeUTF8))
         self.actionShow_Join_Leave.setText(QtGui.QApplication.translate("w_chatwindow", "Show Join/Leave", None, QtGui.QApplication.UnicodeUTF8))
+        self.actionShow_Topic.setText(QtGui.QApplication.translate("w_chatwindow", "Show Topic", None, QtGui.QApplication.UnicodeUTF8))
 
 import resources_rc
 

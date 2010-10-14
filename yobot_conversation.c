@@ -170,14 +170,23 @@ static void sending_chat_msg(PurpleAccount *account, char **message, int id) {
 static void sent_chat_msg(PurpleAccount *gc, const char *message, int id) {
 }
 
-static void received_chat_msg(PurpleAccount *account, char *sender, char *message,
-                              PurpleConversation *conv, PurpleMessageFlags flags) {
-	yobot_log_info("Sender: %s", sender);
-}
-
-
 static void chat_left(PurpleConversation *conv) {
 	event_conversation_send(conv,YOBOT_INFO,YOBOT_EVENT_ROOM_LEFT);
+}
+
+static void chat_topic_changed(PurpleConversation *conv, const char *who,
+		const char *topic) {
+	struct yobot_eventinfo info;
+	memset(&info, 0, sizeof(info));
+	info.event = YOBOT_EVENT_ROOM_TOPIC_CHANGED;
+	info.purple_type = YOBOT_PURPLE_CONV;
+	info.severity = YOBOT_INFO;
+	info.acctid = yobot_get_acct_id(conv->account);
+	gchar *data = g_strconcat(conv->name, YOBOT_TEXT_DELIM, topic, NULL);
+	info.data = data;
+	info.len = strlen(data) + 1;
+	yobot_protoclient_event_encode(info, &server_write_fd, YOBOT_PROTOCLIENT_TO_FD);
+	g_free(data);
 }
 
 
@@ -194,6 +203,6 @@ void yobot_conversation_signals_register(void) {
 	conv_add_signal("sending-chat-msg", sending_chat_msg);
 	conv_add_signal("sent-chat-msg", sent_chat_msg);
 	conv_add_signal("chat-left", chat_left);
-	conv_add_signal("received-chat-msg", received_chat_msg);
+	conv_add_signal("chat-topic-changed", chat_topic_changed);
 #undef conv_add_signal
 }

@@ -364,6 +364,7 @@ class YobotClientService(YobotServiceBase):
             yobotproto.YOBOT_EVENT_AGENT_NOTICE_GENERIC: "handle_request", 
             yobotproto.YOBOT_EVENT_ROOM_JOINED: "roomJoined",
             yobotproto.YOBOT_EVENT_ROOM_LEFT: "roomLeft",
+            yobotproto.YOBOT_EVENT_ROOM_TOPIC_CHANGED: "topicChanged",
             yobotproto.YOBOT_EVENT_ROOM_USER_JOIN: "chatUserEvent",
             yobotproto.YOBOT_EVENT_ROOM_USER_LEFT: "chatUserEvent"
             }
@@ -483,7 +484,10 @@ class YobotClientService(YobotServiceBase):
     def roomLeft(self, obj, proto):
         acct = self.accounts.getAccount(obj.evt.objid)
         self.uihooks.roomLeft(acct, obj.evt.txt)
-        
+    def topicChanged(self, obj, proto):
+        acct = self.accounts.getAccount(obj.evt.objid)
+        room, topic = getNameAndData(obj)
+        self.uihooks.topicChanged(acct, room, topic)
     def buddyEvent(self, obj, proto):
         #find account...
         log_info( "id: ", obj.evt.objid)
@@ -911,7 +915,8 @@ class YobotServerService(YobotServiceBase):
             yobotproto.YOBOT_EVENT_CONNECTING: "relay_event",
             yobotproto.YOBOT_EVENT_USER_ADDREQ: "relay_event",
             yobotproto.YOBOT_EVENT_ROOM_JOINED: "relay_event",
-            yobotproto.YOBOT_EVENT_ROOM_LEFT: "relay_event", 
+            yobotproto.YOBOT_EVENT_ROOM_LEFT: "relay_event",
+            yobotproto.YOBOT_EVENT_ROOM_TOPIC_CHANGED: "relay_event",
             yobotproto.YOBOT_EVENT_PURPLE_REQUEST_GENERIC: "relay_event",
             yobotproto.YOBOT_EVENT_PURPLE_NOTICE_GENERIC: "relay_event",
             yobotproto.YOBOT_EVENT_PURPLE_REQUEST_GENERIC_CLOSED: "relay_event",

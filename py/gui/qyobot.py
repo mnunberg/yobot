@@ -509,7 +509,10 @@ class YobotGui(object):
         self.chats[(acct, target)].activateWindow()
         def _closeEvent(_QCloseEvent_null):
             "Remove window from the window list when closed"
-            self.chats.pop((acct, target))
+            c = self.chats.pop((acct, target))
+            c.deleteLater()
+            import gc
+            gc.collect()
         self.chats[(acct, target)].closeEvent = _closeEvent
         self.chats[(acct, target)].show()
         self.chats[(acct, target)].activateWindow()
@@ -682,6 +685,11 @@ class YobotGui(object):
         m.title = "Connection Failed!"
         m.isError = True
         self.notifications.addItem(m)
+    def topicChanged(self, acct, room, topic):
+        c = self.chats.get((acct, room))
+        if not c: return
+        c.topicChanged(topic)
+        
     def roomJoined(self, acct, room):
         acct.fetchRoomUsers(room)
     def roomLeft(self, acct, room):
