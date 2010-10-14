@@ -85,6 +85,8 @@ int *yobot_purple_account_refcount_decrease(PurpleAccount *acct);
 int *yobot_purple_account_refcount_increase(PurpleAccount *acct);
 int *yobot_purple_account_refcount_register(PurpleAccount *acct);
 
+void yobot_purple_account_remove(PurpleAccount *account);
+
 /*application mode, whether we are an actual daemon, or just invoked as
  * part of a desktop application, in which case we shut down after first exit
  */

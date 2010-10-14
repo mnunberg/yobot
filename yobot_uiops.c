@@ -89,6 +89,7 @@ static void connected(PurpleConnection *gc) {
 static void disconnected(PurpleConnection *gc) {
 	yobot_log_info("%s disconnected", gc->account->username);
 	event_connection_send(gc,YOBOT_INFO,YOBOT_EVENT_DISCONNECTED,NULL);
+	yobot_purple_account_remove(gc->account);
 }
 
 PurpleConnectionUiOps yobot_connection_uiops =

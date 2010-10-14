@@ -120,6 +120,18 @@ int *yobot_purple_account_refcount_register(PurpleAccount *acct) {
 
 }
 
+void yobot_purple_account_remove(PurpleAccount *account) {
+	purple_accounts_remove(account); /*remove ID too*/
+	if (!purple_account_is_disconnected(account))
+		purple_account_disconnect(account);
+	account_uidata *priv = account->ui_data;
+	priv->id = 0;
+	int *refcount = yobot_purple_account_refcount_get(account);
+	if (refcount && *refcount > 1)
+		yobot_purple_account_refcount_decrease(account);
+	yobot_log_debug("removed");
+}
+
 
 /**************************** MISC. FUNCTIONS ********************************/
 /*these aren't big enought to warrant their own file, but are a tad to complex to
@@ -586,12 +598,7 @@ static void cmd_handler(yobot_protoclient_segment *seg) {
 			yobot_log_warn("account %d is NULL, not removing", cmd.acct_id);
 			break;
 		}
-		purple_accounts_remove(account); /*remove ID too*/
-		purple_account_disconnect(account);
-		account_uidata *priv = account->ui_data;
-		priv->id = 0;
-		yobot_purple_account_refcount_decrease(account);
-		yobot_log_debug("removed");
+		yobot_purple_account_remove(account);
 		break;
 	}
 	case YOBOT_CMD_ROOM_FETCH_USERS: {
