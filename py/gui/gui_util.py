@@ -641,6 +641,7 @@ class NotificationBox(object):
         btn_font.setBold(True)
         btn_font.setPointSize(8)
         self.btn_font = btn_font
+        self.qdw.setStyleSheet(TINY_VERTICAL_SCROLLBAR_STYLE  + TINY_HORIZONTAL_SCROLLBAR_STYLE)
         
     def navigate(self, next = True):
         log_debug("")

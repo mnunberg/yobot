@@ -17,7 +17,7 @@ $python py/yobotnet.py & relay_pid=$!
 #sleep 1
 $python py/client.py -p foo  -p gui_main -p triviabot & client_pid=$!
 #sleep 1
-./yobot --debug=1 & yobot_pid=$!
+./yobot --debug=0 & yobot_pid=$!
 
 trap "kill $yobot_pid; kill $relay_pid; pkill yobot; kill $client_pid" SIGINT SIGSTOP SIGQUIT
 trap -p

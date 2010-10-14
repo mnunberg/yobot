@@ -51,7 +51,6 @@ class UIClient(object):
     
     def _plugin_hook_invoke(self, hook_name, hook_args):
         for p in self.plugins:
-            log_err(p)
             try:
                 getattr(p, hook_name)(*hook_args)
             except AttributeError, e:

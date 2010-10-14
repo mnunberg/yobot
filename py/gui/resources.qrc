@@ -346,6 +346,9 @@
     <file>icons/user-online.png</file>
     <file>icons/yahoo.png</file>
     <file>icons/zephyr.png</file>
+    <file>res/16x16/actions/zoom-in.png</file>
+    <file>res/16x16/actions/zoom-out.png</file>
+    <file>res/16x16/actions/zoom-original.png</file>
     <file>icons/zephyr.png</file>
   </qresource>
   <qresource prefix="yobot_icons">

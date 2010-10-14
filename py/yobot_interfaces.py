@@ -188,7 +188,7 @@ class ComponentRegistry(object):
         if plugin_object in self._active_plugins:
             self._active_plugins.remove(plugin_object)
     def get_plugins(self):
-        return tuple(self._plugins)
+        return self._plugins
     def get_active_plugins(self):
         return tuple(self._active_plugins)
 
