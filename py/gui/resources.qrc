@@ -257,6 +257,8 @@
     <file>icons/mxit.png</file>
     <file>icons/myspace.png</file>
     <file>icons/novell.png</file>
+    <file>res/16x16/apps/preferences-contact-list.png</file>
+    <file>res/16x16/categories/preferences-other.png</file>
     <file>icons/qq.png</file>
     <file>icons/silc.png</file>
     <file>icons/simple.png</file>
