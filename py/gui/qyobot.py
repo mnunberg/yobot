@@ -507,13 +507,10 @@ class YobotGui(object):
         self.chats[(acct, target)] = ChatWindow(
             self.client, type=type, parent=self.mw, acct_obj=acct, target=target, factory=respawn_fn)
         self.chats[(acct, target)].activateWindow()
-        def _closeEvent(_QCloseEvent_null):
+        def onDestroyed():
             "Remove window from the window list when closed"
             c = self.chats.pop((acct, target))
-            c.deleteLater()
-            import gc
-            gc.collect()
-        self.chats[(acct, target)].closeEvent = _closeEvent
+        signal_connect(self.chats[(acct, target)], SIGNAL("destroyed()"), onDestroyed)
         self.chats[(acct, target)].show()
         self.chats[(acct, target)].activateWindow()
         log_info("created chat with type %d, target %s" % (type, target))

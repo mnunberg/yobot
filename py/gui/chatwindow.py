@@ -3,17 +3,16 @@ if __name__ == "__main__":
     import sys
     sys.path.append("../")
 import chatwindow_auto
-from PyQt4.QtGui import (QComboBox, QMainWindow, QStandardItemModel, QStandardItem,
-                         QIcon, QPixmap, QImage, QPainter, QDialog, QMessageBox,
+from PyQt4.QtGui import (QComboBox, QMainWindow,
+                         QIcon, QMenu,
                          QApplication, QFont, QTextEdit, QColorDialog, QPalette,
-                         QListWidget, QListWidgetItem, QStyledItemDelegate,
-                         QStyleOptionViewItem, QRegion, QWidget, QBrush, QStyle,
-                         QPen, QPushButton, QStyleOption, QMenu, QAction, QCursor,
-                         QTreeView, QLineEdit, QButtonGroup, QColor, QTextCursor,
-                         QTextBlockFormat, QLinearGradient)
+                         QListWidget, QListWidgetItem, QWidget, QBrush,
+                         QAction, QCursor,
+                         QLineEdit, QColor, QTextCursor,
+                         QTextBlockFormat, QLinearGradient,
+                         )
 
-from PyQt4.QtCore import (QPoint, QSize, QModelIndex, Qt, QObject, SIGNAL, QVariant,
-                          QAbstractItemModel, QRect, QRectF, QPointF, QStringList)
+from PyQt4.QtCore import (QPoint, QSize, Qt, QObject, SIGNAL,)
 
 signal_connect = QObject.connect
 
@@ -25,6 +24,7 @@ from debuglog import log_debug, log_err, log_warn, log_crit, log_info
 from html_fmt import simplify_css, process_input, insert_smileys
 import smileys_rc
 from gui_util import qlw_delitem, qlw_additem, TINY_VERTICAL_SCROLLBAR_STYLE, stylesheet_append
+from tabwindows import ChatPane, DragBar, TabContainer
 import datetime
 import yobotops
 import re
@@ -108,44 +108,45 @@ class _IgnoreList(object):
     def remove(self, username):
         qlw_delitem(str(username), self.users, self.lw)
         
-class ChatWindow(QMainWindow):
-    """This class is quite dumb, but it does contain client hooks to get and send
-    messages"""
+class ChatWindow(ChatPane):
     defaultBacklogCount = 50
     appearance_config = {}
     use_relsize = False
-    
     def __init__(self, client, parent=None, type=IM, acct_obj=None, target=None,
-                 factory=None, initial_text="",):
+                 factory=None, initial_text="",tabwidget = None):
         """Factory takes a target username and an account object. Supposed to respawn/activate a
         chat window"""
         self.users = {} #dict containing the name of the user mapped to the model object..
-        
-        if not target or not acct_obj:
-            log_err( "must have target and account for chatwindow")
-            return
-        QMainWindow.__init__(self, parent)
         self.type = type
         self.target = target
         self.account = acct_obj
-        
+        self.factory = factory
+        self._initial_text = initial_text
+        if not target or not acct_obj:
+            log_err( "must have target and account for chatwindow")
+            return
+
+        ChatPane.__init__(self, parent, tabcontainer=tabwidget, title=target)
+    
+    def setupWidgets(self):
         self.widgets = chatwindow_auto.Ui_w_chatwindow()
         w = self.widgets
-        
         w.setupUi(self)
         
         self.ignore_list = _IgnoreList(w.ignorelist)
-        self.setWindowTitle(target)
+        self.setWindowTitle(self.target)
         #and some key press events..
         w.input.keyPressEvent = self._inputKeyPressEvent
         w.input.mouseDoubleClickEvent = self._input_mouseDoubleClickEvent
         w.input.setHtml("")
         
-        self._send_html = yobotops.improto_supports_html(acct_obj.improto)
+        self._send_html = yobotops.improto_supports_html(self.account.improto)
         
-        w.convtext.setHtml(initial_text)
+        w.convtext.setHtml(self._initial_text)
+        del self._initial_text
+        
         self.show_join_leave_messages = False
-        if type == CHAT:
+        if self.type == CHAT:
             w.menuView.addAction(w.actionShow_User_List)
             w.menuView.addAction(w.actionShow_Ignore_List)
             w.menuView.addAction(w.actionShow_Join_Leave)
@@ -161,7 +162,7 @@ class ChatWindow(QMainWindow):
             signal_connect(w.actionShow_Join_Leave, SIGNAL("toggled(bool)"),
                            lambda b: setattr(self, "show_join_leave_messages", b))
             
-        elif type == IM:
+        elif self.type == IM:
             w.chat_topic.hide()
             w.userlists.hide()
             signal_connect(w.actionShow_Backlog, SIGNAL("activated()"),
@@ -176,9 +177,7 @@ class ChatWindow(QMainWindow):
         stylesheet_append(w.ignorelist, TINY_VERTICAL_SCROLLBAR_STYLE)
         
         w.userlists.resize(w.userlist.height(), 100)
-        
-        
-        self.factory = factory
+                
         self._init_input()
         self._init_menu()
         self.get_config()
@@ -220,6 +219,10 @@ class ChatWindow(QMainWindow):
         signal_connect(w.zoom_orig, SIGNAL("clicked()"), reset_zoom)
         signal_connect(w.zoom_in, SIGNAL("clicked()"), convtext_zoomIn)
         signal_connect(w.zoom_out, SIGNAL("clicked()"), convtext_zoomOut)
+        
+        self.centralWidget().layout().setMenuBar(DragBar(self, "Drag me"))
+        left, top, right, bottom = self.centralWidget().layout().getContentsMargins()
+        self.centralWidget().layout().setContentsMargins(left, 0, right, bottom)
         
 ################################################################################
 ############################# INPUT WIDGET METHODS #############################
@@ -481,40 +484,44 @@ if __name__ == "__main__":
     import random
     from yobotclass import YobotAccount
     from string import ascii_letters
+    def fillwindow(chatwindow):
+        chatwindow.show_join_leave_messages = True
+        chatwindow.chat_text.append("emoting something " * 3, _ChatText.emoteFmt)
+        
+        for i in xrange(40):
+            chatwindow.userJoined("".join(random.sample(ascii_letters, 10)))
+            chatwindow.users
+            chatwindow.ignore_list.add("".join(random.sample(ascii_letters, 10)))
+        
+        chatwindow.topicChanged("ALL YOUR BASE ARE BELONG TO US! ")
+        
+        def spamtext(text="Some Text", iterations=100, format=_ChatText.defaultFmt):
+            for i in xrange(iterations):
+                chatwindow.chat_text.append(text, format)
+        
+        chatwindow.chat_text.append("emoting something " * 3, _ChatText.emoteFmt)
+        spamtext("Archive Text", format=_ChatText.archFmt)
+        spamtext("Error Text", format=_ChatText.errFmt)
+        spamtext("Info Text", format=_ChatText.infoFmt)
+        #chatwindow.chat_text.append("somereallylongtext"*50, _ChatText.infoFmt)
+        chatwindow.chat_text.append("emoting something " * 3, _ChatText.emoteFmt)
+        
+        textopts = ([("This is normal Text ", _ChatText.defaultFmt)] * 5) + [
+            ("This is error text ", _ChatText.errFmt),
+            ("This is archive text ", _ChatText.archFmt),
+            ("This is informative text", _ChatText.infoFmt),
+            ("This is emoted text ", _ChatText.emoteFmt)
+        ]
+        
+        for i in xrange(500):
+            t = random.choice(textopts)
+            chatwindow.chat_text.append(t[0] * 3, t[1])
+    
     app = QApplication(sys.argv)
-    chatwindow = ChatWindow(None, target="sdf", acct_obj=YobotAccount(), type=CHAT)
-    chatwindow.show_join_leave_messages = True
-    chatwindow.chat_text.append("emoting something " * 3, _ChatText.emoteFmt)
-    
-    for i in xrange(40):
-        chatwindow.userJoined("".join(random.sample(ascii_letters, 10)))
-        chatwindow.users
-        chatwindow.ignore_list.add("".join(random.sample(ascii_letters, 10)))
-    
-    chatwindow.show()
-    chatwindow.topicChanged("ALL YOUR BASE ARE BELONG TO US! ")
-    
-    def spamtext(text="Some Text", iterations=100, format=_ChatText.defaultFmt):
-        for i in xrange(iterations):
-            chatwindow.chat_text.append(text, format)
-    
-    #chatwindow.chat_text.append("emoting something " * 3, _ChatText.emoteFmt)
-    #spamtext("Archive Text", format=_ChatText.archFmt)
-    #spamtext("Error Text", format=_ChatText.errFmt)
-    #spamtext("Info Text", format=_ChatText.infoFmt)
-    ##chatwindow.chat_text.append("somereallylongtext"*50, _ChatText.infoFmt)
-    #chatwindow.chat_text.append("emoting something " * 3, _ChatText.emoteFmt)
-    
-    textopts = ([("This is normal Text ", _ChatText.defaultFmt)] * 5) + [
-        ("This is error text ", _ChatText.errFmt),
-        ("This is archive text ", _ChatText.archFmt),
-        ("This is informative text", _ChatText.infoFmt),
-        ("This is emoted text ", _ChatText.emoteFmt)
-    ]
-    
-    for i in xrange(500):
-        t = random.choice(textopts)
-        chatwindow.chat_text.append(t[0] * 3, t[1])
+    first = ChatWindow(None, target="first", acct_obj=YobotAccount(), type=CHAT)
+    second = ChatWindow(None, target="second", acct_obj=YobotAccount(), type=CHAT)
+    third = ChatWindow(None, target="third", acct_obj=YobotAccount(), type=IM)
+    fillwindow(first)
+    fillwindow(second)
     
     app.exec_()
-    
