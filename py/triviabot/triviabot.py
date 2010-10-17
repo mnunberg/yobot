@@ -9,7 +9,7 @@ from client_support import YCAccount, SimpleNotice
 from gui import gui_util
 from gui.gui_util import signal_connect, ConnectionWidget
 #end
-
+import triviadb
 import PyQt4
 from PyQt4.QtGui import (QComboBox, QMainWindow, QStandardItemModel, QStandardItem,
                          QIcon, QPixmap, QImage, QPainter, QDialog, QMessageBox,
@@ -433,12 +433,12 @@ class TriviaGui(gui_new.TGui):
         self.notifications.delItem(notification_object)
 
 class _QAData(object):
-    question = None
-    answers = []
-    id = -1
-    category = None
-    type = None
-    
+    def __init__(self):
+        self.question = None
+        self.answers = []
+        self.id = -1
+        self.category = None
+        self.type = None
     def ask_string(self):
         pass
     def hint_string(self):
@@ -464,14 +464,11 @@ class _QuestionData(_QAData):
         answer_len = len(longest)
         hint_len = 0
         
-        if answer_len < 6:
-            hint_len = 1
-        elif answer_len < 10:
-            hint_len = 3
-        else:
-            hint_len = 6
+        if answer_len < 6: hint_len = 1
+        elif answer_len < 10: hint_len = 3
+        else: hint_len = 6
         
-        ret += longest[0:hint_len] + ("_" * hint_len) + "[%d]" % (answer_len-hint_len)
+        ret += longest[0:hint_len] + ("_" * hint_len) + "[%d]" % (answer_len)
         return ret
 
 class _AnagramData(_QAData):
@@ -538,42 +535,31 @@ class TriviaBot(object):
         self.questions_db = questions_db
         self.anagrams_db = anagrams_db        
     def open_dbs(self):
-        def _regexp(expr, item):
-            r = re.compile(expr)
-            return r.match(item) is not None
         if getattr(self, "questions_db", None):
             questions_db = self.questions_db
             #don't do this twice...
-            if getattr(self, "questions_dbconn", None):
+            if getattr(self, "questions_dbobject", None):
                 log_warn("Requested to open DB twice..")
                 return
-            self.questions_dbconn = sqlite3.connect(questions_db)
-            self.questions_dbconn.row_factory = sqlite3.Row
-            self.questions_dbconn.text_factory = str
-            self.questions_dbconn.create_function("regexp", 2, _regexp)
-            self.questions_dbcursor = self.questions_dbconn.cursor()
+            self.questions_dbobject = triviadb.QuestionsDB(questions_db)
+            self.questions_dbobject.connectdb()
         if getattr(self, "anagrams_db", None):
-            if getattr(self, "anagrams_dbconn", None):
+            if getattr(self, "anagrams_dbobject", None):
                 log_warn("Requested to open DB twice..")
                 return
             anagrams_db = self.anagrams_db
-            self.anagrams_dbconn = sqlite3.connect(anagrams_db)
-            self.anagrams_dbcursor = self.anagrams_dbconn.cursor()
-            self.anagrams_dbconn.row_factory = sqlite3.Row
-            self.anagrams_dbconn.text_factory = str
-            self.anagrams_dbconn.create_function("regexp", 2, _regexp)
-    
+            self.anagrams_dbobject = triviadb.AnagramDB(anagrams_db)
+            self.anagrams_dbobject.connectdb()
     def close_dbs(self):
         for d in ("questions", "anagrams"):
-            conn = getattr(self, d + "_dbconn", None)
-            if conn:
+            db = getattr(self, d + "_dbobject", None)
+            if db:
                 try:
-                    conn.close()
+                    db.disconnect()
                 except Exception, e:
                     log_err(e)
                     continue
-                delattr(self, d + "_dbcursor")
-                delattr(self, d + "_dbconn")
+                delattr(self, d + "_dbobject")
     @property
     def n_asked_total(self):
         return float(self.n_asked_anagrams + self.n_asked_questions)
@@ -624,30 +610,12 @@ class TriviaBot(object):
         self.timeout_cb = self.client_ops.callLater(self.timeout, self._timeout_cb)
         
     def _set_anagram(self):
-        log_err(self.anagrams_min, self.anagrams_max)
-        #determine whether we can use a regex here..
-        prepend = ""
-        append = ""
-        rstr = ""
-        if len(self.anagram_prefix_exclude):
-            prepend += "|".join(self.anagram_prefix_exclude)
-        if len(self.anagram_suffix_exclude):
-            append += "|".join(self.anagram_suffix_exclude)
-        if prepend or append:
-            rstr = "word NOT REGEXP '%s' AND" % (prepend + ".*" + append,)
-            
-        word = self.anagrams_dbcursor.execute("""SELECT word FROM words
-                                                    WHERE %s LENGTH(word) >= ? AND
-                                                    LENGTH(word) <= ?
-                                                ORDER BY random()
-                                                LIMIT 1
-                                              """ % (rstr,),
-                                              (self.anagrams_min, self.anagrams_max)).fetchone()
+        word = self.anagrams_dbobject.getanagram(self.anagrams_min, self.anagrams_max,
+                                                 self.anagram_prefix_exclude, self.anagram_suffix_exclude)
         if not word:
             log_err("can't get word")
             self.qa_object_anagrams.answers = []
             return False
-        word = word[0]
         if self.anagrams_caps_hint:
             word = word.capitalize()
         log_err(word)
@@ -656,35 +624,10 @@ class TriviaBot(object):
         return True
         
     def _set_question(self, category=None):
-        rstr = ""
-        if len(self.questions_categories):
-            l = ["'" + s + "'" for s in self.questions_categories]
-            if self.questions_categories_is_blacklist:
-                rstr += "NOT "
-            category_expr = "category==" + l.pop()
-            if len(l):
-                l.insert(0, "")
-                category_expr += " or category==".join(l)
-            rstr += "(" + category_expr + ")"
-            rstr = "WHERE " + rstr
-            log_warn(rstr)
-        res = self.questions_dbcursor.execute("""
-                                    SELECT * FROM questions
-                                     %s
-                                     ORDER BY frequency ASC, random()
-                                     LIMIT 1
-                                    """ % (rstr,)).fetchone()
-        if self.register_usage:
-            self.questions_dbcursor.execute("""
-                                  UPDATE questions
-                                   SET frequency = (frequency+1)
-                                    WHERE id = ?
-                                  """, (res["id"],))
-        
-        alt_answers = pickle.loads(res["alt_answers"])
-        answers = (res["answer"],) + ( alt_answers if alt_answers else ())
-        
-        self.qa_object_questions.answers = answers
+        res = self.questions_dbobject.getquestion(categories=self.questions_categories,
+                                                  blacklist=self.questions_categories_is_blacklist,
+                                                  register_usage=self.register_usage,)
+        self.qa_object_questions.answers = res["answers"]
         self.qa_object_questions.category = res["category"]
         self.qa_object_questions.id = res["id"]
         self.qa_object_questions.question = res["question"]
@@ -819,16 +762,7 @@ class TriviaBot(object):
         if scores: self.write_chat(scores)
         self._cleanup()
         self.trivia_finished()        
-    
-    def __del__(self):
-        anagrams_dbconn = getattr(self, "anagrams_dbconn")
-        questions_dbconn = getattr(self, "questions_dbconn")
-        if anagrams_dbconn:
-            anagrams_dbconn.close()
-        if questions_dbconn:
-            questions_dbconn.close()
-        super(TriviaBot, self).__del__()
-        
+            
 class TriviaPlugin(object):
     yobot_interfaces.implements(yobot_interfaces.IYobotUIPlugin)
     plugin_name = "triviabot"
