@@ -480,9 +480,6 @@ class ChatWindow(ChatPane):
                               _ChatText.errFmt)
         
 if __name__ == "__main__":
-    log_err("MEMSTATS")
-    from memcheckutil import memstats
-    memstats()
     import sys
     import random
     from yobotclass import YobotAccount

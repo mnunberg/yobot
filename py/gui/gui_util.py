@@ -70,78 +70,6 @@ STATUS_TYPE_MAPS = {
     "Invisible" : yobotproto.PURPLE_STATUS_INVISIBLE,
 }
 
-_TINY_SCROLLBAR_BASE="""
-QScrollBar:$ORIENTATION {
-    border:0px;
-    border-style:inset;
-    max-$BAR_CONSTRAINT_TYPE:6px;
-    background-color:palette(dark);
-}
-QScrollBar::handle:$ORIENTATION {
-    border-radius:3px;
-    min-$HANDLE_CONSTRAINT_TYPE:15px;
-    background-color:argb(0,0,0,150);
-}
-QScrollBar::$NEXT_DIRECTION:$ORIENTATION,
-QScrollBar::$PREV_DIRECTION:$ORIENTATION,
-QScrollBar::add-line:$ORIENTATION,
-QScrollBar::sub-line:$ORIENTATION {
-    background-color:none;
-}
-QScrollBar::add-page:$ORIENTATION, QScrollBar::sub-page:$ORIENTATION {
-    background:none;
-}
-"""
-
-def stylesheet_append(widget, extrastyle):
-    """Preserve style information from designer"""
-    existing = str(widget.styleSheet())
-    widget.setStyleSheet(existing + " " + extrastyle)
-
-#for vertical stuff
-d = {}
-def replfn(matchobj):
-    res = matchobj.group(0)
-    if not res or not res.startswith("$"):
-        return ""
-    res = res.strip("$").lower()
-    return d[res]
-
-d.update({"orientation":"vertical", "next_direction":"down", "prev_direction":
-    "up", "bar_constraint_type":"width", "handle_constraint_type":"height"})
-regexp = re.compile('\$(ORIENTATION|NEXT_DIRECTION|PREV_DIRECTION|HANDLE_CONSTRAINT_TYPE|BAR_CONSTRAINT_TYPE)')
-
-TINY_VERTICAL_SCROLLBAR_STYLE = regexp.sub(replfn, _TINY_SCROLLBAR_BASE)
-
-d.update({"orientation":"horizontal","next-direction":"right",
-    "prev-direction":"left","bar_constraint_type":"height","handle_constraint_type":"height"})
-
-TINY_HORIZONTAL_SCROLLBAR_STYLE = regexp.sub(replfn, _TINY_SCROLLBAR_BASE)
-
-#TINY_VERTICAL_SCROLLBAR_STYLE="""
-#QScrollBar:vertical {
-#    border:0px;
-#    border-style:inset;
-#    max-width:6px;
-#    background-color:palette(dark);
-#}
-#
-#QScrollBar::handle:vertical {
-#    border-radius:3px;
-#    background-color:palette(text); /*black*/
-#}
-#
-#QScrollBar::down-arrow:vertical,
-#QScrollBar::up-arrow:vertical,
-#QScrollBar::add-line:vertical,
-#QScrollBar::sub-line:vertical {
-#    background-color:none;
-#}
-#
-#QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
-#    background:none;
-#}
-#"""
 
 def set_bg_opacity(widget, a):
     palette = widget.palette()
@@ -758,3 +686,117 @@ class AgentConnectDialog(QDialog):
             client_operations.connectToAgent(address=address,
                                              disconnect_from_server=w.disconnect_from_server.isChecked())
         
+        
+
+###############################################################################
+######################### STYLESHEET MACROS ###################################
+###############################################################################
+_TINY_SCROLLBAR_BASE="""
+QScrollBar:$ORIENTATION {
+    border:0px;
+    border-style:inset;
+    max-$BAR_CONSTRAINT_TYPE:6px;
+    background-color:palette(dark);
+}
+QScrollBar::handle:$ORIENTATION {
+    border-radius:3px;
+    min-$HANDLE_CONSTRAINT_TYPE:15px;
+    background-color:argb(0,0,0,150);
+}
+QScrollBar::$NEXT_DIRECTION:$ORIENTATION,
+QScrollBar::$PREV_DIRECTION:$ORIENTATION,
+QScrollBar::add-line:$ORIENTATION,
+QScrollBar::sub-line:$ORIENTATION {
+    background-color:none;
+}
+QScrollBar::add-page:$ORIENTATION, QScrollBar::sub-page:$ORIENTATION {
+    background:none;
+}
+"""
+
+def stylesheet_append(widget, extrastyle):
+    """Preserve style information from designer"""
+    existing = str(widget.styleSheet())
+    widget.setStyleSheet(existing + " " + extrastyle)
+
+#for vertical stuff
+d = {}
+def replfn(matchobj):
+    res = matchobj.group(0)
+    if not res or not res.startswith("$"):
+        return ""
+    res = res.strip("$").lower()
+    return d[res]
+
+d.update({"orientation":"vertical", "next_direction":"down", "prev_direction":
+    "up", "bar_constraint_type":"width", "handle_constraint_type":"height"})
+regexp = re.compile('\$(ORIENTATION|NEXT_DIRECTION|PREV_DIRECTION|HANDLE_CONSTRAINT_TYPE|BAR_CONSTRAINT_TYPE)')
+
+TINY_VERTICAL_SCROLLBAR_STYLE = regexp.sub(replfn, _TINY_SCROLLBAR_BASE)
+
+d.update({"orientation":"horizontal","next-direction":"right",
+    "prev-direction":"left","bar_constraint_type":"height","handle_constraint_type":"height"})
+
+TINY_HORIZONTAL_SCROLLBAR_STYLE = regexp.sub(replfn, _TINY_SCROLLBAR_BASE)
+
+#TINY_VERTICAL_SCROLLBAR_STYLE="""
+#QScrollBar:vertical {
+#    border:0px;
+#    border-style:inset;
+#    max-width:6px;
+#    background-color:palette(dark);
+#}
+#
+#QScrollBar::handle:vertical {
+#    border-radius:3px;
+#    background-color:palette(text); /*black*/
+#}
+#
+#QScrollBar::down-arrow:vertical,
+#QScrollBar::up-arrow:vertical,
+#QScrollBar::add-line:vertical,
+#QScrollBar::sub-line:vertical {
+#    background-color:none;
+#}
+#
+#QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+#    background:none;
+#}
+#"""
+
+
+#Sample text: "color:$PALETTE_ADJUST(base, -23, 43, 43, -45)"
+_palette_adjust_regexp = re.compile(
+    r"\$PALETTE_ADJUST\(\s*"
+    r"(?P<role>[A-Za-z-]*)\s*,\s*"
+    r"(?P<r>[+-]?\d+)\s*,\s*"
+    r"(?P<g>[+-]?\d+)\s*,\s*"
+    r"(?P<b>[+-]?\d+)\s*,\s*"
+    r"(?P<a>[+-]?\d+)\s*\)")
+
+def setilimit(i, min, max):
+    if min <= i <= max:
+        return i
+    elif i < min:
+        return min
+    elif i > max:
+        return max
+
+def _repl_adjust_palette(matchobj):
+    m_role = matchobj.group("role")
+    m_role = "".join([s.capitalize() for s in m_role.split("-")])
+    try:
+        oldrgba = QPalette().color(getattr(QPalette, m_role)).getRgb()
+    except AttributeError, e:
+        print e
+        return ""
+    l = []
+    for old, new in zip(oldrgba, [int(matchobj.group(s)) for s in ("r","g","b","a")]):
+        tmp = setilimit(old + new, 0, 255)
+        l.append(str(tmp))
+    return "rgba(%s)" % (",".join(l))
+
+def adjust_stylesheet_palette(stylesheet):
+    """acts on the macros of $PALETTE_ADJUST(rolename, r,g,b,a) and returns the
+    calculated value. rgba can be negative and they will be added to the normal base"""
+    return _palette_adjust_regexp.sub(_repl_adjust_palette, stylesheet)

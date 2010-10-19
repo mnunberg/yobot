@@ -2,11 +2,14 @@
 
 import gc
 import sys
+import resources_rc
 
+import re
 
 try:
     sys.path.append("../")
     from debuglog import log_debug, log_err, log_warn, log_crit, log_info
+    from gui_util import adjust_stylesheet_palette
     if __name__ == "__main__":
         import debuglog
         debuglog.init("Tabbed Windows", title_color="red")
@@ -14,6 +17,7 @@ except ImportError, e:
     def log_generic(*args):
         print " ".join([str(a) for a in args])
     log_debug = log_err = log_warn = log_crit = log_info = log_generic
+    adjust_stylesheet_palette = lambda x: x
     log_err(e)
 
 import os
@@ -25,7 +29,7 @@ else:
     from PyQt4.Qt import (QHBoxLayout, QTabBar, QWidget, QMainWindow, QFrame,
                           QCursor, QVBoxLayout, QMenu, QPixmap, QApplication,
                           QPoint, QPushButton, QSizePolicy, QTabWidget, QMenuBar,
-                          QLabel, QDrag, QTabBar, QAction)
+                          QLabel, QDrag, QTabBar, QAction, QPainter, QStyleOptionTab)
     from PyQt4.QtCore import (QMimeData, QObject, SIGNAL, QPoint, Qt)
 
                
@@ -41,7 +45,7 @@ def setmargins(layout, left=-1, top=-1, right=-1, bottom=-1):
     oldleft, oldtop, oldright, oldbottom = layout.getContentsMargins()
     layout.setContentsMargins(*[new if new >= 0 else old for old, new in
                                 ((oldleft, left), (oldtop, top), (oldright, right), (oldbottom, bottom))])    
-
+    
 
 class _TabBar(QTabBar):
     STYLE="""
@@ -49,53 +53,49 @@ class _TabBar(QTabBar):
         border-bottom:none;
     }
      QTabBar::tab {
-     /*
-         background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                                     stop: 0 #E1E1E1, stop: 0.4 #DDDDDD,
-                                     stop: 0.5 #D8D8D8, stop: 1.0 #D3D3D3);
-    */
-         border: 1px solid palette(shadow);
-         border-top-left-radius: 4px;
-         border-top-right-radius: 4px;
-         min-width: 12ex;
-         padding: 2px;
-         border-bottom-width:1px;
-         background-color:palette(dark);
-         margin-right:-2px;
+        min-width:100px;
+        margin-top:2px;
+        border: 1px groove palette(dark);
+        border-top-left-radius: 4px;
+        border-top-right-radius: 4px;
+        padding-right:10px;
+        padding-left:10px;
+        border-bottom-width:1px;
+        margin-right:-2px;
+        border-bottom:1px solid $PALETTE_ADJUST(dark, -200,-200,-200,-255);
+        background-color:qlineargradient(x1:0,y1:0,x2:1,y2:1,
+            stop:0 $PALETTE_ADJUST(dark, -50, -50, -50, -100),
+            stop:1 $PALETTE_ADJUST(text, 35, 35 ,35, 0));
+        color:palette(base);
      }
-
-     QTabBar::tab:selected, QTabBar::tab:hover {
-         background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                                     stop: 0 #fafafa, stop: 0.4 #f4f4f4,
-                                     stop: 0.5 #e7e7e7, stop: 1.0 #fafafa);
-     }
-
      QTabBar::tab:selected {
-         border-color: #9B9B9B;
-         border-bottom-color: #C2C7CB; /* same as pane color */
-         background-color:palette(base);
-         font-weight:bold;
-     }
-
-     QTabBar::tab:!selected {
-         margin-top: 2px; /* make non-selected tabs look smaller */
-         background-color:palette(window);
+        background-color:$PALETTE_ADJUST(dark, -140, -140, -140, 255);
+        border-style:inset;
+        border-width:2px;
      }
      QTabBar::tab:last {
         margin-right:0px;
         border-top-right-radius:15px;
      }
      QTabBar::tab:first {
+        margin-left:0px;
         border-top-left-radius:15px;
      }
+     QTabBar::tab:only-one {
+        border-top-left-radius:15px;
+        border-top-right-radius:15px;
+        margin-right:0px; margin-left:0px;
+    }     
      """
     def __init__(self, realtabwidget):
         super(_TabBar, self).__init__(realtabwidget)
         self.realtabwidget = realtabwidget
         self.drag_pos = QPoint()
         self.setAcceptDrops(False)
-        self.setStyleSheet(self.STYLE)
-        self.setExpanding(True)
+        if not "darwin" in sys.platform.lower():
+            self.base_stylesheet = adjust_stylesheet_palette(self.STYLE)
+            self.setStyleSheet(self.base_stylesheet)
+            
     @property
     def current_widget(self):
         return self.realtabwidget.widget(self.currentIndex())
@@ -117,8 +117,6 @@ class _TabBar(QTabBar):
         log_debug(drag.target())
         if not isinstance(drag.target(), TabContainer):
             self.detachWidget()
-    def mouseDoubleClickEvent(self, event):
-        self.detachWidget()
         
     def detachWidget(self):
         log_debug("detachWidget")
@@ -140,9 +138,11 @@ class _TabBar(QTabBar):
         tc.resize(oldsize)
         
         tc.move(QCursor().pos())
-        
+            
 
 class _RealTabWidget(QTabWidget):
+    tabs_stylesheet_fmt = """QTabBar::tab:only-one { width: %dpx; border:none;
+    border-radius:none;}"""
     def __init__(self, parent):
         super(_RealTabWidget, self).__init__(parent)
         self.setTabBar(_TabBar(self))
@@ -159,6 +159,9 @@ class _RealTabWidget(QTabWidget):
         log_debug("%x: removing %x" % (id(self), id(widget)))
         self.tab_ids.remove(id(widget))
         super(type(self),self).removeTab(index, *args)
+    def resizeEvent(self, resize_event):
+        self.setStyleSheet(self.tabs_stylesheet_fmt % (self.width()))
+        super(type(self), self).resizeEvent(resize_event)
         
 class TabContainer(QMainWindow):
     refs = set()
@@ -186,11 +189,6 @@ class TabContainer(QMainWindow):
         self.tabwidget.tabRemoved = _tabRemoved
         
         self.setCentralWidget(self.tabwidget)
-        #layout = QVBoxLayout(self.centralWidget())
-        #layout.setContentsMargins(0,0,0,0)
-        #layout.setSpacing(0)
-        #self.centralWidget().setLayout(layout)
-        #layout.addWidget(self.tabwidget)
         
     default_stylesheet = ""
     drag_stylesheet = default_stylesheet + """
@@ -347,8 +345,8 @@ class _TestWidget(ChatPane):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     t = TabContainer()
-    p1 = _TestWidget(tabcontainer = t, title="First Pane")
-    p2 = _TestWidget(tabcontainer = t, title="Second Pane")
+    p1 = _TestWidget(tabcontainer = t, title="first" * 3)
+    p2 = _TestWidget(tabcontainer = t, title="second" * 3)
     t.show()
     t.resize(500,500)
     app.exec_()
