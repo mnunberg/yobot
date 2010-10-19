@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="icons">
+    <file>res/16x16/actions/tab-close.png</file>
     <file>res/16x16/actions/configure-toolbars.png</file>
     <file>res/16x16/actions/document-open.png</file>
     <file>res/16x16/actions/document-save-as.png</file>
