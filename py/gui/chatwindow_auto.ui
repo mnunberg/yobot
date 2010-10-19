@@ -687,7 +687,7 @@ margin-bottom:2px
             <widget class="QToolButton" name="fg_color">
              <property name="minimumSize">
               <size>
-               <width>16</width>
+               <width>27</width>
                <height>24</height>
               </size>
              </property>

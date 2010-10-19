@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'chatwindow_auto.ui'
 #
-# Created: Sat Oct 16 01:42:28 2010
+# Created: Mon Oct 18 16:14:06 2010
 #      by: PyQt4 UI code generator 4.7.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -302,7 +302,7 @@ class Ui_w_chatwindow(object):
         self.horizontalLayout.addWidget(self.underline)
         self.gridLayout_3.addWidget(self.format_button_frame, 0, 5, 1, 1)
         self.fg_color = QtGui.QToolButton(self.w_formatframe)
-        self.fg_color.setMinimumSize(QtCore.QSize(16, 24))
+        self.fg_color.setMinimumSize(QtCore.QSize(27, 24))
         self.fg_color.setMaximumSize(QtCore.QSize(24, 27))
         self.fg_color.setStyleSheet("None")
         self.fg_color.setText("")

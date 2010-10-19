@@ -14,6 +14,8 @@ from PyQt4.QtGui import (QComboBox, QMainWindow,
 
 from PyQt4.QtCore import (QPoint, QSize, Qt, QObject, SIGNAL,)
 
+from tabwindows import ChatPane, TabContainer
+
 signal_connect = QObject.connect
 
 CHAT, IM = (1,2)
@@ -24,7 +26,6 @@ from debuglog import log_debug, log_err, log_warn, log_crit, log_info
 from html_fmt import simplify_css, process_input, insert_smileys
 import smileys_rc
 from gui_util import qlw_delitem, qlw_additem, TINY_VERTICAL_SCROLLBAR_STYLE, stylesheet_append
-from tabwindows import ChatPane, DragBar, TabContainer
 import datetime
 import yobotops
 import re
@@ -220,7 +221,6 @@ class ChatWindow(ChatPane):
         signal_connect(w.zoom_in, SIGNAL("clicked()"), convtext_zoomIn)
         signal_connect(w.zoom_out, SIGNAL("clicked()"), convtext_zoomOut)
         
-        self.centralWidget().layout().setMenuBar(DragBar(self, "Drag me"))
         left, top, right, bottom = self.centralWidget().layout().getContentsMargins()
         self.centralWidget().layout().setContentsMargins(left, 0, right, bottom)
         
@@ -480,6 +480,9 @@ class ChatWindow(ChatPane):
                               _ChatText.errFmt)
         
 if __name__ == "__main__":
+    log_err("MEMSTATS")
+    from memcheckutil import memstats
+    memstats()
     import sys
     import random
     from yobotclass import YobotAccount
@@ -521,7 +524,7 @@ if __name__ == "__main__":
     first = ChatWindow(None, target="first", acct_obj=YobotAccount(), type=CHAT)
     second = ChatWindow(None, target="second", acct_obj=YobotAccount(), type=CHAT)
     third = ChatWindow(None, target="third", acct_obj=YobotAccount(), type=IM)
-    fillwindow(first)
-    fillwindow(second)
+    #fillwindow(first)
+    #fillwindow(second)
     
     app.exec_()
