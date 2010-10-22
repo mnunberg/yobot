@@ -4,7 +4,9 @@
 TARGET = TabbedWindows
 TEMPLATE = app
 CONFIG += debug
-QMAKE_CXXFLAGS += -DTESTLIB
+QMAKE_CXXFLAGS += -DTESTLIB \
+    -ggdb3 \
+    -Wall
 SOURCES += tabbedwindows.cpp \
     dragpixmap.cpp \
     _tabbar.cpp \

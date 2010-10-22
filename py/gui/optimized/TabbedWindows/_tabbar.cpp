@@ -44,7 +44,6 @@ void _TabBar::mouseMoveEvent(QMouseEvent *event)
     QPixmap pixmap = QPixmap::grabWidget(widget).scaledToWidth(PIXMAP_MAX_WIDTH,
                                                                Qt::SmoothTransformation);
     DragPixmap *dragpixmap = new DragPixmap(pixmap, PIXMAP_OPACITY, widget);
-    dragpixmap->move(event->pos());
     dragpixmap->show();
     drag->exec();
     TabContainer *tc = qobject_cast<TabContainer*>(drag->target());

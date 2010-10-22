@@ -6,9 +6,7 @@
 #include <QPushButton>
 #include <QApplication>
 #include <QPixmap>
-
 #define CURSOR_OFFSET 25
-
 DragPixmap::DragPixmap(QPixmap pixmap, qreal opacity=0.40, QWidget *parent=0) :
     QLabel(parent)
 {
@@ -21,6 +19,7 @@ DragPixmap::DragPixmap(QPixmap pixmap, qreal opacity=0.40, QWidget *parent=0) :
     QTimer *timer = new QTimer(this);
     timer->setInterval(20);
     connect(timer, SIGNAL(timeout()), this, SLOT(updatepos()));
+    move(QCursor().pos());
     timer->start();
 }
 void DragPixmap::updatepos(void) {

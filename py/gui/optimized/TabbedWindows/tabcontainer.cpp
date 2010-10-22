@@ -16,7 +16,7 @@ TabContainer::TabContainer(QWidget *parent) :
     qDebug("%s:%s [%p]", __FILE__, __func__, this);
     setWindowFlags(Qt::Window);
     setAcceptDrops(true);
-    setAttribute(Qt::WA_DeleteOnClose);
+	setAttribute(Qt::WA_DeleteOnClose);
     realTabWidget = new RealTabWidget(this);
     connect(realTabWidget, SIGNAL(tabCloseRequested(int)), this,
             SLOT(rtwTabCloseRequested(int)));
@@ -60,12 +60,10 @@ void TabContainer::dropEvent(QDropEvent *event)
         }
         SubWindow *sw = qobject_cast<SubWindow*>(widget);
         if(!sw) {
-            qDebug("Failed to case to subwindow");
+			qWarning("Failed to cast to subwindow");
             return;
         }
         sw->addToContainer(this);
-    } else {
-        qDebug("hrrm...");
     }
 }
 
@@ -87,7 +85,7 @@ void TabContainer::rtwCurrentChanged(int)
         } else {
             qDebug("Deleting stale pointer..");
             menuOwners.remove(oldmenubar);
-//            oldmenubar->deleteLater();
+			oldmenubar->deleteLater();
             setMenuWidget(0);
         }
     } else {
@@ -108,6 +106,8 @@ void TabContainer::rtwCurrentChanged(int)
 
 void TabContainer::closeEvent(QCloseEvent *event)
 {
+	qDebug("%s: closing.. %p", __func__, this);
+	qDebug("%s: parent is %p", __func__, parentWidget());
     event->accept();
     refs.remove(this);
 }
