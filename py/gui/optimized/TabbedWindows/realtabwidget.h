@@ -3,6 +3,8 @@
 
 #include <QTabWidget>
 #include <QSet>
+#include "tabcontainer.h"
+class _TabBar;
 class RealTabWidget : public QTabWidget
 {
 Q_OBJECT
@@ -13,6 +15,7 @@ public:
     void tabRemoved(int index);
     void tabInserted(int index);
     QSet<QWidget*> tabIds;
+	friend class TabContainer;
 private:
 signals:
     void SIG_tabRemoved(int);

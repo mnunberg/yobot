@@ -7,6 +7,7 @@
 #include <QPointer>
 /*forward declaration*/
 class SubWindow;
+class RealTabWidget;
 #include "subwindow.h"
 #include "realtabwidget.h"
 class TabContainer : public QMainWindow
@@ -27,6 +28,7 @@ private:
 signals:
 
 public slots:
+	void handleDnD(QWidget*,QWidget*);
     void rtwTabCloseRequested(int);
     void rtwCurrentChanged(int);
     void rtwSIG_TabRemoved(int);

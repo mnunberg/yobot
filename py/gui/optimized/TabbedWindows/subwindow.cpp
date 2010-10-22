@@ -1,12 +1,15 @@
 #include "subwindow.h"
 #include <QVBoxLayout>
 #include <QKeyEvent>
+#include "twutil.h"
 SubWindow::SubWindow(QWidget *parent, QString title) :
     QMainWindow(parent)
 {
-    qDebug("%s:%s:", __FILE__, __func__);
-    setAcceptDrops(true);
     this->title = title;
+	setAttribute(Qt::WA_DeleteOnClose);
+	qDebug("%s: %p", __PRETTY_FUNCTION__, this);
+	setObjectName("****subwindow****");
+	connect(this, SIGNAL(destroyed()), twutil, SLOT(dumpDestroyed()));
 }
 
 void SubWindow::init(TabContainer *tc)
@@ -22,7 +25,7 @@ void SubWindow::init(TabContainer *tc)
     }
     /*by all accounts, tc should not be NULL if things are working right*/
     if(!tc) {
-        qDebug("tc is still NULL!");
+		qCritical("%s: %s: tc is still NULL!", __FILE__, __func__);
         return;
     }
     addToContainer(tc);

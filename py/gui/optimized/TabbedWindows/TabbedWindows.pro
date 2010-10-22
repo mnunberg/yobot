@@ -14,11 +14,13 @@ SOURCES += tabbedwindows.cpp \
     subwindow.cpp \
     tabcontainer.cpp \
     test.cpp \
-    testwidget.cpp
+    testwidget.cpp \
+    twutil.cpp
 HEADERS += tabbedwindows.h \
     dragpixmap.h \
     _tabbar.h \
     realtabwidget.h \
     subwindow.h \
     tabcontainer.h \
-    testwidget.h
+    testwidget.h \
+    twutil.h

@@ -15,8 +15,8 @@ public:
 private:
     RealTabWidget *realTabWidget;
     QPoint drag_pos;
-    void detachWidget(void);
 signals:
+	void widgetDnD(QWidget *src, QWidget *target);
 
 public slots:
 
