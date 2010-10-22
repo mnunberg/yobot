@@ -1,0 +1,12 @@
+#ifndef DRAGPIXMAP_GLOBAL_H
+#define DRAGPIXMAP_GLOBAL_H
+
+#include <QtCore/qglobal.h>
+
+#if defined(DRAGPIXMAP_LIBRARY)
+#  define DRAGPIXMAPSHARED_EXPORT Q_DECL_EXPORT
+#else
+#  define DRAGPIXMAPSHARED_EXPORT Q_DECL_IMPORT
+#endif
+
+#endif // DRAGPIXMAP_GLOBAL_H
