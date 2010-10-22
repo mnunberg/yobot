@@ -4,7 +4,7 @@
 RealTabWidget::RealTabWidget(QWidget *parent) :
     QTabWidget(parent)
 {
-	setObjectName("****realtabwidget****");
+	setObjectName("realtabwidget");
 	connect(this, SIGNAL(destroyed()), twutil, SLOT(dumpDestroyed()));
     setTabBar(new _TabBar(this));
     setTabsClosable(true);

@@ -1,20 +1,24 @@
 <!DOCTYPE QtCreatorProject>
 <qtcreator>
  <data>
-  <variable>RunConfiguration0-Arguments</variable>
-  <valuelist type="QVariantList"/>
- </data>
- <data>
   <variable>RunConfiguration0-BaseEnvironmentBase</variable>
   <value type="int">2</value>
  </data>
  <data>
-  <variable>RunConfiguration0-Executable</variable>
-  <value type="QString">/home/mordy/src/qt/TabbedWindows/TabbedWindows</value>
+  <variable>RunConfiguration0-CommandLineArguments</variable>
+  <valuelist type="QVariantList"/>
+ </data>
+ <data>
+  <variable>RunConfiguration0-ProFile</variable>
+  <value type="QString">TabbedWindows.pro</value>
  </data>
  <data>
   <variable>RunConfiguration0-RunConfiguration.name</variable>
-  <value type="QString">Run /home/mordy/src/qt/TabbedWindows/TabbedWindows</value>
+  <value type="QString">TabbedWindows</value>
+ </data>
+ <data>
+  <variable>RunConfiguration0-UseDyldImageSuffix</variable>
+  <value type="bool">false</value>
  </data>
  <data>
   <variable>RunConfiguration0-UseTerminal</variable>
@@ -25,63 +29,19 @@
   <valuelist type="QVariantList"/>
  </data>
  <data>
-  <variable>RunConfiguration0-UserName</variable>
-  <value type="QString"></value>
- </data>
- <data>
   <variable>RunConfiguration0-UserSetName</variable>
   <value type="bool">false</value>
  </data>
  <data>
-  <variable>RunConfiguration0-WorkingDirectory</variable>
-  <value type="QString">$BUILDDIR</value>
- </data>
- <data>
-  <variable>RunConfiguration0-type</variable>
-  <value type="QString">ProjectExplorer.CustomExecutableRunConfiguration</value>
- </data>
- <data>
-  <variable>RunConfiguration1-BaseEnvironmentBase</variable>
-  <value type="int">2</value>
- </data>
- <data>
-  <variable>RunConfiguration1-CommandLineArguments</variable>
-  <valuelist type="QVariantList"/>
- </data>
- <data>
-  <variable>RunConfiguration1-ProFile</variable>
-  <value type="QString">TabbedWindows.pro</value>
- </data>
- <data>
-  <variable>RunConfiguration1-RunConfiguration.name</variable>
-  <value type="QString">TabbedWindows</value>
- </data>
- <data>
-  <variable>RunConfiguration1-UseDyldImageSuffix</variable>
+  <variable>RunConfiguration0-UserSetWorkingDirectory</variable>
   <value type="bool">false</value>
  </data>
  <data>
-  <variable>RunConfiguration1-UseTerminal</variable>
-  <value type="bool">false</value>
- </data>
- <data>
-  <variable>RunConfiguration1-UserEnvironmentChanges</variable>
-  <valuelist type="QVariantList"/>
- </data>
- <data>
-  <variable>RunConfiguration1-UserSetName</variable>
-  <value type="bool">false</value>
- </data>
- <data>
-  <variable>RunConfiguration1-UserSetWorkingDirectory</variable>
-  <value type="bool">false</value>
- </data>
- <data>
-  <variable>RunConfiguration1-UserWorkingDirectory</variable>
+  <variable>RunConfiguration0-UserWorkingDirectory</variable>
   <value type="QString"></value>
  </data>
  <data>
-  <variable>RunConfiguration1-type</variable>
+  <variable>RunConfiguration0-type</variable>
   <value type="QString">Qt4ProjectManager.Qt4RunConfiguration</value>
  </data>
  <data>
@@ -117,6 +77,7 @@
   <valuemap type="QVariantMap">
    <value key="ProjectExplorer.BuildConfiguration.DisplayName" type="QString">Test Debug</value>
    <value key="QtVersionId" type="int">2</value>
+   <value key="addQDumper" type=""></value>
    <value key="buildConfiguration" type="int">2</value>
   </valuemap>
  </data>

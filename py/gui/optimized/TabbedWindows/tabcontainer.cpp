@@ -8,8 +8,8 @@
 #include <QPointer>
 #include "twutil.h"
 
-#define fn_begin qDebug("%s: BEGIN", __PRETTY_FUNCTION__);
-#define fn_end qDebug("%s: END", __PRETTY_FUNCTION__);
+#define fn_begin qDebug("[%p] %s: BEGIN", this, __PRETTY_FUNCTION__);
+#define fn_end qDebug("[%p] %s: END", this, __PRETTY_FUNCTION__);
 
 /*initialize static members*/
 QSet<TabContainer*> TabContainer::refs = QSet<TabContainer*>();
@@ -17,10 +17,11 @@ QSet<TabContainer*> TabContainer::refs = QSet<TabContainer*>();
 TabContainer::TabContainer(QWidget *parent) :
     QMainWindow(parent)
 {
-	qDebug("%s:%s [%p]", __FILE__, __PRETTY_FUNCTION__, this);
-	setObjectName("*****tabcontainer*****");
+	setObjectName("tabcontainer");
+	twutil->logCreation(this);
     setWindowFlags(Qt::Window);
     setAcceptDrops(true);
+	setAttribute(Qt::WA_DeleteOnClose);
     realTabWidget = new RealTabWidget(this);
     connect(realTabWidget, SIGNAL(tabCloseRequested(int)), this,
             SLOT(rtwTabCloseRequested(int)));
@@ -120,12 +121,10 @@ void TabContainer::handleDnD(QWidget* source, QWidget* target)
 
 void TabContainer::rtwTabCloseRequested(int index)
 {
-	fn_begin;
     QWidget *widget = realTabWidget->widget(index);
     realTabWidget->removeTab(index);
     widget->close();
 	widget->deleteLater();
-	fn_end;
 }
 void TabContainer::rtwCurrentChanged(int)
 {
@@ -165,6 +164,9 @@ void TabContainer::closeEvent(QCloseEvent *event)
 	qDebug("%s: parent is %p", __PRETTY_FUNCTION__, parentWidget());
     event->accept();
     refs.remove(this);
+	if (event->spontaneous()) {
+		deleteLater();
+	}
 	fn_end;
 }
 

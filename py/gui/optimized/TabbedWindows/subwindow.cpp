@@ -7,8 +7,8 @@ SubWindow::SubWindow(QWidget *parent, QString title) :
 {
     this->title = title;
 	setAttribute(Qt::WA_DeleteOnClose);
-	qDebug("%s: %p", __PRETTY_FUNCTION__, this);
-	setObjectName("****subwindow****");
+	setObjectName("subwindow");
+	twutil->logCreation(this);
 	connect(this, SIGNAL(destroyed()), twutil, SLOT(dumpDestroyed()));
 }
 

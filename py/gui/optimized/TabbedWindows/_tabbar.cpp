@@ -19,7 +19,7 @@
 _TabBar::_TabBar(RealTabWidget *parent) :
     QTabBar(parent)
 {
-	setObjectName("****_tabbar****");
+	setObjectName("_tabbar");
 	connect(this, SIGNAL(destroyed()), twutil, SLOT(dumpDestroyed()));
 	realTabWidget = parent;
 }
@@ -43,7 +43,7 @@ void _TabBar::mouseMoveEvent(QMouseEvent *event)
 	event->accept();
     QDrag *drag = new QDrag(this);
 	/*DEBUG*/
-	drag->setObjectName("****drag*****");
+	drag->setObjectName("drag");
 	connect(drag, SIGNAL(destroyed()), twutil,
 			SLOT(dumpDestroyed()));
     QMimeData *mimedata = new QMimeData();
@@ -55,7 +55,7 @@ void _TabBar::mouseMoveEvent(QMouseEvent *event)
 	DragPixmap *dragpixmap = new DragPixmap(
 			pixmap, PIXMAP_OPACITY, widget);
 	connect(drag, SIGNAL(destroyed()), dragpixmap, SLOT(deleteLater()));
-	dragpixmap->setObjectName("****dragpixmap****");
+	dragpixmap->setObjectName("dragpixmap");
 	connect(dragpixmap, SIGNAL(destroyed()),
 			twutil, SLOT(dumpDestroyed()));
     dragpixmap->show();
