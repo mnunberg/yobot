@@ -1,0 +1,3 @@
+all:
+	python configure.py
+	$(MAKE) -j20

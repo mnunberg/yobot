@@ -1,5 +1,5 @@
 #!/bin/sh
 false
 make distclean
-qmake
+qmake $@
 make -Bj20

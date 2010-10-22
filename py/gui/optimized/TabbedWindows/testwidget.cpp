@@ -24,6 +24,8 @@ void TestWidget::setupWidgets(void)
     centralWidget()->setLayout(new QVBoxLayout(centralWidget()));
     QPushButton *button = new QPushButton("Reproduce", this);
     button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    centralWidget()->layout()->setContentsMargins(0,0,0,0);
+    centralWidget()->layout()->setSpacing(0);
     centralWidget()->layout()->addWidget(button);
     connect(action_reproduce, SIGNAL(triggered()), SLOT(reproduce()));
     connect(button, SIGNAL(clicked()), SLOT(reproduce()));

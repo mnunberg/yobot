@@ -4,11 +4,11 @@
 #include <QTabBar>
 #include "realtabwidget.h"
 #include <QMouseEvent>
-class _TabBar : public QTabBar
+class TabBar : public QTabBar
 {
 Q_OBJECT
 public:
-    explicit _TabBar(RealTabWidget*);
+    explicit TabBar(RealTabWidget*);
     void mousePressEvent(QMouseEvent *);
     void mouseMoveEvent(QMouseEvent *);
     QWidget *currentWidget(void);

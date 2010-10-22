@@ -1,16 +1,18 @@
 # -------------------------------------------------
 # Project created by QtCreator 2010-10-21T01:07:09
 # -------------------------------------------------
+OBJECTS_DIR = ./obj
+MOC_DIR = $${OBJECTS_DIR}
 SOURCES += tabbedwindows.cpp \
     dragpixmap.cpp \
-    _tabbar.cpp \
+    tabbar.cpp \
     realtabwidget.cpp \
     subwindow.cpp \
     tabcontainer.cpp \
     twutil.cpp
 HEADERS += tabbedwindows.h \
     dragpixmap.h \
-    _tabbar.h \
+    tabbar.h \
     realtabwidget.h \
     subwindow.h \
     tabcontainer.h \

@@ -24,6 +24,7 @@ public:
     RealTabWidget *realTabWidget;
 private:
     static QSet<TabContainer*> refs;
+	bool deleteRequested;
     QHash<QWidget*, QPointer<QMainWindow> > menuOwners;
 signals:
 

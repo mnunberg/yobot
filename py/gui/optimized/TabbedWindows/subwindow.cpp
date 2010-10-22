@@ -18,14 +18,14 @@ void SubWindow::init(TabContainer *tc)
     if(!tc) {
         tc = TabContainer::getContainer();
         if(!tc) {
-            qDebug("tc is still null");
+			twlog_warn("tc is still null");
             tc = new TabContainer(parentWidget());
             TabContainer::addContainer(tc);
         }
     }
     /*by all accounts, tc should not be NULL if things are working right*/
     if(!tc) {
-		qCritical("%s: %s: tc is still NULL!", __FILE__, __func__);
+		twlog_crit("%s: %s: tc is still NULL!", __FILE__, __func__);
         return;
     }
     addToContainer(tc);

@@ -4,7 +4,7 @@
 #include <QTabWidget>
 #include <QSet>
 #include "tabcontainer.h"
-class _TabBar;
+class TabBar;
 class RealTabWidget : public QTabWidget
 {
 Q_OBJECT

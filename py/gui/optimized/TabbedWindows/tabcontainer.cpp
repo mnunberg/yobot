@@ -1,5 +1,5 @@
 #include "tabcontainer.h"
-#include "_tabbar.h"
+#include "tabbar.h"
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QCloseEvent>
@@ -8,8 +8,6 @@
 #include <QPointer>
 #include "twutil.h"
 
-#define fn_begin qDebug("[%p] %s: BEGIN", this, __PRETTY_FUNCTION__);
-#define fn_end qDebug("[%p] %s: END", this, __PRETTY_FUNCTION__);
 
 /*initialize static members*/
 QSet<TabContainer*> TabContainer::refs = QSet<TabContainer*>();
@@ -21,7 +19,7 @@ TabContainer::TabContainer(QWidget *parent) :
 	twutil->logCreation(this);
     setWindowFlags(Qt::Window);
     setAcceptDrops(true);
-	setAttribute(Qt::WA_DeleteOnClose);
+//	setAttribute(Qt::WA_DeleteOnClose);
     realTabWidget = new RealTabWidget(this);
     connect(realTabWidget, SIGNAL(tabCloseRequested(int)), this,
             SLOT(rtwTabCloseRequested(int)));
@@ -30,14 +28,14 @@ TabContainer::TabContainer(QWidget *parent) :
     connect(realTabWidget, SIGNAL(SIG_tabRemoved(int)), this,
             SLOT(rtwSIG_TabRemoved(int)));
 	connect(this, SIGNAL(destroyed()), twutil, SLOT(dumpDestroyed()));
-	_TabBar *tb = qobject_cast<_TabBar*>(realTabWidget->tabBar());
+	TabBar *tb = qobject_cast<TabBar*>(realTabWidget->tabBar());
 	Q_ASSERT(tb);
 	connect(tb, SIGNAL(widgetDnD(QWidget*,QWidget*)), this,
 			SLOT(handleDnD(QWidget*,QWidget*)), Qt::QueuedConnection);
 
     setCentralWidget(realTabWidget);
+	deleteRequested = false;
     show();
-    qDebug("done");
 }
 
 void TabContainer::rtwSIG_TabRemoved(int)
@@ -55,24 +53,23 @@ void TabContainer::dropEvent(QDropEvent *event)
 {
 	fn_begin;
 	const QMimeData *mimedata = event->mimeData();
-    _TabBar *src = qobject_cast<_TabBar*>(event->source());
+    TabBar *src = qobject_cast<TabBar*>(event->source());
 	if (src && mimedata &&
         mimedata->hasFormat("action") &&
         mimedata->data("action") == "window_drag") {
         event->acceptProposedAction();
         QWidget *widget = src->currentWidget();
         if(!widget) {
-            qDebug("Got bad object");
+			twlog_warn("Got bad object");
 			goto ret;
         }
         if(realTabWidget->tabIds.contains(widget)) {
-			qDebug("Requested to add %p which already exists in %p",
-				   widget, this);
+			twlog_debug("Requested to add %p which already exists", widget);
 			goto ret;
         }
         SubWindow *sw = qobject_cast<SubWindow*>(widget);
         if(!sw) {
-			qWarning("Failed to cast to subwindow");
+			twlog_crit("Failed to cast to subwindow");
 			goto ret;
         }
         sw->addToContainer(this);
@@ -86,11 +83,10 @@ void TabContainer::handleDnD(QWidget* source, QWidget* target)
 	TabContainer *tc = qobject_cast<TabContainer*>(target);
 	if(!tc) {
 		disconnect(this, SLOT(rtwSIG_TabRemoved(int)));
-		qDebug("%s: did not get a valid target %p, detaching",
-			   __PRETTY_FUNCTION__, source);
+		twlog_debug("did not get a valid target %p, detaching", source);
 		SubWindow *sw = qobject_cast<SubWindow*>(source);
 		if(!sw) {
-			qWarning("%s: Expected SubWindow instance!", __PRETTY_FUNCTION__);
+			twlog_warn("Expected SubWindow instance!");
 			goto cleanup;
 		}
 		Q_ASSERT(realTabWidget->tabIds.contains(source));
@@ -102,15 +98,14 @@ void TabContainer::handleDnD(QWidget* source, QWidget* target)
 		tc->resize(size());
 		tc->move(QCursor().pos());
 	} else {
-		qDebug("%s [this %p] dropped on TabContainer %p",
-			   __PRETTY_FUNCTION__, this, tc);
+		twlog_debug("dropped on TabContainer %p", tc);
 	}
 	cleanup:
 	if (realTabWidget->count()) {
 		connect(realTabWidget, SIGNAL(SIG_tabRemoved(int)), this, SLOT(rtwSIG_TabRemoved(int)));
 	} else {
 		if(!realTabWidget->count()) {
-			qDebug("%s: Deleting objects...", __PRETTY_FUNCTION__);
+			twlog_debug("deleting objects");
 			realTabWidget->setParent(0);
 			connect(this, SIGNAL(destroyed()), realTabWidget, SLOT(deleteLater()));
 			deleteLater();
@@ -125,6 +120,9 @@ void TabContainer::rtwTabCloseRequested(int index)
     realTabWidget->removeTab(index);
     widget->close();
 	widget->deleteLater();
+	if (!realTabWidget->count()) {
+		deleteLater();
+	}
 }
 void TabContainer::rtwCurrentChanged(int)
 {
@@ -135,17 +133,18 @@ void TabContainer::rtwCurrentChanged(int)
         if(!owner.isNull()) {
             owner.data()->setMenuWidget(menuBar());
         } else {
-            qDebug("Deleting stale pointer..");
+			twlog_debug("deleting stale pointer");
             menuOwners.remove(oldmenubar);
+			deleteRequested = true;
 			oldmenubar->deleteLater();
             setMenuWidget(0);
         }
     } else {
-		qDebug("%s: old menubar is NULL", __PRETTY_FUNCTION__);
+		twlog_debug("old menubar is NULL");
     }
     QMainWindow *mw = qobject_cast<QMainWindow*>(realTabWidget->currentWidget());
     if (!mw) {
-		qDebug("%s: mw is null", __PRETTY_FUNCTION__);
+		twlog_debug("mw is NULL");
 		fn_end
         return;
     }
@@ -160,8 +159,7 @@ void TabContainer::rtwCurrentChanged(int)
 void TabContainer::closeEvent(QCloseEvent *event)
 {
 	fn_begin;
-	qDebug("%s: closing.. %p", __PRETTY_FUNCTION__, this);
-	qDebug("%s: parent is %p", __PRETTY_FUNCTION__, parentWidget());
+	twlog_debug("closing, parent is %p", parentWidget());
     event->accept();
     refs.remove(this);
 	if (event->spontaneous()) {

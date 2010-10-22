@@ -1,12 +1,12 @@
 #include "realtabwidget.h"
-#include "_tabbar.h"
+#include "tabbar.h"
 #include "twutil.h"
 RealTabWidget::RealTabWidget(QWidget *parent) :
     QTabWidget(parent)
 {
 	setObjectName("realtabwidget");
 	connect(this, SIGNAL(destroyed()), twutil, SLOT(dumpDestroyed()));
-    setTabBar(new _TabBar(this));
+    setTabBar(new TabBar(this));
     setTabsClosable(true);
     tabBar()->setExpanding(true);
 }
