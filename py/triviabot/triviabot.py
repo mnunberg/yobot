@@ -16,12 +16,12 @@ from PyQt4.QtGui import (QComboBox, QMainWindow, QStandardItemModel, QStandardIt
                          QApplication, QFont, QTextEdit, QColorDialog, QPalette,
                          QListWidget, QListWidgetItem, QStyledItemDelegate,
                          QStyleOptionViewItem, QRegion, QWidget, QBrush, QStyle,
-                         QPen, QPushButton, QStyleOption, QMenu, QAction, QCursor,
-                         QTreeView, QLineEdit, QButtonGroup, QFileDialog, QErrorMessage,
+                         QPushButton, QStyleOption, QMenu, QAction, QCursor,
+                        QLineEdit, QFileDialog, QErrorMessage,
                          QFontDialog, QColor, QDockWidget, QSizePolicy,
-                         qDrawBorderPixmap, qDrawShadeLine, qDrawShadePanel, QStackedWidget,
+                         QStackedWidget,
                          QGridLayout, QLayout, QFrame,
-                         QGraphicsDropShadowEffect, QSpacerItem)
+                         )
 
 
 from PyQt4.QtCore import (QPoint, QSize, QModelIndex, Qt, QObject, SIGNAL, QVariant,

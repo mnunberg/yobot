@@ -11,14 +11,14 @@ from PyQt4.QtGui import (QComboBox, QMainWindow, QStandardItemModel, QStandardIt
                          QListWidget, QListWidgetItem, QStyledItemDelegate,
                          QStyleOptionViewItem, QRegion, QWidget, QBrush, QStyle,
                          QPen, QPushButton, QStyleOption, QMenu, QAction, QCursor,
-                         QTreeView, QLineEdit, QButtonGroup, QGraphicsDropShadowEffect,
-                         qDrawShadePanel, QGraphicsOpacityEffect, QGraphicsEffect,
+                         QTreeView, QLineEdit, QButtonGroup,
+                         qDrawShadePanel,
                          QTransform, QColor,QLabel, QErrorMessage
                          )
 
 from PyQt4.QtCore import (QPoint, QSize, QModelIndex, Qt, QObject, SIGNAL, QVariant,
                           QAbstractItemModel, QRect, QRectF, QPointF, QTimer,
-                          QPropertyAnimation)
+                          )
 
 signal_connect = QObject.connect
 
@@ -401,8 +401,13 @@ class AccountModel(QAbstractItemModel):
                         c_index = self.index(cr, 0, acct_index)
                         log_warn("\tBuddy", c_index.internalPointer().name)
 
-
-
+try:
+    from PyQt4.QtCore import QPropertyAnimation
+    HAS_QPROPERTY_ANIMATION = True
+except ImportError, e:
+    log_err(e)
+    HAS_QPROPERTY_ANIMATION = False
+    
 class ConnectionWidget(QWidget):
     def __init__(self, parent = None, connect_cb = None):
         QWidget.__init__(self, parent)
@@ -412,7 +417,6 @@ class ConnectionWidget(QWidget):
         
         self.container_height_exclusive = self.sizeHint().height() - self.widgets.proxy_params.sizeHint().height()
         self.combined_height = self.sizeHint().height()
-        
         self.pp_show_animation = QPropertyAnimation(self, "size", self)
         self.pp_show_animation.setDuration(100)
         self.pp_show_animation.setStartValue(QSize(self.width(), self.container_height_exclusive))
@@ -496,41 +500,50 @@ class ConnectionWidget(QWidget):
         self.widgets.w_username.setText("")
         self.widgets.w_password.setText("")
         
-
-class ShadowAndAlphaEffect(QGraphicsDropShadowEffect):
-    def __init__(self, blur=15.0, transparency=0.7,
-                 shadowColor = QColor(0,0,0,255), parent=None):
-        QGraphicsDropShadowEffect.__init__(self, parent)
-        self.setBlurRadius(blur)
-        #self.setColor(shadowColor)
-        self.transparency = transparency
         
-    def draw(self, painter):
-        src_pixmap, offset = self.sourcePixmap()
-        painter.save()
-        painter.setOpacity(self.transparency)
-        painter.drawPixmap(offset, src_pixmap)
-        painter.restore()
-        
-        #now find the clipping region:
-        src_r = QRegion(self.sourceBoundingRect().toRect())
-        effect_r = QRegion(self.boundingRect().toRect())
-        
-        clip_region = effect_r.subtracted(src_r)
-        
-        painter.save()
-        painter.setClipRegion(clip_region)
-        QGraphicsDropShadowEffect.draw(self, painter)
-        painter.restore()
-
+try:
+    from PyQt4.QtGui import (QGraphicsDropShadowEffect)
+    HAS_GRAPHICS_EFFECT=True
+    
+    class ShadowAndAlphaEffect(QGraphicsDropShadowEffect):
+        def __init__(self, blur=15.0, transparency=0.7,
+                     shadowColor = QColor(0,0,0,255), parent=None):
+            QGraphicsDropShadowEffect.__init__(self, parent)
+            self.setBlurRadius(blur)
+            #self.setColor(shadowColor)
+            self.transparency = transparency
+            
+        def draw(self, painter):
+            src_pixmap, offset = self.sourcePixmap()
+            painter.save()
+            painter.setOpacity(self.transparency)
+            painter.drawPixmap(offset, src_pixmap)
+            painter.restore()
+            
+            #now find the clipping region:
+            src_r = QRegion(self.sourceBoundingRect().toRect())
+            effect_r = QRegion(self.boundingRect().toRect())
+            
+            clip_region = effect_r.subtracted(src_r)
+            
+            painter.save()
+            painter.setClipRegion(clip_region)
+            QGraphicsDropShadowEffect.draw(self, painter)
+            painter.restore()
+except ImportError, e:
+    log_err(e)
+    HAS_GRAPHICS_EFFECT = False
+    
         
 class OverlayConnectionWidget(ConnectionWidget):
     def __init__(self, pos_fn, cb, parent=None):
         super(type(self), self).__init__(parent, cb)
         self.setAutoFillBackground(True)
-        self.animation = QPropertyAnimation(self, "size", self)
-        self.effect = ShadowAndAlphaEffect(blur = 15.0, transparency = 0.90, parent = self)
-        self.setGraphicsEffect(self.effect)
+        if HAS_QPROPERTY_ANIMATION:
+            self.animation = QPropertyAnimation(self, "size", self)
+        if HAS_GRAPHICS_EFFECT:
+            self.effect = ShadowAndAlphaEffect(blur = 15.0, transparency = 0.90, parent = self)
+            self.setGraphicsEffect(self.effect)
         self.pos_fn = pos_fn
         saved_size = None
         self._parent = parent
@@ -541,22 +554,23 @@ class OverlayConnectionWidget(ConnectionWidget):
         super(type(self), self).paintEvent(event)            
         painter = QPainter(self)
         qDrawShadePanel(painter, self.rect(), QPalette())
-    def showEvent(self, event):
-        super(type(self), self).showEvent(event)
-        if not event.spontaneous():
-            self.animation.setStartValue(QSize(self.width(), 0))
-            self.animation.setEndValue(QSize(self.width(), self.visible_height))
-            self.move(self.pos_fn())
-            self.animation.start()
-        
-    def setVisible(self, b):
-        if not b:
-            self._animation = QPropertyAnimation(self, "size", self)
-            self._animation.setEndValue(QSize(self.width(), 0))
-            signal_connect(self._animation, SIGNAL("finished()"), lambda: super(type(self), self).setVisible(False))
-            self._animation.start()
-        else:
-            super(type(self), self).setVisible(b)        
+    if HAS_QPROPERTY_ANIMATION:
+        def showEvent(self, event):
+            super(type(self), self).showEvent(event)
+            if not event.spontaneous():
+                self.animation.setStartValue(QSize(self.width(), 0))
+                self.animation.setEndValue(QSize(self.width(), self.visible_height))
+                self.move(self.pos_fn())
+                self.animation.start()
+            
+        def setVisible(self, b):
+            if not b:
+                self._animation = QPropertyAnimation(self, "size", self)
+                self._animation.setEndValue(QSize(self.width(), 0))
+                signal_connect(self._animation, SIGNAL("finished()"), lambda: super(type(self), self).setVisible(False))
+                self._animation.start()
+            else:
+                super(type(self), self).setVisible(b)        
 
 
 class NotificationBox(object):
