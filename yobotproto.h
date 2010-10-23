@@ -4,62 +4,8 @@
 #define YOBOTPROTO_H_
 
 #ifndef SWIG
-#include <purple.h>
 #include <stdint.h>
-#else
-/*copied from one of the libpurple headers v. 2.7.1*/
-typedef enum
-{
-	PURPLE_MESSAGE_SEND        = 0x0001, /**< Outgoing message.        */
-	PURPLE_MESSAGE_RECV        = 0x0002, /**< Incoming message.        */
-	PURPLE_MESSAGE_SYSTEM      = 0x0004, /**< System message.          */
-	PURPLE_MESSAGE_AUTO_RESP   = 0x0008, /**< Auto response.           */
-	PURPLE_MESSAGE_ACTIVE_ONLY = 0x0010,  /**< Hint to the UI that this
-	                                        message should not be
-	                                        shown in conversations
-	                                        which are only open for
-	                                        internal UI purposes
-	                                        (e.g. for contact-aware
-	                                         conversations).           */
-	PURPLE_MESSAGE_NICK        = 0x0020, /**< Contains your nick.      */
-	PURPLE_MESSAGE_NO_LOG      = 0x0040, /**< Do not log.              */
-	PURPLE_MESSAGE_WHISPER     = 0x0080, /**< Whispered message.       */
-	PURPLE_MESSAGE_ERROR       = 0x0200, /**< Error message.           */
-	PURPLE_MESSAGE_DELAYED     = 0x0400, /**< Delayed message.         */
-	PURPLE_MESSAGE_RAW         = 0x0800, /**< "Raw" message - don't
-	                                        apply formatting         */
-	PURPLE_MESSAGE_IMAGES      = 0x1000, /**< Message contains images  */
-	PURPLE_MESSAGE_NOTIFY      = 0x2000, /**< Message is a notification */
-	PURPLE_MESSAGE_NO_LINKIFY  = 0x4000, /**< Message should not be auto-
-										   linkified @since 2.1.0 */
-	PURPLE_MESSAGE_INVISIBLE   = 0x8000  /**< Message should not be displayed */
-} PurpleMessageFlags;
-
-typedef enum
-{
-	PURPLE_STATUS_UNSET = 0,
-	PURPLE_STATUS_OFFLINE,
-	PURPLE_STATUS_AVAILABLE,
-	PURPLE_STATUS_UNAVAILABLE,
-	PURPLE_STATUS_INVISIBLE,
-	PURPLE_STATUS_AWAY,
-	PURPLE_STATUS_EXTENDED_AWAY,
-	PURPLE_STATUS_MOBILE,
-	PURPLE_STATUS_TUNE,
-	PURPLE_STATUS_MOOD,
-	PURPLE_STATUS_NUM_PRIMITIVES
-} PurpleStatusPrimitive;
-typedef enum
-{
-	PURPLE_PROXY_USE_GLOBAL = -1,  /**< Use the global proxy information. */
-	PURPLE_PROXY_NONE = 0,         /**< No proxy.                         */
-	PURPLE_PROXY_HTTP,             /**< HTTP proxy.                       */
-	PURPLE_PROXY_SOCKS4,           /**< SOCKS 4 proxy.                    */
-	PURPLE_PROXY_SOCKS5,           /**< SOCKS 5 proxy.                    */
-	PURPLE_PROXY_USE_ENVVAR        /**< Use environmental settings.       */
-
-} PurpleProxyType;
-
+#include <purple.h>
 #endif
 
 //#define YOBOT_MAX_COMMSIZE 0x0fffff /*1MB*/

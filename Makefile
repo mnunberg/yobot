@@ -1,3 +1,4 @@
+PYVERSION?=2.5
 ifndef MINGW
 	CC=gcc
 	INCLUDES=$(shell pkg-config purple --cflags)
@@ -9,12 +10,12 @@ ifndef MINGW
 	PYMODULE_SUFFIX:=$(LIBSUFFIX)
 	EXEC=yobot
 	TPL=contrib/tpl.a
-	PYHDR=-I/usr/include/python2.5
+	PYHDR=-I/usr/include/python$(PYVERSION)
 	PYLIB=
 	CLEAN_EXTRA=$(TPL)
 	PROTCLIENT_EXTRA_LIBS=
 	MODULES=
-	LOGGER_EXTRA_LIBS=-lcurses
+	LOGGER_EXTRA_LIBS=$(shell ncurses5-config --libs)
 else
 	BINPREFIX=i586-mingw32msvc-
 	CC=$(BINPREFIX)gcc
@@ -56,7 +57,6 @@ CFLAGS+=-Wall -ggdb3 $(DEFINES) $(INCLUDES)
 PYMODULE=py/_yobotproto.$(PYMODULE_SUFFIX)
 PYMODULE_SRC=py/yobotproto_wrap.c
 PYMODULE_PY=py/yobotproto.py
-
 $(OBJDIR)/%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
@@ -73,7 +73,10 @@ $(PROTOCLIENT_LIB): protoclient.c yobot_log.c $(TPL)
 		$(TPL) $(PROTOCLIENT_EXTRA_LIBS) $(LOGGER_EXTRA_LIBS)
 
 #SWIG stuff
-$(PYMODULE_SRC): yobotproto.i
+SWIG_IFACE_GENERATED=$(OBJDIR)/swig_generated.i
+$(SWIG_IFACE_GENERATED): yobotproto.i
+	./genhdrs.pl -v -i $^ -o $@
+$(PYMODULE_SRC): $(SWIG_IFACE_GENERATED)
 	swig -python -O -o $@ $^
 
 $(PYMODULE): $(PYMODULE_SRC) $(PROTOCLIENT_LIB)
@@ -86,5 +89,5 @@ $(PYMODULE_PY): $(PYMODULE)
 
 clean:
 	rm -f $(OBJS) $(PYMODULE) $(PROTOCLIENT_LIB) $(PYMODULE_SRC) \
-		$(EXEC) $(CLEAN_EXTRA) $(PYMODULE_PY)
+		$(EXEC) $(CLEAN_EXTRA) $(PYMODULE_PY) $(SWIG_IFACE_GENERATED)
 	$(MAKE) -C contrib clean
