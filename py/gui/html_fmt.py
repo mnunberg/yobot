@@ -9,11 +9,11 @@ re_int = re.compile("\d+")
 
 def point_to_html(x):
     #copied from libpurple/protocols/yahoo/util.c
-    if (x < 8):
+    if (x < 9):
             return 1
-    if (x < 10): 
+    if (x < 12): 
             return 2
-    if (x < 13):
+    if (x < 15):
             return 3
     if (x < 17):
             return 4
@@ -22,6 +22,17 @@ def point_to_html(x):
     if (x < 35):
             return 6
     return 7
+
+def point_to_html_str(x):
+    if (x <= 8): return "xx-small"
+    if (x <= 10): return "x-small"
+    if (x <= 15): return "medium"
+    if (x <= 20): return "large"
+    if (x <= 25): return "x-large"
+    return "xx-large"
+
+fontsize_style_regexp = re.compile(r'font-size\s*:\s*(\d+)(pt|px)\s*;?', re.I)
+
 
 def _relativize(s):
     pass
@@ -87,7 +98,7 @@ class OutgoingParser(HTMLParser):
 
             if have_font_attrs:
                 _font_tag_begin += ">"
-                self.result += _font_tag_begin
+                self.result += re.sub(r"\s+", " ", _font_tag_begin)
                 end_fmt += "</font>"
             
             if end_fmt:
@@ -148,10 +159,13 @@ class IncomingParser(HTMLParser):
                         if sz.isdigit(): attrs["size"] = sz
                         else: print "WARNING: INVALID VALUE FOR ABSZ (%s)" % (sz,)
         
-            if not attrs.get("style"): attrs["style"]=""
-            attrs["style"] += re.sub(r"(font-size\s*:\s*)(\d+)(pt|px)",
-                                        lambda m: "font-size:" + str(point_to_html(int(m.group(2)))),
-                                        attrs["style"])
+            if attrs.get("style"):
+                m = fontsize_style_regexp.search(attrs["style"])
+                if m:
+                    def repl(m):
+                        return "font-size:%s;" % (point_to_html_str(int(m.group(1))))
+                    attrs["style"] = fontsize_style_regexp.sub(repl, attrs["style"])
+                    attrs.pop("size", None)
         else:
             #no point in converting relative sizes to absolute ones, thus we only
             #need to convert the non-standard yahoo-based absz attribute
