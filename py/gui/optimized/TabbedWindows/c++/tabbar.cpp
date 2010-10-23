@@ -4,13 +4,18 @@
 #include <QMimeData>
 #include <QPixmap>
 #include <QCursor>
+#include <QDesktopWidget>
+
 #include "dragpixmap.h"
 #include "subwindow.h"
 #include "twutil.h"
 
 #define DRAG_OFFSET 100
-#define PIXMAP_MAX_WIDTH 300
+#define PIXMAP_MAXWIDTH(current_width) \
+		(QDesktopWidget().availableGeometry().width() / 5) > current_width ? current_width : \
+		(QDesktopWidget().availableGeometry().width() / 5)
 #define PIXMAP_OPACITY 0.60
+
 
 TabBar::TabBar(RealTabWidget *parent) :
     QTabBar(parent)
@@ -45,13 +50,15 @@ void TabBar::mouseMoveEvent(QMouseEvent *event)
     QWidget *widget = currentWidget();
     mimedata->setData("action", "window_drag");
     drag->setMimeData(mimedata);
+
 	QPixmap pixmap = QPixmap::grabWidget(widget).scaledToWidth(
-			PIXMAP_MAX_WIDTH, Qt::SmoothTransformation);
+			PIXMAP_MAXWIDTH(widget->width()), Qt::SmoothTransformation);
 	DragPixmap *dragpixmap = new DragPixmap(pixmap, PIXMAP_OPACITY, widget);
 	connect(drag, SIGNAL(destroyed()), dragpixmap, SLOT(deleteLater()));
 	dragpixmap->setObjectName("dragpixmap");
 	connect(dragpixmap, SIGNAL(destroyed()), twutil, SLOT(dumpDestroyed()));
     dragpixmap->show();
+
     drag->exec();
 	emit widgetDnD(currentWidget(), drag->target());
 	QTabBar::mouseMoveEvent(event);

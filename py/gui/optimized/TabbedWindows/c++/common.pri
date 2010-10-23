@@ -2,6 +2,7 @@
 # Project created by QtCreator 2010-10-21T01:07:09
 # -------------------------------------------------
 OBJECTS_DIR = ./obj
+DESTDIR = ../
 MOC_DIR = $${OBJECTS_DIR}
 SOURCES += tabbedwindows.cpp \
     dragpixmap.cpp \

@@ -3,7 +3,7 @@
 class SubWindow : QMainWindow
 {
 %TypeHeaderCode
-#include "../subwindow.h"
+#include "subwindow.h"
 %End
 
 public:
@@ -17,7 +17,7 @@ public:
 
 class TabContainer : QMainWindow {
 %TypeHeaderCode
-#include "../tabcontainer.h"
+#include "tabcontainer.h"
 %End
 
 public:

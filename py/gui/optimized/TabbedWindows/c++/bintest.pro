@@ -5,4 +5,4 @@ SOURCES = test.cpp \
 	testwidget.cpp
 HEADERS = testwidget.h
 DEFINES += TESTLIB
-LIBS += -L. -lTabbedWindows
+LIBS += -L$${DESTDIR} -lTabbedWindows
