@@ -1,5 +1,6 @@
-PYVERSION?=2.5
 ifndef MINGW
+	PYVERSION?=$(shell python -c "import sys; print '.'.join([str(v) for v in sys.version_info[:2]])")
+	PYCONFIG=python$(PYVERSION)-config
 	CC=gcc
 	INCLUDES=$(shell pkg-config purple --cflags)
 	LIBS=$(shell pkg-config purple --libs)
@@ -10,13 +11,14 @@ ifndef MINGW
 	PYMODULE_SUFFIX:=$(LIBSUFFIX)
 	EXEC=yobot
 	TPL=contrib/tpl.a
-	PYHDR=-I/usr/include/python$(PYVERSION)
-	PYLIB=
+	PYHDR=$(shell $(PYCONFIG) --cflags)
+	PYLIB=$(shell $(PYCONFIG) --libs)
 	CLEAN_EXTRA=$(TPL)
 	PROTCLIENT_EXTRA_LIBS=
 	MODULES=
 	LOGGER_EXTRA_LIBS=$(shell ncurses5-config --libs)
-else
+else	
+	PYVERSION?=2.6
 	BINPREFIX=i586-mingw32msvc-
 	CC=$(BINPREFIX)gcc
 	AR=$(BINPREFIX)ar
