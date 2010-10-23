@@ -20,7 +20,7 @@ import status_dialog
 import gui_util
 import yobot_interfaces
 import config_dialog
-from chatwindow import ChatWindow, CHAT, IM
+from chatwindow import makeChatWindow, CHAT, IM
 
 from PyQt4 import QtCore, QtGui
 
@@ -468,7 +468,7 @@ class YobotGui(object):
         log_debug( obj)
         acct = obj.account
         target = obj.name
-        self._openChat(acct, target, IM)
+        self._openChat(acct, target, IM, popup=True)
         
     def _blistContextMenu(self, point):
         index = self.mw_widgets.blist.indexAt(point)
@@ -504,15 +504,17 @@ class YobotGui(object):
         
         respawn_fn = lambda username, acctobj: self._openChat(acctobj, username, IM, popup=True)
         
-        self.chats[(acct, target)] = ChatWindow(
-            self.client, type=type, parent=self.mw, acct_obj=acct, target=target, factory=respawn_fn)
-        self.chats[(acct, target)].activateWindow()
+        cw = makeChatWindow(type,
+            parent=self.mw, acct_obj=acct, target=target, factory=respawn_fn)
+        cw.activateWindow()
         def onDestroyed():
             "Remove window from the window list when closed"
             c = self.chats.pop((acct, target))
-        signal_connect(self.chats[(acct, target)], SIGNAL("destroyed()"), onDestroyed)
-        self.chats[(acct, target)].show()
-        self.chats[(acct, target)].activateWindow()
+        signal_connect(cw, SIGNAL("destroyed()"), onDestroyed)
+        cw.show()
+        cw.activateWindow()
+        self.chats[(acct, target)] = cw
+        cw.raise_()
         log_info("created chat with type %d, target %s" % (type, target))
         log_debug(self.chats)
         
