@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 
-import gc
 import sys
-import resources_rc
-
-import re
 
 try:
     sys.path.append("../")
@@ -29,8 +25,10 @@ else:
     from PyQt4.Qt import (QHBoxLayout, QTabBar, QWidget, QMainWindow, QFrame,
                           QCursor, QVBoxLayout, QMenu, QPixmap, QApplication,
                           QPoint, QPushButton, QSizePolicy, QTabWidget, QMenuBar,
-                          QLabel, QDrag, QTabBar, QAction, QPainter, QStyleOptionTab)
-    from PyQt4.QtCore import (QMimeData, QObject, SIGNAL, QPoint, Qt)
+                          QLabel, QDrag, QTabBar, QAction, QPainter, QStyleOptionTab,
+                          QImage, QDesktopWidget, QRect)
+    from PyQt4.QtCore import (QMimeData, QObject, SIGNAL, QPoint, Qt, QTimer, QSize,
+                              pyqtSignal)
 
                
 
@@ -47,8 +45,7 @@ def setmargins(layout, left=-1, top=-1, right=-1, bottom=-1):
                                 ((oldleft, left), (oldtop, top), (oldright, right), (oldbottom, bottom))])    
     
 
-class _TabBar(QTabBar):
-    STYLE="""
+TABBAR_STYLE_BASE="""
     QTabBar {
         border-bottom:none;
     }
@@ -56,28 +53,32 @@ class _TabBar(QTabBar):
         min-width:100px;
         margin-top:2px;
         border: 1px groove palette(dark);
-        border-top-left-radius: 4px;
-        border-top-right-radius: 4px;
-        padding-right:10px;
-        padding-left:10px;
+        border-top-left-radius: 4px; border-top-right-radius: 4px;
+        padding-right:10px; padding-left:10px;
         border-bottom-width:1px;
         margin-right:-2px;
         border-bottom:1px solid $PALETTE_ADJUST(dark, -200,-200,-200,-255);
-        background-color:qlineargradient(x1:0,y1:0,x2:1,y2:1,
-            stop:0 $PALETTE_ADJUST(dark, -50, -50, -50, -100),
-            stop:1 $PALETTE_ADJUST(text, 35, 35 ,35, 0));
+        background-color:$PALETTE_ADJUST(dark, -140, -140, -140, 255);
         color:palette(base);
      }
      QTabBar::tab:selected {
-        background-color:$PALETTE_ADJUST(dark, -140, -140, -140, 255);
-        border-style:inset;
-        border-width:2px;
+        background-color:qlineargradient(x1:0,y1:0,x2:0,y2:1,
+            stop:0 $PALETTE_ADJUST(dark, -50, -50, -50, -100),
+            stop:0.8 $PALETTE_ADJUST(text, 35, 35 ,35, 0));
+        background-repeat:repeat-x;
+        border-top-color:qlineargradient(x1:0,y1:0,x2:1,y2:0,
+            stop:0 argb(0,0,0,0),
+            stop:0.2 $PALETTE_ADJUST(text, 35, 35, 35, 0),
+            stop:0.8 $PALETTE_ADJUST(text, 35, 35, 35, 0),
+            stop:1 argb(0,0,0,0));
+        border-top-width:4px; border-radius:0px;
+        border-style:double;
      }
-     QTabBar::tab:last {
+     QTabBar::tab:last:!selected {
         margin-right:0px;
         border-top-right-radius:15px;
      }
-     QTabBar::tab:first {
+     QTabBar::tab:first:!selected {
         margin-left:0px;
         border-top-left-radius:15px;
      }
@@ -87,14 +88,66 @@ class _TabBar(QTabBar):
         margin-right:0px; margin-left:0px;
     }     
      """
+
+def setTabBarStyle(tb):
+    if True:
+        tb.base_stylesheet = adjust_stylesheet_palette(TABBAR_STYLE_BASE)
+        tb.setStyleSheet(tb.base_stylesheet)
+
+
+class DragPixmap(QLabel):
+    CURSOR_OFFSET=25
+    def __init__(self, pixmap, opacity=0.40, parent=None):
+        QLabel.__init__(self, parent)
+        self.setAlignment(Qt.AlignTop|Qt.AlignLeft)
+        self.setPixmap(pixmap)
+        self.setWindowFlags(Qt.FramelessWindowHint|Qt.Dialog)
+        self.setWindowOpacity(opacity)
+        
+        self.orig_size = pixmap.size()
+        self.screen_geometry = QDesktopWidget().availableGeometry()
+        self.old_geometry = QRect()
+        
+        #state variable
+        self.isShrinked = False
+        self.timer = QTimer(self)
+        self.timer.setInterval(20)
+        self.timer.timeout.connect(self.updatepos)
+        self.timer.start()
+    
+    def updatepos(self):
+        self.setUpdatesEnabled(False)
+        pos = QCursor().pos()
+        geometry = self.geometry()
+        geometry.moveTo(pos.x() + self.CURSOR_OFFSET, pos.y() + self.CURSOR_OFFSET)
+        intersected = geometry.intersected(self.screen_geometry)
+        while True:
+            if not intersected == geometry: #too big
+                geometry = intersected
+                self.isShrinked = True
+                break
+            if self.isShrinked: #enlarge
+                geometry.setSize(self.orig_size)
+                intersected = geometry.intersected(self.screen_geometry)
+                if not intersected == geometry:
+                    self.isShrinked = True
+                    geometry = intersected
+                else:
+                    self.isShrinked = False
+                break
+            break
+        if geometry.intersects(self.screen_geometry):
+            self.setGeometry(geometry)
+        self.setUpdatesEnabled(True)
+
+class TabBar(QTabBar):
+    widgetDnD = pyqtSignal((QWidget, QWidget))
+    
     def __init__(self, realtabwidget):
-        super(_TabBar, self).__init__(realtabwidget)
+        super(TabBar, self).__init__(realtabwidget)
         self.realtabwidget = realtabwidget
         self.drag_pos = QPoint()
         self.setAcceptDrops(False)
-        if not "darwin" in sys.platform.lower():
-            self.base_stylesheet = adjust_stylesheet_palette(self.STYLE)
-            self.setStyleSheet(self.base_stylesheet)
             
     @property
     def current_widget(self):
@@ -107,51 +160,38 @@ class _TabBar(QTabBar):
     
     def mouseMoveEvent(self, event):
         if not event.buttons() & Qt.LeftButton: return
-        if (event.pos() - self.drag_pos).manhattanLength() < QApplication.startDragDistance(): return
+        if (event.pos() - self.drag_pos).manhattanLength() < 100: return
+        
+        event.accept()
         drag = QDrag(self)
         mimedata = QMimeData()
         mimedata.setData("action", "window_drag")
         drag.setMimeData(mimedata)
-        drag.setPixmap(QPixmap.grabWidget(self.current_widget))
-        drag.exec_()
-        log_debug(drag.target())
-        if not isinstance(drag.target(), TabContainer):
-            self.detachWidget()
-        
-    def detachWidget(self):
-        log_debug("detachWidget")
         widget = self.current_widget
-        if not isinstance(widget, ChatPane):
-            log_err("expected ChatPane instance")
-            raise ValueError("Expected ChatPane instance, got %r", widget)
-            
-        if widget.tabcontainer:
-            oldsize = widget.tabcontainer.size()
-        else:
-            oldsize = widget.size()
-        
-        ret = widget.removeFromTabContainer()
-        tc = TabContainer()
-        widget.addToTabContainer(tc)
-        TabContainer.refs.add(tc)
-        tc.show()
-        tc.resize(oldsize)
-        
-        tc.move(QCursor().pos())
-            
+        pixmap = QPixmap.grabWidget(widget).scaledToWidth(300, Qt.SmoothTransformation)
+        dragpixmap = DragPixmap(pixmap, 0.50, self)
+        dragpixmap.move(QCursor().pos())
+        dragpixmap.show()
+        drag.exec_()
+        dragpixmap.deleteLater()
+        self.widgetDnD.emit(self.current_widget, drag.target())
+        return
+                
 
-class _RealTabWidget(QTabWidget):
+class RealTabWidget(QTabWidget):
     tabs_stylesheet_fmt = """QTabBar::tab:only-one { width: %dpx; border:none;
     border-radius:none;}"""
     def __init__(self, parent):
-        super(_RealTabWidget, self).__init__(parent)
-        self.setTabBar(_TabBar(self))
+        super(RealTabWidget, self).__init__(parent)
+        self.setTabBar(TabBar(self))
         self.tab_ids = set()
         self.setTabsClosable(True)
         self.tabBar().setExpanding(True)
     def addTab(self, widget, *args):
         log_debug("%x: adding %x" % (id(self), id(widget)))
         self.tab_ids.add(id(widget))
+        if not self.count():
+            self.resize(widget.size())
         QTabWidget.addTab(self, widget, *args)
         self.setCurrentWidget(widget) 
     def removeTab(self, index, *args):
@@ -159,9 +199,6 @@ class _RealTabWidget(QTabWidget):
         log_debug("%x: removing %x" % (id(self), id(widget)))
         self.tab_ids.remove(id(widget))
         super(type(self),self).removeTab(index, *args)
-    def resizeEvent(self, resize_event):
-        self.setStyleSheet(self.tabs_stylesheet_fmt % (self.width()))
-        super(type(self), self).resizeEvent(resize_event)
         
 class TabContainer(QMainWindow):
     refs = set()
@@ -177,8 +214,11 @@ class TabContainer(QMainWindow):
         super(TabContainer, self).__init__(parent)
         self.setAcceptDrops(True)
         self.destroy_parent_on_close = destroy_parent_on_close
-        self.tabwidget = _RealTabWidget(self)
-        self.parent_ = parent
+        self.tabwidget = RealTabWidget(self)
+        
+        #important!
+        self.tabwidget.tabBar().widgetDnD.connect(self.handleDnD, Qt.QueuedConnection)
+        
         signal_connect(self.tabwidget, SIGNAL("tabCloseRequested(int)"), self._tabCloseRequested)
         signal_connect(self.tabwidget, SIGNAL("currentChanged(int)"), self._currentChanged)
         
@@ -199,17 +239,27 @@ class TabContainer(QMainWindow):
         background-color:palette(dark);
     }"""
     
+    def handleDnD(self, source, target):
+        if not isinstance(target, TabContainer):
+            #something that's not going to accept our drop
+            if not isinstance(source, ChatPane):
+                raise ValueError("Source Widget is something other than a ChatPane object: %r", source)
+            assert id(source) in self.tabwidget.tab_ids
+            tc = TabContainer(self.parentWidget(),destroy_parent_on_close=False)
+            TabContainer.refs.add(tc)
+            source.addToContainer(tc)
+            tc.resize(self.size())
+            tc.move(QCursor().pos())
+            tc.show()
+        if not self.tabwidget.count():
+            self.deleteLater()
+    
     def dragEnterEvent(self, event):
         m = event.mimeData()
         if "action" in m.formats() and m.data("action") == "window_drag":
-            log_debug("Accepting")
             event.acceptProposedAction()
-            #self.setStyleSheet(self.default_stylesheet + self.drag_stylesheet)
-    #def dragLeaveEvent(self, event):
-    #    self.setStyleSheet(self.default_stylesheet)
     
     def dropEvent(self, event):
-        #self.setStyleSheet(self.default_stylesheet)
         log_debug("")
         m = event.mimeData()
         s = event.source()
@@ -223,13 +273,15 @@ class TabContainer(QMainWindow):
             if id(widget) in self.tabwidget.tab_ids:
                 log_info("drop requested, but widget %r already exists" % (widget))
                 return
-            widget.addToTabContainer(self)
+            widget.addToContainer(self)
     
     def _tabCloseRequested(self, index):
         widget = self.tabwidget.widget(index)
         self.tabwidget.removeTab(index)
         widget.close()
         widget.deleteLater()
+        if not self.tabwidget.count():
+            self.deleteLater()
         
     def _currentChanged(self, index):
         oldmenubar = self.menuWidget()
@@ -270,10 +322,10 @@ class ChatPane(QMainWindow):
             if not tabcontainer:
                 tabcontainer = TabContainer(parent, destroy_parent_on_close=False)
                 tabcontainer.show()
-                tabcontainer.activateWindow()
+                tabcontainer.resize(self.sizeHint())
                 TabContainer.refs.add(tabcontainer)
         if isinstance(tabcontainer, TabContainer):
-            self.addToTabContainer(tabcontainer)
+            self.addToContainer(tabcontainer)
         signal_connect(self, SIGNAL("destroyed()"), lambda: log_info("destroyed"))
     def setupWidgets(self):
         """Override this."""
@@ -283,7 +335,7 @@ class ChatPane(QMainWindow):
         _layout.setContentsMargins(0,0,0,0)
         self.centralWidget().layout().addWidget(QLabel("This is normal text", self))
         
-    def removeFromTabContainer(self):
+    def removeFromContainer(self):
         if self.tabcontainer:
             #find ourself in the widget..
             index = self.tabcontainer.tabwidget.indexOf(self)
@@ -296,10 +348,10 @@ class ChatPane(QMainWindow):
             return True
         log_err("tabcontainer has not been set!")
         return False
-    def addToTabContainer(self, tabcontainer):
+    def addToContainer(self, tabcontainer):
         self.setWindowFlags(Qt.Widget)
         if self.tabcontainer:
-            self.removeFromTabContainer()
+            self.removeFromContainer()
         self.tabcontainer = tabcontainer
         self.tabcontainer.tabwidget.addTab(self, self.title)
 
@@ -309,6 +361,13 @@ class ChatPane(QMainWindow):
             return
         requested = abs(Qt.Key_0-event.key())-1
         self.tabcontainer.tabwidget.setCurrentIndex(requested)
+    def activateWindow(self):
+        QMainWindow.activateWindow(self)
+        self.raise_()
+        log_err("activateWindow")
+        if self.tabcontainer:
+            self.tabcontainer.activateWindow()
+            self.tabcontainer.raise_()
     
 class _TestWidget(ChatPane):
     counter = 0

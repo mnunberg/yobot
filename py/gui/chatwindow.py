@@ -108,16 +108,22 @@ class _IgnoreList(object):
         qlw_additem(str(username), self.users, self.lw, icon=QIcon(":/icons/res/16x16/actions/dialog-cancel.png"))
     def remove(self, username):
         qlw_delitem(str(username), self.users, self.lw)
-        
-class ChatWindow(ChatPane):
+
+
+def warn_unimpl(in_fn):
+    def wrap(*args, **kwargs):
+        log_warn("Function ", in_fn.func_name, "is not implemented.")
+        in_fn(*args, **kwargs)
+    return wrap
+
+class AbstractChatWindow(ChatPane):
     defaultBacklogCount = 50
     appearance_config = {}
     use_relsize = False
-    def __init__(self, client, parent=None, type=IM, acct_obj=None, target=None,
+    def __init__(self, parent=None, acct_obj=None, target=None,
                  factory=None, initial_text="",tabwidget = None):
         """Factory takes a target username and an account object. Supposed to respawn/activate a
         chat window"""
-        self.users = {} #dict containing the name of the user mapped to the model object..
         self.type = type
         self.target = target
         self.account = acct_obj
@@ -126,103 +132,42 @@ class ChatWindow(ChatPane):
         if not target or not acct_obj:
             log_err( "must have target and account for chatwindow")
             return
-
         ChatPane.__init__(self, parent, tabcontainer=tabwidget, title=target)
+        
+        self.setAttribute(Qt.WA_DeleteOnClose)
     
     def setupWidgets(self):
         self.widgets = chatwindow_auto.Ui_w_chatwindow()
         w = self.widgets
         w.setupUi(self)
         
-        self.ignore_list = _IgnoreList(w.ignorelist)
         self.setWindowTitle(self.target)
         #and some key press events..
         w.input.keyPressEvent = self._inputKeyPressEvent
         w.input.mouseDoubleClickEvent = self._input_mouseDoubleClickEvent
         w.input.setHtml("")
-        
         self._send_html = yobotops.improto_supports_html(self.account.improto)
         
         w.convtext.setHtml(self._initial_text)
         del self._initial_text
         
-        self.show_join_leave_messages = False
-        if self.type == CHAT:
-            w.menuView.addAction(w.actionShow_User_List)
-            w.menuView.addAction(w.actionShow_Ignore_List)
-            w.menuView.addAction(w.actionShow_Join_Leave)
-            w.menuView.addAction(w.actionShow_Topic)
-            w.menuActions.addAction(w.actionLeave)
-            w.actionShow_User_List.setChecked(True)
-            w.actionShow_Ignore_List.setChecked(True)
-            w.actionShow_Topic.setChecked(True)
-            w.userlist.clear()
-            w.ignorelist.clear()
-            w.menuView.addAction(w.actionShow_User_List)
-            signal_connect(w.actionLeave, SIGNAL("activated()"), self.leaveRoom)
-            signal_connect(w.actionShow_Join_Leave, SIGNAL("toggled(bool)"),
-                           lambda b: setattr(self, "show_join_leave_messages", b))
             
-        elif self.type == IM:
-            w.chat_topic.hide()
-            w.userlists.hide()
-            signal_connect(w.actionShow_Backlog, SIGNAL("activated()"),
-                           lambda: self.account.getBacklog(self.target, self.defaultBacklogCount))
-            #todo: use a dialog for this, perhaps...
-            
-        self.current_action_target = ""
-        w.userlist.clear()
-        
+        #todo: use a dialog for this, perhaps...
+                
         stylesheet_append(w.userlist, TINY_VERTICAL_SCROLLBAR_STYLE)
         stylesheet_append(w.convtext, TINY_VERTICAL_SCROLLBAR_STYLE)
         stylesheet_append(w.ignorelist, TINY_VERTICAL_SCROLLBAR_STYLE)
         
-        w.userlists.resize(w.userlist.height(), 100)
-                
+        self._connectZoom()
         self._init_input()
-        self._init_menu()
         self.get_config()
         self.load_appearance_config()
         self.chat_text = _ChatText(self.widgets.convtext)
         
-        self.zoom_variations = 0
-        def log_zoom(in_fn):
-            def fn(*args, **kwargs):
-                #log_debug(self.zoom_variations)
-                in_fn(*args, **kwargs)
-            return fn
-        @log_zoom
-        def convtext_zoomIn(range=1):
-            self.zoom_variations += range
-            w.convtext.__class__.zoomIn(w.convtext, range)
-        @log_zoom
-        def convtext_zoomOut(range=1):
-            self.zoom_variations -= range
-            w.convtext.__class__.zoomOut(w.convtext, range)
-            
-        @log_zoom
-        def reset_zoom():
-            if self.zoom_variations == 0: return
-            elif self.zoom_variations > 0: w.convtext.__class__.zoomOut(w.convtext, self.zoom_variations)
-            elif self.zoom_variations < 0: w.convtext.__class__.zoomIn(w.convtext, abs(self.zoom_variations))
-            self.zoom_variations = 0
-        @log_zoom
-        def _wheelEvent(event):
-            if not event.modifiers() & Qt.CTRL:
-                w.convtext.__class__.wheelEvent(w.convtext, event)
-                return
-            if event.delta() > 0:
-                #zoom in
-                convtext_zoomIn()
-            else:
-                convtext_zoomOut()            
-        w.convtext.wheelEvent = _wheelEvent
-        signal_connect(w.zoom_orig, SIGNAL("clicked()"), reset_zoom)
-        signal_connect(w.zoom_in, SIGNAL("clicked()"), convtext_zoomIn)
-        signal_connect(w.zoom_out, SIGNAL("clicked()"), convtext_zoomOut)
         
         left, top, right, bottom = self.centralWidget().layout().getContentsMargins()
         self.centralWidget().layout().setContentsMargins(left, 0, right, bottom)
+        
         
 ################################################################################
 ############################# INPUT WIDGET METHODS #############################
@@ -346,26 +291,133 @@ class ChatWindow(ChatPane):
     
     def fgcolor_button_change_color(self, color):
         stylesheet="""
-        QAbstractButton, :flat {
-            margin:2px;
-            background-color:%s;
-            border:none;
-            border-radius:3px
-            }
-        :hover {
-            border-width:1.5px;
-            border-color:black;
-            border-style:solid;
-            }
+        QAbstractButton, :flat { margin:2px; background-color:%s; border:none; border-radius:3px }
+        :hover { border-width:1.5px; border-color:black; border-style:solid; }
         """
         self.widgets.fg_color.setStyleSheet(stylesheet % (color.name(),))
 
 ###############################################################################
 ######################### CONVERSATION DISPLAY METHODS ########################
 ###############################################################################
-    def _init_menu(self):
-        "Initializes context menu for usernames"
-        if not self.type == CHAT: return
+    def _connectZoom(self):
+        self.zoom_variations = 0
+        def convtext_zoomIn(range=1):
+            self.zoom_variations += range
+            self.widgets.convtext.__class__.zoomIn(self.widgets.convtext, range)
+        def convtext_zoomOut(range=1):
+            self.zoom_variations -= range
+            self.widgets.convtext.__class__.zoomOut(self.widgets.convtext, range)
+        def reset_zoom():
+            if self.zoom_variations == 0: return
+            elif self.zoom_variations > 0: self.widgets.convtext.__class__.zoomOut(self.widgets.convtext, self.zoom_variations)
+            elif self.zoom_variations < 0: self.widgets.convtext.__class__.zoomIn(self.widgets.convtext, abs(self.zoom_variations))
+            self.zoom_variations = 0
+        def _wheelEvent(event):
+            if not event.modifiers() & Qt.CTRL:
+                self.widgets.convtext.__class__.wheelEvent(self.widgets.convtext, event)
+                return
+            if event.delta() > 0:
+                #zoom in
+                convtext_zoomIn()
+            else:
+                convtext_zoomOut()            
+        self.widgets.convtext.wheelEvent = _wheelEvent
+        signal_connect(self.widgets.zoom_orig, SIGNAL("clicked()"), reset_zoom)
+        signal_connect(self.widgets.zoom_in, SIGNAL("clicked()"), convtext_zoomIn)
+        signal_connect(self.widgets.zoom_out, SIGNAL("clicked()"), convtext_zoomOut)
+
+###########################################################################
+############################# SEND/RECEIVE/EVENT METHODS###################
+###########################################################################
+    def sendMsg(self):
+        w = self.widgets
+        if not w.input.toPlainText():
+            log_debug("empty input")
+            return
+        if self._send_html:
+            txt = unicode(w.input.toHtml().toUtf8(), "utf-8")
+            txt = simplify_css(txt.encode("utf-8"))
+        else:
+            txt = unicode(w.input.toPlainText().toUtf8(), "utf-8")
+            if not txt: return
+        log_warn(txt)
+        
+        w.input.clear()
+        
+        chat = True if self.type == CHAT else False
+        self.account.sendmsg(self.target, str(txt), chat=chat)
+        
+    def gotMsg(self, msg_obj):
+        #get time..
+        w = self.widgets
+        fmt = _ChatText.defaultFmt
+        colon_ish = ":"
+        #determine format...
+        if (msg_obj.yprotoflags & yobotproto.YOBOT_BACKLOG or
+            msg_obj.prplmsgflags & yobotproto.PURPLE_MESSAGE_DELAYED):
+            fmt = _ChatText.archFmt
+        elif msg_obj.yprotoflags & yobotproto.PURPLE_MESSAGE_SYSTEM:
+            fmt = _ChatText.errFmt
+        elif strip_html_regexp.sub("", msg_obj.txt).startswith("/me "):
+            fmt = _ChatText.emoteFmt
+            colon_ish = "**"
+        
+        who = msg_obj.who
+        if not who and msg_obj.prplmsgflags & yobotproto.PURPLE_MESSAGE_SYSTEM:
+            who = "SYSTEM MESSAGE"
+        whocolor = "darkblue" if msg_obj.prplmsgflags & yobotproto.PURPLE_MESSAGE_SEND else "darkred"
+        whostyle = "color:%s;font-weight:bold;text-decoration:none;" % (whocolor,)
+        msg_str = (("""<a href='YOBOT_INTERNAL/%s' style='%s'>""" % (who, whostyle)) +
+                   ("(%s) " % (msg_obj.timeFmt,) if w.actionTimestamps.isChecked() else "") +
+                   ("%s</a>%s " % (msg_obj.who,colon_ish)))
+        
+        formatted = process_input(msg_obj.txt, self.use_relsize)
+        formatted = insert_smileys(formatted, self.account.improto, ":smileys/smileys", 24, 24)
+        log_debug(formatted)
+        msg_str += formatted
+        msg_str = unicode(msg_str, "utf-8")
+        
+        self.chat_text.append(msg_str, fmt)
+    @warn_unimpl
+    def userJoined(self, user): pass
+    @warn_unimpl
+    def userLeft(self, user): pass
+    @warn_unimpl
+    def topicChanged(self, topic): pass
+    @warn_unimpl
+    def leaveRoom(self): pass
+    @warn_unimpl
+    def roomLeft(self): pass
+
+class _UserContextMenu(QMenu):
+    def __init__(self, *args, **kwargs):
+        super(type(self),self).__init__(*args, **kwargs)
+        
+
+class RoomChatWindow(AbstractChatWindow):
+    type = CHAT
+    def setupWidgets(self):
+        super(type(self),self).setupWidgets()
+        w = self.widgets
+        w.userlists.resize(w.userlist.height(), 100)
+        self.ignore_list = _IgnoreList(w.ignorelist)
+        self.users = {} #dict containing the name of the user mapped to the model object..
+        self.current_action_target = ""
+        w.userlist.clear()
+
+        self.show_join_leave_messages = False
+        w.menuView.addActions((w.actionShow_User_List, w.actionShow_Ignore_List,
+                              w.actionShow_Join_Leave, w.actionShow_Topic))
+        w.menuActions.addAction(w.actionLeave)
+        w.actionShow_User_List.setChecked(True)
+        w.actionShow_Ignore_List.setChecked(True)
+        w.actionShow_Topic.setChecked(True)
+        w.userlist.clear()
+        w.ignorelist.clear()
+        signal_connect(w.actionLeave, SIGNAL("activated()"), self.leaveRoom)
+        signal_connect(w.actionShow_Join_Leave, SIGNAL("toggled(bool)"),
+                       lambda b: setattr(self, "show_join_leave_messages", b))
+        
         menu = QMenu()
         self._action_newmsg = menu.addAction(QIcon(":/icons/icons/message-new.png"), "Send IM")
         self._action_ignore_tmp = menu.addAction(QIcon(":/icons/res/16x16/actions/dialog-cancel.png"), "Ignore (from chat)")
@@ -404,62 +456,6 @@ class ChatWindow(ChatPane):
         self.widgets.userlist.setContextMenuPolicy(Qt.CustomContextMenu)
         signal_connect(self.widgets.userlist, SIGNAL("customContextMenuRequested(QPoint)"),
                _userlistContextMenu)
-        
-###########################################################################
-############################# SEND/RECEIVE/EVENT METHODS###################
-###########################################################################
-    def sendMsg(self):
-        w = self.widgets
-        if not w.input.toPlainText():
-            log_debug("empty input")
-            return
-        if self._send_html:
-            txt = unicode(w.input.toHtml().toUtf8(), "utf-8")
-            txt = simplify_css(txt.encode("utf-8"))
-        else:
-            txt = unicode(w.input.toPlainText().toUtf8(), "utf-8")
-            if not txt: return
-        log_warn(txt)
-        
-        w.input.clear()
-        
-        chat = True if self.type == CHAT else False
-        self.account.sendmsg(self.target, str(txt), chat=chat)
-        
-    def gotMsg(self, msg_obj):
-        #get time..
-        w = self.widgets
-        if msg_obj.who in self.ignore_list:
-            log_debug("ignoring message from", msg_obj.who)
-            return
-        fmt = _ChatText.defaultFmt
-        colon_ish = ":"
-        #determine format...
-        if (msg_obj.yprotoflags & yobotproto.YOBOT_BACKLOG or
-            msg_obj.prplmsgflags & yobotproto.PURPLE_MESSAGE_DELAYED):
-            fmt = _ChatText.archFmt
-        elif msg_obj.yprotoflags & yobotproto.PURPLE_MESSAGE_SYSTEM:
-            fmt = _ChatText.errFmt
-        elif strip_html_regexp.sub("", msg_obj.txt).startswith("/me "):
-            fmt = _ChatText.emoteFmt
-            colon_ish = "**"
-        
-        who = msg_obj.who
-        if not who and msg_obj.prplmsgflags & yobotproto.PURPLE_MESSAGE_SYSTEM:
-            who = "SYSTEM MESSAGE"
-        whocolor = "darkblue" if msg_obj.prplmsgflags & yobotproto.PURPLE_MESSAGE_SEND else "darkred"
-        whostyle = "color:%s;font-weight:bold;text-decoration:none;" % (whocolor,)
-        msg_str = (("""<a href='YOBOT_INTERNAL/%s' style='%s'>""" % (who, whostyle)) +
-                   ("(%s) " % (msg_obj.timeFmt,) if w.actionTimestamps.isChecked() else "") +
-                   ("%s</a>%s " % (msg_obj.who,colon_ish)))
-        
-        formatted = process_input(msg_obj.txt, self.use_relsize)
-        formatted = insert_smileys(formatted, self.account.improto, ":smileys/smileys", 24, 24)
-        log_debug(formatted)
-        msg_str += formatted
-        msg_str = unicode(msg_str, "utf-8")
-        
-        self.chat_text.append(msg_str, fmt)
     
     def userJoined(self, user):
         qlw_additem(user, self.users, self.widgets.userlist)
@@ -478,6 +474,31 @@ class ChatWindow(ChatPane):
     def roomLeft(self):
         self.chat_text.append("Left %s at %s" % (self.target, datetime.datetime.now()),
                               _ChatText.errFmt)
+    def gotMsg(self, msg_obj):
+        if msg_obj.who in self.ignore_list:
+            log_debug("ignoring message from", msg_obj.who)
+            return
+        super(type(self),self).gotMsg(msg_obj)
+
+
+class IMChatWindow(AbstractChatWindow):
+    type = IM
+    def setupWidgets(self):
+        super(type(self),self).setupWidgets()
+        w = self.widgets
+        w.chat_topic.hide()
+        w.userlists.hide()
+        signal_connect(w.actionShow_Backlog, SIGNAL("activated()"),
+            lambda: self.account.getBacklog(self.target, self.defaultBacklogCount))
+        
+
+def makeChatWindow(type,
+                   parent=None, acct_obj=None, target=None, factory=None):
+    if type == IM:
+        cls = IMChatWindow
+    else:
+        cls = RoomChatWindow
+    return cls(parent=parent, acct_obj=acct_obj, target=target, factory=factory)
         
 if __name__ == "__main__":
     import sys
@@ -490,7 +511,6 @@ if __name__ == "__main__":
         
         for i in xrange(40):
             chatwindow.userJoined("".join(random.sample(ascii_letters, 10)))
-            chatwindow.users
             chatwindow.ignore_list.add("".join(random.sample(ascii_letters, 10)))
         
         chatwindow.topicChanged("ALL YOUR BASE ARE BELONG TO US! ")
@@ -518,10 +538,12 @@ if __name__ == "__main__":
             chatwindow.chat_text.append(t[0] * 3, t[1])
     
     app = QApplication(sys.argv)
-    first = ChatWindow(None, target="first", acct_obj=YobotAccount(), type=CHAT)
-    second = ChatWindow(None, target="second", acct_obj=YobotAccount(), type=CHAT)
-    third = ChatWindow(None, target="third", acct_obj=YobotAccount(), type=IM)
-    #fillwindow(first)
-    #fillwindow(second)
+    first = RoomChatWindow(None, target="first", acct_obj=YobotAccount(), )
+    second = RoomChatWindow(None, target="second", acct_obj=YobotAccount(), )
+    third = RoomChatWindow(None, target="third", acct_obj=YobotAccount(), )
+    fourth = IMChatWindow(None, target="fourth", acct_obj=YobotAccount(), )
+    fillwindow(first)
+    fillwindow(second)
+    fillwindow(third)
     
     app.exec_()
