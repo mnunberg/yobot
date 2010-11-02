@@ -69,9 +69,18 @@ def xfloat_range_decrement(begin, end, step):
 def print_qsize(sz, title=""):
     print title, "W: ", sz.width(), " H: ", sz.height()
     
+    
+try:
+    from PyQt4.QtCore import QPropertyAnimation
+    HAS_QPROPERTY_ANIMATION = True
+except Exception, e:
+    print e
+    HAS_QPROPERTY_ANIMATION = False
 class AnimatedLayout(QLayout):
     STATE_HIDDEN, STATE_VISIBLE, STATE_ANIMATING = range(3)
     USE_ANIMATIONS = True if not sys.platform.lower() == "darwin" else False
+    if USE_ANIMATIONS:
+        USE_ANIMATIONS = HAS_QPROPERTY_ANIMATION
     def __init__(self, child, size, parent = None):
         super(type(self),self).__init__()
         self._name = ""
@@ -384,7 +393,7 @@ class TGui(QMainWindow):
         self.action_change_font_color = self.font_menu.addAction(QIcon(":/icons/icons/format-fill-color.png"),"Color")
         self.action_change_font_reset = self.font_menu.addAction(QIcon(":/icons/icons/dialog-close.png"), "Reset Formatting")
         cf_layout.addStretch(25)
-        cf_layout.addWidget(self.change_font, stretch=75)
+        cf_layout.addWidget(self.change_font, 75)
         cf_layout.addStretch(25)
         self.main_layout.addLayout(cf_layout)
         

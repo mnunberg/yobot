@@ -182,11 +182,8 @@ if __name__ == "__main__":
     for _ in xrange(1,50):
         randstrings.append(urandom(7))
     logger = MessageLogger(db="tmp.sqlite",usecache=True)
-    #for _ in xrange(1,100):
-    #    logger.logMsg(CONV_TYPE_IM, "yahoo", choice(randstrings), "someone", "Hello", "someone",time())
-    #logger.commit()
+    for _ in xrange(1,10000):
+        logger.logMsg(CONV_TYPE_IM, "yahoo", choice(randstrings), "someone", "Hello", "someone",time())
+    logger.commit()
     logger.logMsg(CONV_TYPE_CHAT,"acct", "yahoo", "someone", "hi", "acct", time())
     logger.commit()
-    for m in logger.getMsgs("acct", "yahoo"):
-        print m
-        

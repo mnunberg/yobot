@@ -9,33 +9,23 @@ re_int = re.compile("\d+")
 
 def point_to_html(x):
     #copied from libpurple/protocols/yahoo/util.c
-    if (x < 9):
-            return 1
-    if (x < 12): 
-            return 2
-    if (x < 15):
-            return 3
-    if (x < 17):
-            return 4
-    if (x < 25):
-            return 5
-    if (x < 35):
-            return 6
+    if (x < 9): return 1
+    if (x < 12): return 2
+    if (x < 15): return 3
+    if (x < 17): return 4
+    if (x < 25): return 5
+    if (x < 35): return 6
     return 7
 
 def point_to_html_str(x):
-    if (x <= 8): return "xx-small"
-    if (x <= 10): return "x-small"
+    if (x <= 6): return "xx-small"
+    if (x <= 9): return "x-small"
     if (x <= 15): return "medium"
     if (x <= 20): return "large"
     if (x <= 25): return "x-large"
     return "xx-large"
 
 fontsize_style_regexp = re.compile(r'font-size\s*:\s*(\d+)(pt|px)\s*;?', re.I)
-
-
-def _relativize(s):
-    pass
 
 def _parse_style(txt):
     d = {}
@@ -48,6 +38,21 @@ def _parse_style(txt):
             continue
         d[k.strip()] = v.strip()
     return d
+
+class Attr(object):
+    def __getattribute__(self, name):
+        try:
+            return object.__getattribute__(self, name)
+        except AttributeError, e:
+            return lambda v, *args, **kwargs: getattr(self, "genopt")(name, v, *args, **kwargs)
+    def genopt(self, opt, value):
+        return ' %s="%s" ' % (opt, value)        
+        
+a = Attr()
+
+def add_tag(tag, begin_l, end_l):
+    begin_l.append("<%s>" % (tag))
+    end_l.append("</%s>" % (tag))
 
 class OutgoingParser(HTMLParser):
     result = ""
@@ -63,46 +68,48 @@ class OutgoingParser(HTMLParser):
             #do not submit any "default" formatting, if not requested
             self.cts = True
         elif name == "span": #get formatting...
-            end_fmt = ""
+            begin_l, end_l = ([],[])
             decoration = d.get('text-decoration')
             if decoration and 'underline' in decoration:
-                self.result += "<u>"
-                end_fmt += "</u>"
+                add_tag("u", begin_l, end_l)
             font_style = d.get('font-style')
             if font_style and 'italic' in font_style:
-                self.result += "<i>"
-                end_fmt += "</i>"
+                add_tag("i", begin_l, end_l)
             font_weight = d.get('font-weight')
             if font_weight and int(font_weight) > 400:
-                self.result += "<b>"
-                end_fmt += "</b>"
+                add_tag("b", begin_l, end_l)
 
             _font_tag_begin = "<font "
             have_font_attrs = False
             font = d.get("font-family")
             if font:
                 have_font_attrs = True
-                _font_tag_begin += "face=%s " % (font,)
+                _font_tag_begin += a.face(font.strip("\'\""))
             color = d.get("color")
             if color:
                 have_font_attrs = True
-                _font_tag_begin += "color='%s' " % (color)
+                _font_tag_begin += a.color(color)
                 
-            size = d.get('font-size', "10")
-            m = re_int.match(size)
-            if m:
-                size = m.group(0)
-                have_font_attrs = True
-                _font_tag_begin += "style='font-size:%spt;' absz='%s' " % (size,size)
-                _font_tag_begin += "size='%s' " % (str(point_to_html(int(size))),)
-
+            osz = d.get("font-size")
+            if osz:
+                print osz
+                if osz.endswith("pt"): #absolute:
+                    _font_tag_begin += a.absz(osz.split("pt")[0])
+                    _font_tag_begin += ' style="font-size:%s;" ' % (osz)
+                    _font_tag_begin += a.size(point_to_html(int(osz.split("pt")[0])))
+                elif osz.isdigit():
+                    #omit abst and font-size, just use CSS...
+                    _font_tag_begin += ' style="font-size:%s;" ' % (osz)
             if have_font_attrs:
                 _font_tag_begin += ">"
-                self.result += re.sub(r"\s+", " ", _font_tag_begin)
-                end_fmt += "</font>"
+                self.result += (
+                    "".join(begin_l) +
+                    re.sub(r"\s+", " ", _font_tag_begin)
+                    )
+                end_l.append("</font>")
             
-            if end_fmt:
-                self.end_tags.append(end_fmt)
+            if end_l:
+                self.end_tags.append("".join(end_l))
         else:
             self.end_tags.append("")
 
@@ -126,7 +133,10 @@ class OutgoingParser(HTMLParser):
         self.cts = False
 
 class IncomingParser(HTMLParser):
+    _result = []
+    #each element in result will 
     result = ""
+    _txt_tmp = ""
     end_tags = []
     use_relsize = False
     def handle_starttag(self, name, attrs):
@@ -142,8 +152,7 @@ class IncomingParser(HTMLParser):
                 self.result += ' %s="%s" ' % (attr, vals)
             self.result += ">"
             self.end_tags.append("</%s>" % (tag,))
-                
-        
+    
         if self.use_relsize:
             if name == "font":
                 sz = attrs.get("size", "")
@@ -180,7 +189,6 @@ class IncomingParser(HTMLParser):
                     else:
                         attrs["style"] = "font-size:%dpt;" % (int(absz),)
                     attrs.pop("size", "")
-        
         #replace "structure" tags with a simple font tag
         if name in ("head", "script", "body", "html", "p"):
             if len(attrs):
@@ -204,8 +212,68 @@ class IncomingParser(HTMLParser):
         self.result += "&" + name + ";"
             
 
+class SmileyParser(HTMLParser):
+    """This should really go into the IncomingParser..."""
+    def __init__(self):
+        HTMLParser.__init__(self)
+        self.reset()
+    def reset(self):
+        self.current_text = ""
+        self.result = ""
+        HTMLParser.reset(self)
+        self.close()
+    def handle_starttag(self, tag, attrs):
+        #flush previous result:
+        self.smileyreplace()
+        self.result += self.current_text
+        self.current_text = ""
+        oldattr = attrs
+        attrs = {}
+        for k, v in oldattr:
+            attrs[k] = v
+        self.result += "<%s %s>" % (tag,
+                                    " ".join(["%s='%s'" % (k,v) for k, v in attrs.items()]))
+    def handle_endtag(self, tag):
+        #flush again...
+        self.smileyreplace()
+        self.result += self.current_text
+        self.current_text = ""
+        self.result += "</%s>" % (tag,)
+    def handle_data(self, data):
+        self.current_text += data
+    def handle_entityref(self, name):
+        self.current_text += "&" + name + ";"
+    def getresult(self):
+        return self.result + self.current_text
+    def feed(self, data, **kwargs):
+        """kwargs are x, y, path_prefix, and improto"""
+        self.smiley_params = kwargs
+        try:
+            self.smiley_params["regexp"] = smiley.htmlescaped.regexp[kwargs["improto"]]
+        except KeyError, e:
+            print e
+            self.smiley_params["regexp"] = smiley.htmlescaped.regexp[smiley.DEFAULT_SCHEME]
+            self.smiley_params["improto"] = smiley.DEFAULT_SCHEME
+        HTMLParser.feed(self, data)
+    def smileyreplace(self):
+        if not self.current_text: return
+        self.current_text = self.smiley_params["regexp"].sub(
+            self.regexp_repl, self.current_text)
+    def regexp_repl(self, m):
+        try:
+            smiley_name = smiley.htmlescaped.resourcetable[
+                (m.group(0), self.smiley_params["improto"])]
+            return '<img src="%s/%s" height="%d" width="%d"/>' % (
+                self.smiley_params["path_prefix"], smiley_name,
+                self.smiley_params["y"], self.smiley_params["x"])
+        except KeyError, e:
+            print e, "OOPS"
+            return m.group(0)
+
+
 _outgoing_parser = OutgoingParser()
 _incoming_parser = IncomingParser()
+_smiley_parser = SmileyParser()
 
 def simplify_css(txt):
     _outgoing_parser.reset()
@@ -220,17 +288,9 @@ def process_input(txt, use_relsize=True, use_samesize=False):
 
 def insert_smileys(txt, improto, path_prefix, x=24, y=24):
     #process smileys
-    try:
-        regexp = smiley.proto_smiley_regex[improto]
-    except KeyError, e:
-        #correct this, and also insert ourselves into the smiley table...
-        improto = smiley.DEFAULT_SCHEME
-        regexp = smiley.proto_smiley_regex[improto]
-        
-    def repl_fn(m):
-        smiley_name = smiley.smiley_proto_expand_htmlescaped_only[(m.group(0), improto)]
-        return '<img src="%s/%s" height="%d" width="%d"/>' % (path_prefix, smiley_name, y, x)
-    return re.sub(regexp, repl_fn, txt)
+    _smiley_parser.reset()
+    _smiley_parser.feed(txt, improto=improto, path_prefix=path_prefix, x=x, y=y)
+    return _smiley_parser.getresult()
     
 if __name__ == "__main__":
     HTML="""

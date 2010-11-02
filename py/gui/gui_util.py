@@ -102,8 +102,8 @@ def proto_name_int(proto, type):
     return (proto_name, proto_int)
 
 def getIcon(name):
-    return QtGui.QIcon.fromTheme(name, QIcon(":/icons/icons/"+name.lower()))
-
+    #return QtGui.QIcon.fromTheme(name, QIcon(":/icons/icons/"+name.lower()))
+    return QIcon(":/icons/icons/"+name.lower())
 
 def getProtoIconAndName(proto_int):
     "->(name, icon)"
@@ -111,7 +111,7 @@ def getProtoIconAndName(proto_int):
     if name != "<UNKNOWN>":
         icon = getIcon(name)
     else:
-        icon = QIcon
+        icon = QIcon()
     return (name, icon)
     
     
@@ -414,18 +414,19 @@ class ConnectionWidget(QWidget):
         self.widgets = connection_properties.Ui_connection_widget()
         w = self.widgets
         w.setupUi(self)
-        
         self.container_height_exclusive = self.sizeHint().height() - self.widgets.proxy_params.sizeHint().height()
         self.combined_height = self.sizeHint().height()
-        self.pp_show_animation = QPropertyAnimation(self, "size", self)
-        self.pp_show_animation.setDuration(100)
-        self.pp_show_animation.setStartValue(QSize(self.width(), self.container_height_exclusive))
-        self.pp_show_animation.setEndValue(QSize(self.width(), self.combined_height))
         
-        self.pp_hide_animation = QPropertyAnimation(self, "size", self)
-        self.pp_hide_animation.setDuration(100)
-        self.pp_hide_animation.setStartValue(QSize(self.width(), self.combined_height))
-        self.pp_hide_animation.setEndValue(QSize(self.width(), self.container_height_exclusive))
+        if HAS_QPROPERTY_ANIMATION:
+            self.pp_show_animation = QPropertyAnimation(self, "size", self)
+            self.pp_show_animation.setDuration(100)
+            self.pp_show_animation.setStartValue(QSize(self.width(), self.container_height_exclusive))
+            self.pp_show_animation.setEndValue(QSize(self.width(), self.combined_height))
+            
+            self.pp_hide_animation = QPropertyAnimation(self, "size", self)
+            self.pp_hide_animation.setDuration(100)
+            self.pp_hide_animation.setStartValue(QSize(self.width(), self.combined_height))
+            self.pp_hide_animation.setEndValue(QSize(self.width(), self.container_height_exclusive))
         
         mkProtocolComboBox(w.w_improto)
         w.proxy_params.proxy_type_group = QButtonGroup(w.proxy_params)
@@ -436,23 +437,26 @@ class ConnectionWidget(QWidget):
             signal_connect(w.w_connect, SIGNAL("clicked()"), self.submit)
             signal_connect(w.w_username, SIGNAL("returnPressed()"), self.submit)
             signal_connect(w.w_password, SIGNAL("returnPressed()"), self.submit)
-                
-        @QtCore.pyqtSlot("bool", name="setVisible")
-        def proxy_setVisible(b):
-            if b:
-                self.pp_show_animation.start()
-                QTimer.singleShot(self.pp_show_animation.duration(),
-                                  lambda: type(w.proxy_params).setVisible(w.proxy_params, True))
-            else:
-                self.pp_hide_animation.start()
-                type(w.proxy_params).setVisible(w.proxy_params, False)
+        
+        
+        if HAS_QPROPERTY_ANIMATION:
+            @QtCore.pyqtSlot("bool", name="setVisible")
+            def proxy_setVisible(b):
+                if b:
+                    self.pp_show_animation.start()
+                    QTimer.singleShot(self.pp_show_animation.duration(),
+                                      lambda: type(w.proxy_params).setVisible(w.proxy_params, True))
+                else:
+                    self.pp_hide_animation.start()
+                    type(w.proxy_params).setVisible(w.proxy_params, False)
+            w.proxy_params.setVisible = proxy_setVisible
+
                 
         def _hideEvent(e):
             if self.parent() and self.parent().layout():
                 self.parent().layout().activate()
             type(w.proxy_params).hideEvent(w.proxy_params, e)
             
-        w.proxy_params.setVisible = proxy_setVisible
         w.proxy_params.hideEvent = _hideEvent
         w.proxy_params.setVisible(False)
         signal_connect(w.show_proxy_prefs, SIGNAL("toggled(bool)"), w.proxy_params.setVisible)

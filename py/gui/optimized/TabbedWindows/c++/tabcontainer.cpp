@@ -19,7 +19,6 @@ TabContainer::TabContainer(QWidget *parent) :
 	twutil->logCreation(this);
     setWindowFlags(Qt::Window);
     setAcceptDrops(true);
-//	setAttribute(Qt::WA_DeleteOnClose);
     realTabWidget = new RealTabWidget(this);
     connect(realTabWidget, SIGNAL(tabCloseRequested(int)), this,
             SLOT(rtwTabCloseRequested(int)));
@@ -45,6 +44,7 @@ void TabContainer::rtwSIG_TabRemoved(int)
 
 void TabContainer::dragEnterEvent(QDragEnterEvent *event)
 {
+	twlog_debug("");
     if (event->mimeData()->data("action") == QString("window_drag"))
         event->acceptProposedAction();
 }
@@ -81,7 +81,8 @@ void TabContainer::dropEvent(QDropEvent *event)
 void TabContainer::handleDnD(QWidget* source, QWidget* target)
 {
 	TabContainer *tc = qobject_cast<TabContainer*>(target);
-	if(!tc) {
+	if(!tc && realTabWidget->count() != 1) {
+		/*Not a valid target and this is not the only tab.. detach window*/
 		disconnect(this, SLOT(rtwSIG_TabRemoved(int)));
 		twlog_debug("did not get a valid target %p, detaching", source);
 		SubWindow *sw = qobject_cast<SubWindow*>(source);

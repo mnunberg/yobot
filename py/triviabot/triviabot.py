@@ -106,10 +106,12 @@ class TriviaGui(gui_new.TGui):
 
         #notification widgets:
         qdw = QFrame(self)
-        self.notification_shadow = QGraphicsDropShadowEffect(qdw)
-        self.notification_shadow.setBlurRadius(10.0)
+        if QT_VERSION >= 0x040600:
+            from PyQt4.QtGui import QGraphicsDropShadowEffect
+            self.notification_shadow = QGraphicsDropShadowEffect(qdw)
+            self.notification_shadow.setBlurRadius(10.0)
+            qdw.setGraphicsEffect(self.notification_shadow)
         qdw.setFrameShadow(qdw.Raised)
-        qdw.setGraphicsEffect(self.notification_shadow)
         qdw.setFrameShape(qdw.StyledPanel)
         qdw.setAutoFillBackground(True)
         qsw = QStackedWidget(qdw)

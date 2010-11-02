@@ -11,6 +11,7 @@
 *.sqlite
 
 tools/*
+*generated*
 yobot
 proto_test
 core

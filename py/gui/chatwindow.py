@@ -9,7 +9,7 @@ from PyQt4.QtGui import (QComboBox, QMainWindow,
                          QListWidget, QListWidgetItem, QWidget, QBrush,
                          QAction, QCursor,
                          QLineEdit, QColor, QTextCursor,
-                         QTextBlockFormat, QLinearGradient,
+                         QTextBlockFormat, QLinearGradient, QTextCharFormat
                          )
 
 from PyQt4.QtCore import (QPoint, QSize, Qt, QObject, SIGNAL,)
@@ -17,6 +17,7 @@ from PyQt4.QtCore import (QPoint, QSize, Qt, QObject, SIGNAL,)
 from tabwindows import ChatPane, TabContainer
 
 signal_connect = QObject.connect
+signal_disconnect = QObject.disconnect
 
 CHAT, IM = (1,2)
 
@@ -195,7 +196,8 @@ class AbstractChatWindow(ChatPane):
         
         #for updating the formatting buttons
         signal_connect(w.input, SIGNAL("currentCharFormatChanged(QTextCharFormat)"),
-                       self._currentCharFormatChanged)        
+                       self._currentCharFormatChanged)
+        
         
     def _choosecolor(self, set_color=None):
         w = self.widgets
@@ -208,7 +210,8 @@ class AbstractChatWindow(ChatPane):
             ret = cdlg.open()
         else:
             _onClicked(set_color)
-    def _currentCharFormatChanged(self,format):
+    def _currentCharFormatChanged(self,_format):
+        format = QTextCharFormat(_format)
         self.widgets.font.setCurrentFont(format.font())
         self.widgets.fontsize.setValue(int(format.fontPointSize()))
         self.widgets.bold.setChecked(format.fontWeight() >= 75)
@@ -253,6 +256,7 @@ class AbstractChatWindow(ChatPane):
         cursor = self.widgets.input.textCursor()
         if cursor.position() == 0:
             log_debug("doing nothing")
+            event.ignore()
         else:
             QTextEdit.mouseDoubleClickEvent(self.widgets.input, event)
 
@@ -370,8 +374,8 @@ class AbstractChatWindow(ChatPane):
         msg_str = (("""<a href='YOBOT_INTERNAL/%s' style='%s'>""" % (who, whostyle)) +
                    ("(%s) " % (msg_obj.timeFmt,) if w.actionTimestamps.isChecked() else "") +
                    ("%s</a>%s " % (msg_obj.who,colon_ish)))
-        
         formatted = process_input(msg_obj.txt, self.use_relsize)
+        log_debug("BEFORE", formatted)
         formatted = insert_smileys(formatted, self.account.improto, ":smileys/smileys", 24, 24)
         log_debug(formatted)
         msg_str += formatted

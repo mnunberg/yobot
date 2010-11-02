@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 #simple smileys icon builder..
-SMILEYS_INDEX="""
+SMILEYS_INDEX=(
+"""
 # Default smileys
 [default]
 happy.png           :)      :-)
@@ -492,87 +493,99 @@ cold.png            :-<     :<
 confused.png        :-,     :,
 hungry.png          :-C     :C
 stressed.png        :-s     :s
-"""
+""")
 
 import sys
 sys.path.append("../")
 import yobotproto
 import yobotops
 from re import escape as re_escape
+import re
 from cgi import escape as html_escape
 tbl = {}
 
 
+#ok, some major cleanup here...
+#some simple groupings...
+
+class SmileyRegistry(object):
+    def __init__(self):
+        #indexed by improto
+        self.regexp = {}
+        #indexed by (smiley_code, improto)
+        self.resourcetable = {}
+        self.allsmileys = {}
+    def addsmiley(self, improto, smiley):
+        self.allsmileys.setdefault(improto, set()).add(smiley)
+    def getsmileys(self, improto):
+        return self.allsmileys[improto]
+
 DEFAULT_SCHEME = -256
 UNUSED = -16
-#we'll use two dicts here..
-#lookup all smileys for the given protocol smileys_by_proto[proto] = set(smiley sequences)
-smileys_by_proto = {}
-#escaped version -- set of escaped smiley codes by protocol
-smileys_by_proto_escaped = {}
-#lookup the name of the smiley given the proto smiley_proto_expand[(smiley, proto)] = name.png
-smiley_proto_expand = {}
-#same, but escaped version:
-smiley_proto_expand_escaped = {}
-#this is another lookup, given a protocol, and given a name, find the possible sequences
-smileys_codeproto_imgs = {}
 
-#return a regex string, based on all the protocols
-proto_smiley_regex = {}
+htmlescaped = SmileyRegistry()
+plain = SmileyRegistry()
 
-#only index by html escapes
-smiley_proto_expand_htmlescaped_only = {}
-current_protocol = None
-for l in SMILEYS_INDEX.split("\n"):
-    l = l.strip()
-    if not l:
-        continue
-    if l.startswith("#"):
-        continue
-    if l.startswith("["):
-        proto_name = l.strip("[]").lower()
-        if proto_name == "xmpp":
-            current_protocol = yobotproto.YOBOT_JABBER
-        elif proto_name == "aim":
-            current_protocol = yobotproto.YOBOT_AIM
-        elif proto_name == "msn":
-            current_protocol = yobotproto.YOBOT_MSN
-        elif proto_name == "yahoo":
-            current_protocol = yobotproto.YOBOT_YAHOO
-        elif proto_name == "default":
-            current_protocol = DEFAULT_SCHEME
-        else:
-            current_protocol = UNUSED
-        smileys_by_proto[current_protocol] = set()
-        smileys_by_proto_escaped[current_protocol] = set()
-        continue
-    
-    if not current_protocol:
-        continue
-    items = l.split()
-    name, emotes = items[0], items[1:]
-    for emote in emotes:
-        smileys_by_proto[current_protocol].add(emote)
-        smiley_proto_expand[(emote, current_protocol)] = name
+def gensmileys():
+    current_protocol = None
+    for l in SMILEYS_INDEX.split("\n"):
+        l = l.strip()
+        if not l:
+            continue
+        if l.startswith("#"):
+            continue
+        if l.startswith("["):
+            proto_name = l.strip("[]").lower()
+            if proto_name == "xmpp":
+                current_protocol = yobotproto.YOBOT_JABBER
+            elif proto_name == "aim":
+                current_protocol = yobotproto.YOBOT_AIM
+            elif proto_name == "msn":
+                current_protocol = yobotproto.YOBOT_MSN
+            elif proto_name == "yahoo":
+                current_protocol = yobotproto.YOBOT_YAHOO
+            elif proto_name == "default":
+                current_protocol = DEFAULT_SCHEME
+            else:
+                current_protocol = UNUSED
+            continue
         
-        escaped = re_escape(html_escape(emote))
-        html_escaped_only = html_escape(emote)
-        smileys_by_proto_escaped[current_protocol].add(escaped)
-        smiley_proto_expand_escaped[(escaped, current_protocol)] = name
-        smiley_proto_expand_htmlescaped_only[(html_escaped_only, current_protocol)] = name
-    smileys_codeproto_imgs[(name, current_protocol)] = tuple(emotes)
-    
-for k, emotes in smileys_by_proto_escaped.items():
-    smileys_sorted = list(emotes)
-    smileys_sorted.sort(key=len, reverse=True)
-    proto_smiley_regex[k] = "(%s)" % ("|".join(smileys_sorted),)
-    
-    
+        if not current_protocol:
+            continue
+        items = l.split()
+        name, emotes = items[0], items[1:]
+        for emote in emotes:
+            htmled = html_escape(emote)
+            
+            htmlescaped.resourcetable[(htmled, current_protocol)] = name
+            htmlescaped.addsmiley(current_protocol, htmled)
+            
+            plain.resourcetable[(emote, current_protocol)] = name
+            plain.addsmiley(current_protocol, emote)
+            
+    for o in (plain, htmlescaped):
+        for k, v in o.allsmileys.items():
+            o.regexp[k] = re.compile("(%s)" % ("|".join([re.escape(s) for s in sorted(v,key=len, reverse=True)])))
+
+try:
+    import cPickle as pickle
+    plain, htmlescaped = pickle.load(open("/tmp/.yobot_smileys_cached.pickle", "r"))
+    print "imported from pickle"
+except Exception, e:
+    print e
+    gensmileys()
+    try:
+        pickle.dump((plain, htmlescaped), open("/tmp/.yobot_smileys_cached.pickle", "w"))
+    except Exception, e:
+        print e
+#gensmileys()
+
 if __name__ == "__main__":
-    for k, v in smiley_proto_expand.items():
+    sys.exit()
+    for k, v in plain.resourcetable.items():
         smiley, proto = k
         print "%-15s %-15s -> %s" % (smiley, yobotops.imprototostr(proto), v)
-    for k, v in smileys_by_proto.items():
+    for k, v in plain.allsmileys.items():
         print yobotops.imprototostr(k)
         items = "\t"
         counter = 0

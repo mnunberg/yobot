@@ -148,6 +148,7 @@ class TabBar(QTabBar):
         self.realtabwidget = realtabwidget
         self.drag_pos = QPoint()
         self.setAcceptDrops(False)
+        setTabBarStyle(self)
             
     @property
     def current_widget(self):
@@ -240,8 +241,8 @@ class TabContainer(QMainWindow):
     }"""
     
     def handleDnD(self, source, target):
-        if not isinstance(target, TabContainer):
-            #something that's not going to accept our drop
+        if not isinstance(target, TabContainer) and not self.tabwidget.count() == 1:
+            #something that's not going to accept our drop and this is not the only tab:
             if not isinstance(source, ChatPane):
                 raise ValueError("Source Widget is something other than a ChatPane object: %r", source)
             assert id(source) in self.tabwidget.tab_ids
@@ -364,7 +365,6 @@ class ChatPane(QMainWindow):
     def activateWindow(self):
         QMainWindow.activateWindow(self)
         self.raise_()
-        log_err("activateWindow")
         if self.tabcontainer:
             self.tabcontainer.activateWindow()
             self.tabcontainer.raise_()

@@ -55,7 +55,13 @@ PROTOCLIENT_LIB=$(LIBPREFIX)yobotprotoclient.$(LIBSUFFIX)
 MODULES+=yobot_ui yobot_uiops yobot_conversation yobot_blist yobot_log yobot_request yobotutil
 OBJS+=$(addprefix $(OBJDIR)/, $(addsuffix .o, $(MODULES)))
 INCLUDES+=-I$(shell pwd)
-CFLAGS+=-Wall -ggdb3 $(DEFINES) $(INCLUDES)
+CFLAGS=-Wall
+ifdef RELEASE
+	CFLAGS+=-Os
+else
+	CFLAGS+=-ggdb3
+endif
+CFLAGS+=$(DEFINES) $(INCLUDES)
 PYMODULE=py/_yobotproto.$(PYMODULE_SUFFIX)
 PYMODULE_SRC=py/yobotproto_wrap.c
 PYMODULE_PY=py/yobotproto.py
@@ -77,7 +83,7 @@ $(PROTOCLIENT_LIB): protoclient.c yobot_log.c $(TPL)
 #SWIG stuff
 SWIG_IFACE_GENERATED=$(OBJDIR)/swig_generated.i
 $(SWIG_IFACE_GENERATED): yobotproto.i
-	./genhdrs.pl -v -i $^ -o $@
+	perl genhdrs.pl -v -i $^ -o $@
 $(PYMODULE_SRC): $(SWIG_IFACE_GENERATED)
 	swig -python -O -o $@ $^
 

@@ -384,6 +384,7 @@ class LogBrowser(QMainWindow):
         #apply formatting
         msg_str = "(%s) " % (msg_obj.timeFmt,)
         msg_str += "<font color='mediumblue'><b>%s</b></font>: " % (name,)
+        from html_fmt import process_input, insert_smileys
         formatted = process_input(msg_obj.txt)
         formatted = insert_smileys(formatted, acct_obj.improto, ":smileys/smileys", 24, 24)
         formatted = msg_str + formatted + "<br>" #for some reason line breaks are missing
@@ -454,11 +455,13 @@ class YobotGui(object):
         self.mw_widgets.statusbar.showMessage("connecting " + user)
                 
     def _showAbout(self):
-        msg = QMessageBox()
+        msg = QMessageBox(self.mw)
+        msg.setWindowFlags(Qt.Dialog)
         msg.setIconPixmap(QPixmap(":/yobot_icons/icons/custom/yobot_48_h"))
         msg.setText(ABOUT_MESSAGE)
         msg.setWindowTitle("Yobot")
         msg.exec_()
+        msg.deleteLater()
         
     def _buddyClick(self, index):
         obj = index.internalPointer()

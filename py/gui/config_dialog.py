@@ -132,8 +132,8 @@ class ConfigDialog(QDialog):
         w.setupUi(self._tabdialog)
         self.widgets = w
         
-        self._buttonbox = QDialogButtonBox(QDialogButtonBox.Save|QDialogButtonBox.Cancel,
-                                           parent=self)
+        self._buttonbox = QDialogButtonBox(QDialogButtonBox.Save|QDialogButtonBox.Cancel)
+        self._buttonbox.setParent(self)
         signal_connect(self._buttonbox, SIGNAL("accepted()"), self.accept)
         signal_connect(self._buttonbox, SIGNAL("rejected()"), self.reject)
         self._layout.addWidget(self._buttonbox)
@@ -200,7 +200,8 @@ class ConfigDialog(QDialog):
         self.change_agent()
         #for accounts:
         for a in self.config.accounts:
-            if a.get("name", None) and a.get("password", None) and a.get("improto", None):
+            log_warn("got account", a)
+            if a.get("name", None) and a.get("improto", None):
                 #get name and icon
                 name, icon = getProtoIconAndName(getattr(yobotproto, a["improto"], ""))
                 log_debug(icon, name)

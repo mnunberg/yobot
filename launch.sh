@@ -1,5 +1,6 @@
 #!/bin/sh
 LD_LIBRARY_PATH=$PWD
+export LD_LIBRARY_PATH
 #urxvt -hold -title "purple" -e ./yobot 1 & yobot_pid=$!
 #sleep 0.5
 #urxvt -hold -title "GDB:Purple" -e gdb yobot $(pgrep yobot) & gdb_pid=$!
